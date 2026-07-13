@@ -15,11 +15,11 @@
 
 ## Fase 2 - Router, perfiles y delegación
 
-- [ ] Crear `ROUTER.md` con precedencia y tabla de decisión.
-- [ ] Crear `profiles/README.md` con seis perfiles y gates.
-- [ ] Crear `agents/README.md` con escalera de delegación y protocolo de equipos.
-- [ ] Validar seis escenarios de enrutamiento manualmente.
-- [ ] Commit: `docs: define workflow routing and delegation`
+- [x] Crear `ROUTER.md` con precedencia y tabla de decisión.
+- [x] Crear `profiles/README.md` con seis perfiles y gates.
+- [x] Crear `agents/README.md` con escalera de delegación y protocolo de equipos.
+- [x] Validar seis escenarios de enrutamiento manualmente.
+- [x] Commit: `docs: define workflow routing and delegation`
 
 ## Fase 3 - Políticas operativas
 

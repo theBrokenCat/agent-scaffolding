@@ -9,11 +9,14 @@ complejo.
 
 - `README.md`: guía de alcance, instalación y evolución manual.
 - `AGENTS.md`: fuente canónica de las reglas compartidas.
+- `ROUTER.md`: clasificación determinista por mutación, riesgo y delegación.
+- `profiles/README.md`: contratos base y overlays operativos.
+- `agents/README.md`: límites y protocolo de delegación.
 - `CLAUDE.md`: adaptador con capacidades exclusivas de Claude Code.
 - `GEMINI.md`: adaptador con capacidades exclusivas de Gemini CLI.
 
-Estos archivos forman el contrato compartido de Fase 1. El repositorio todavía
-no ofrece router, perfiles, políticas, plantillas ni automatización operativa.
+Estos archivos forman el contrato compartido disponible. El repositorio todavía
+no ofrece políticas, plantillas ni automatización operativa.
 La v0.1 no se considera lista hasta cerrar y verificar todas las fases del plan.
 
 ## Arquitectura objetivo
@@ -25,9 +28,9 @@ La v0.1 no se considera lista hasta cerrar y verificar todas las fases del plan.
 - `templates/`: contratos para iniciar o ampliar proyectos.
 - `.github/`: reglas y plantilla de pull request.
 
-Esta estructura describe el destino previsto, no capacidades disponibles hoy.
-Los adaptadores importan `AGENTS.md`; no copian sus reglas. Los perfiles y
-directorios posteriores amplían el contrato solo cuando la tarea los necesita.
+Router, perfiles y delegación ya están disponibles; el resto describe el destino
+previsto. Los adaptadores importan `AGENTS.md`; no copian sus reglas. Los perfiles
+amplían el contrato solo cuando la tarea los necesita.
 
 ## Instalación manual
 
@@ -38,12 +41,13 @@ directorios posteriores amplían el contrato solo cuando la tarea los necesita.
 3. Elige y registra una línea exacta: `Git publication mode: local-only` o
    `Git publication mode: autonomous-pr`. Se recomienda `autonomous-pr` para este
    flujo personal; si no registras ningún modo, se aplica `local-only`.
-4. Copia `AGENTS.md` al directorio raíz del proyecto de destino.
-5. Copia `CLAUDE.md`, `GEMINI.md` o ambos según las herramientas utilizadas.
-6. Conserva `@AGENTS.md` como primera línea operativa de cada adaptador.
-7. Mantén las reglas propias del proyecto en su documentación local; no las
+4. Copia `AGENTS.md` y `ROUTER.md` al directorio raíz del proyecto de destino.
+5. Copia completos los directorios `profiles/` y `agents/`.
+6. Copia `CLAUDE.md`, `GEMINI.md` o ambos según las herramientas utilizadas.
+7. Conserva `@AGENTS.md` como primera línea operativa de cada adaptador.
+8. Mantén las reglas propias del proyecto en su documentación local; no las
    sustituyas ni las dupliques en los adaptadores.
-8. Revisa el diff y confirma que las herramientas cargan el contexto antes de
+9. Revisa el diff y confirma que las herramientas cargan el contexto antes de
    empezar trabajo real.
 
 Para actualizar una instalación, compara la versión registrada con el nuevo tag

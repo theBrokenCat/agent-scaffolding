@@ -34,17 +34,19 @@ primera pasada no permita tomar una decisión fundada.
 
 ## 3. Router
 
-Usa el router normal solo cuando existan `ROUTER.md` y `profiles/README.md`.
-Mientras falte cualquiera de los dos, aplica únicamente las reglas comunes,
-trabaja con un solo agente y no actives perfiles.
+`ROUTER.md`, `profiles/README.md` y `agents/README.md` son parte normal del
+contrato instalado. Úsalos para clasificar la tarea y limitar su ejecución. Si
+falta alguno, informa que la instalación está incompleta y mantén un solo agente
+sin ampliar autoridad hasta restaurarlo.
 
-Cuando ambos existan, selecciona la forma de trabajo con esta precedencia:
+Selecciona la forma de trabajo con esta precedencia:
 
 1. Instrucción explícita del usuario.
 2. Restricciones del proyecto activo.
-3. Perfil exigido por el tipo de tarea o su riesgo.
-4. Perfil `software` para cambios normales de código.
-5. Perfil `solo` para el resto.
+3. Perfil base según mutación: `audit` para read-only, `software` para cambios de
+   código o configuración y `solo` para el resto.
+4. Overlays de riesgo `security` y `production`.
+5. Overlay `orchestrated` cuando el mecanismo de agentes lo exija.
 
 Los perfiles son contratos operativos, no personajes. Activa el perfil mínimo
 que cubra el riesgo. No crees archivos, roles ni procesos opcionales por
@@ -103,19 +105,15 @@ de implementación importantes y registra cuando una fuente pueda estar obsoleta
 
 ## 7. Delegación
 
-Esta sección solo se aplica cuando existen `ROUTER.md` y `profiles/README.md` y
-el router activa un perfil que permite delegar. Durante el fallback temporal,
-mantén un único agente.
+Empieza con un agente. Sin `orchestrated`, el perfil base permite como máximo un
+subagente read-only acotado. Activa `orchestrated` para cualquier worker escritor,
+más de un subagente, ejecución paralela o equipo coordinado. Delega solo
+investigación acotada o trabajo realmente independiente.
 
-Empieza con un agente. Delega solo investigación acotada o trabajo realmente
-independiente. Usa ejecución paralela cuando las tareas no compartan archivos ni
-dependencias; usa un equipo solo cuando los trabajadores deban comunicarse.
-
-Antes de delegar, declara objetivo, dependencias, archivos en propiedad, rama o
-worktree, entregable, verificaciones y condición de cierre. El agente principal
-conserva los contratos compartidos, integra resultados y verifica por sí mismo.
-Empieza los equipos con un máximo de tres trabajadores. No permitas delegación
-anidada ni más trabajadores de los necesarios, y cierra todos al terminar.
+Antes de delegar, aplica el contrato, los presupuestos y las reglas de propiedad
+de `agents/README.md`. El agente principal conserva los contratos compartidos,
+integra resultados y verifica por sí mismo. No permitas delegación anidada y
+cierra todos los workers al terminar.
 
 ## 8. Verificación
 

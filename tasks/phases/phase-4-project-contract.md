@@ -7,9 +7,10 @@
 
 ## Step 1: Definir el proyecto mínimo
 
-El contrato base generará únicamente `README.md`, `AGENTS.md`, `CLAUDE.md`,
-`GEMINI.md`, `.gitignore` y plantilla de PR. Describir condiciones exactas para
-crear tareas, lecciones, ADRs, incidentes y runbooks.
+El contrato base generará únicamente `README.md`, `AGENTS.md`, `ROUTER.md`,
+`profiles/README.md`, `agents/README.md`, `CLAUDE.md`, `GEMINI.md`, `.gitignore`
+y plantilla de PR. Describir condiciones exactas para crear tareas, lecciones,
+ADRs, incidentes y runbooks.
 
 ## Step 2: Definir GitHub
 
