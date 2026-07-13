@@ -1,0 +1,257 @@
+#!/bin/sh
+
+set -eu
+
+script_dir=$(CDPATH= cd -- "$(dirname "$0")" && pwd -P)
+. "$script_dir/lib/paths.sh"
+. "$script_dir/lib/manifest.sh"
+
+usage() {
+  printf '%s\n' 'usage: scaffolding <install|status|doctor|uninstall> [--apply] [--migrate-existing] [--home PATH]' >&2
+}
+
+stop() {
+  printf '%s\n' "STOP $*" >&2
+  exit 1
+}
+
+command=${1-}
+[ -n "$command" ] || { usage; exit 1; }
+shift
+
+apply=false
+migrate=false
+SCAFFOLDING_HOME_INPUT=${HOME-}
+while [ "$#" -gt 0 ]; do
+  case $1 in
+    --apply) apply=true ;;
+    --migrate-existing) migrate=true ;;
+    --home)
+      shift
+      [ "$#" -gt 0 ] || { usage; exit 1; }
+      SCAFFOLDING_HOME_INPUT=$1
+      ;;
+    *) usage; exit 1 ;;
+  esac
+  shift
+done
+
+case $command in
+  install) ;;
+  status|doctor|uninstall)
+    [ "$migrate" = false ] || stop '--migrate-existing is valid only for install'
+    ;;
+  *) usage; exit 1 ;;
+esac
+
+scaffolding_init_paths || exit 1
+
+required_commands_are_available() {
+  for required in git grep sed awk cksum readlink ln mv cp rm mkdir chmod date; do
+    command -v "$required" >/dev/null 2>&1 || {
+      printf '%s\n' "STOP missing command $required" >&2
+      return 1
+    }
+  done
+}
+
+sources_are_valid() {
+  scaffolding_targets | while IFS='|' read -r name destination source; do
+    [ -f "$source" ] && [ -r "$source" ] || {
+      printf '%s\n' "STOP missing source $source" >&2
+      exit 1
+    }
+  done
+  [ "$(sed -n '1p' "$SCAFFOLDING_ROOT/CLAUDE.md")" = '@AGENTS.md' ] || return 1
+  [ "$(sed -n '1p' "$SCAFFOLDING_ROOT/GEMINI.md")" = '@AGENTS.md' ] || return 1
+}
+
+all_destinations_absent() {
+  scaffolding_target_parents_are_safe || return 1
+  scaffolding_targets | while IFS='|' read -r name destination source; do
+    [ ! -e "$destination" ] && [ ! -L "$destination" ] || exit 1
+  done
+}
+
+all_destinations_supported() {
+  scaffolding_target_parents_are_safe || return 1
+  scaffolding_targets | while IFS='|' read -r name destination source; do
+    scaffolding_previous_type "$destination" >/dev/null || exit 1
+  done
+}
+
+all_destinations_managed() {
+  scaffolding_target_parents_are_safe || return 1
+  scaffolding_targets | while IFS='|' read -r name destination source; do
+    [ -L "$destination" ] && [ -e "$destination" ] || exit 1
+    [ "$(readlink "$destination")" = "$source" ] || exit 1
+  done
+}
+
+preflight_install() {
+  required_commands_are_available || return 1
+  sources_are_valid || return 1
+  scaffolding_state_path_is_safe || return 1
+  if scaffolding_manifest_exists; then
+    scaffolding_manifest_is_valid || return 1
+    all_destinations_managed || return 1
+    return 0
+  fi
+  if [ "$migrate" = true ]; then
+    all_destinations_supported || return 1
+  else
+    all_destinations_absent || {
+      printf '%s\n' 'STOP existing destination; re-run with --migrate-existing after reviewing the plan' >&2
+      return 1
+    }
+  fi
+}
+
+restore_from_transaction() {
+  transaction=$1
+  [ -f "$transaction/manifest" ] || return 0
+  scaffolding_targets | while IFS='|' read -r name destination source; do
+    line=$(grep -F "entry|$name|$destination|" "$transaction/manifest" || :)
+    [ -n "$line" ] || continue
+    old_ifs=$IFS; IFS='|'; set -- $line; IFS=$old_ifs
+    previous_type=$4; previous_ref=$5
+    [ ! -e "$destination" ] && [ ! -L "$destination" ] || rm "$destination"
+    case $previous_type in
+      absent) ;;
+      file) cp -p "$transaction/$previous_ref" "$destination" ;;
+      symlink) ln -s "$(cat "$transaction/$previous_ref")" "$destination" ;;
+    esac
+  done
+}
+
+apply_install() {
+  umask 077
+  mkdir -p "$SCAFFOLDING_STATE_DIR"
+  chmod 700 "$SCAFFOLDING_STATE_DIR"
+  transaction=$SCAFFOLDING_STATE_DIR/.transaction.$$
+  mkdir "$transaction"
+  scaffolding_stage_previous "$transaction" || {
+    rm -rf "$transaction"
+    stop 'could not stage previous state'
+  }
+
+  installed=0
+  failed=false
+  scaffolding_targets > "$transaction/targets"
+  while IFS='|' read -r name destination source; do
+    destination_dir=$(dirname "$destination")
+    mkdir -p "$destination_dir"
+    current_type=$(scaffolding_previous_type "$destination") || { failed=true; break; }
+    staged_line=$(grep -F "entry|$name|$destination|" "$transaction/manifest")
+    old_ifs=$IFS; IFS='|'; set -- $staged_line; IFS=$old_ifs
+    [ "$current_type" = "$4" ] || { failed=true; break; }
+    case $current_type in
+      file) [ "$(cksum < "$destination")" = "$(cksum < "$transaction/$5")" ] || { failed=true; break; } ;;
+      symlink) [ "$(readlink "$destination")" = "$(cat "$transaction/$5")" ] || { failed=true; break; } ;;
+    esac
+    [ "$current_type" = absent ] || rm "$destination"
+    if ! ln -s "$source" "$destination"; then failed=true; break; fi
+    installed=$((installed + 1))
+    if [ "${SCAFFOLDING_FAIL_AFTER-}" = "$installed" ]; then failed=true; break; fi
+  done < "$transaction/targets"
+
+  if [ "$failed" = true ]; then
+    restore_from_transaction "$transaction"
+    rm -rf "$transaction"
+    stop 'install failed and previous state was restored'
+  fi
+
+  mv "$transaction/backups" "$SCAFFOLDING_BACKUP_DIR"
+  mv "$transaction/manifest" "$SCAFFOLDING_MANIFEST"
+  rm "$transaction/targets"
+  rmdir "$transaction"
+  printf '%s\n' 'APPLY install complete'
+}
+
+install() {
+  preflight_install || stop 'install preflight failed'
+  if scaffolding_manifest_exists; then
+    printf '%s\n' 'NOOP install already managed'
+    return 0
+  fi
+  if [ "$apply" = false ]; then
+    scaffolding_targets | while IFS='|' read -r name destination source; do
+      previous_type=$(scaffolding_previous_type "$destination")
+      printf '%s\n' "PLAN install $destination -> $source (previous: $previous_type)"
+    done
+    return 0
+  fi
+  apply_install
+}
+
+status() {
+  required_commands_are_available || stop 'status dependency validation failed'
+  sources_are_valid || stop 'status source validation failed'
+  if ! scaffolding_manifest_exists; then
+    printf '%s\n' 'STATUS uninstalled'
+    return 1
+  fi
+  scaffolding_manifest_is_valid || stop "invalid manifest $SCAFFOLDING_MANIFEST"
+  all_destinations_managed || { printf '%s\n' 'STATUS managed destination changed'; return 1; }
+  manifest_sha=$(sed -n 's/^source_sha=//p' "$SCAFFOLDING_MANIFEST")
+  current_sha=$(scaffolding_source_sha)
+  if [ "$manifest_sha" = "$current_sha" ]; then
+    printf '%s\n' 'STATUS managed current'
+  else
+    printf '%s\n' 'STATUS managed source-sha-changed'
+  fi
+}
+
+doctor() {
+  required_commands_are_available || stop 'doctor dependency validation failed'
+  sources_are_valid || stop 'doctor source/import validation failed'
+  scaffolding_state_path_is_safe || stop 'unsafe state path'
+  if ! scaffolding_manifest_exists; then
+    all_destinations_absent && { printf '%s\n' 'DOCTOR ok uninstalled'; return 0; }
+    stop 'unmanaged destination exists'
+  fi
+  scaffolding_manifest_is_valid || stop "invalid manifest $SCAFFOLDING_MANIFEST"
+  all_destinations_managed || stop 'broken or changed managed destination'
+  [ -r "$SCAFFOLDING_MANIFEST" ] && [ -x "$SCAFFOLDING_STATE_DIR" ] || stop 'state permissions are unusable'
+  printf '%s\n' 'DOCTOR ok'
+}
+
+restore_from_manifest() {
+  scaffolding_targets | while IFS='|' read -r name destination source; do
+    line=$(scaffolding_manifest_entry "$name")
+    old_ifs=$IFS; IFS='|'; set -- $line; IFS=$old_ifs
+    previous_type=$4; previous_ref=$5
+    rm "$destination"
+    case $previous_type in
+      absent) ;;
+      file) cp -p "$SCAFFOLDING_STATE_DIR/$previous_ref" "$destination" ;;
+      symlink) ln -s "$(cat "$SCAFFOLDING_STATE_DIR/$previous_ref")" "$destination" ;;
+    esac
+  done
+}
+
+uninstall() {
+  scaffolding_manifest_exists || stop 'no manifest; refusing to remove unmanaged destinations'
+  scaffolding_manifest_is_valid || stop "invalid manifest $SCAFFOLDING_MANIFEST"
+  all_destinations_managed || stop 'managed destination changed; refusing to remove it'
+  if [ "$apply" = false ]; then
+    scaffolding_targets | while IFS='|' read -r name destination source; do
+      line=$(scaffolding_manifest_entry "$name")
+      old_ifs=$IFS; IFS='|'; set -- $line; IFS=$old_ifs
+      printf '%s\n' "PLAN uninstall $destination -> $4"
+    done
+    return 0
+  fi
+  restore_from_manifest
+  rm -rf "$SCAFFOLDING_BACKUP_DIR"
+  rm "$SCAFFOLDING_MANIFEST"
+  rmdir "$SCAFFOLDING_STATE_DIR" 2>/dev/null || :
+  printf '%s\n' 'APPLY uninstall complete'
+}
+
+case $command in
+  install) install ;;
+  status) status ;;
+  doctor) doctor ;;
+  uninstall) uninstall ;;
+esac
