@@ -7,11 +7,11 @@
 
 ## Fase 1 - Contrato común y adaptadores
 
-- [ ] Crear `README.md` y explicar instalación, alcance y mantenimiento.
-- [ ] Crear `AGENTS.md` como fuente canónica.
-- [ ] Crear adaptadores mínimos `CLAUDE.md` y `GEMINI.md`.
-- [ ] Verificar que no existan reglas comunes duplicadas.
-- [ ] Commit: `docs: add shared agent contract`
+- [x] Crear `README.md` y explicar instalación, alcance y mantenimiento.
+- [x] Crear `AGENTS.md` como fuente canónica.
+- [x] Crear adaptadores mínimos `CLAUDE.md` y `GEMINI.md`.
+- [x] Verificar que no existan reglas comunes duplicadas.
+- [x] Commit: `docs: add shared agent contract`
 
 ## Fase 2 - Router, perfiles y delegación
 
