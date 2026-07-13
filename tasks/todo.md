@@ -10,49 +10,50 @@ plan sustituye su supuesto de instalacion por proyecto.
 
 ## Fase 0 - Seguridad y baseline
 
-- [ ] Rotar las credenciales de Outline expuestas durante el inventario anterior.
-- [ ] Inventariar instrucciones, skills, agentes y settings sin imprimir secretos.
-- [ ] Guardar checksums, destinos y backups fuera del repositorio.
-- [ ] Verificar estado de rama, PR y worktree.
-- [ ] Commit: `chore: record migration baseline`
+- [ ] Rotar las credenciales de Outline expuestas durante el inventario anterior. Diferido explicitamente por el usuario.
+- [x] Inventariar instrucciones, skills, agentes y settings sin imprimir secretos.
+- [ ] Guardar backups fuera del repositorio durante la instalacion; checksums y destinos ya registrados.
+- [x] Verificar estado de rama, PR y worktree.
+- [x] Registrar baseline redactado; se incluye en el commit global de implementacion.
 
 ## Fase 1 - Contrato global y adaptadores
 
-- [ ] Reescribir el contrato para carga global y reglas locales opcionales.
-- [ ] Corregir los adaptadores de Claude y Gemini sin asignarles roles fijos.
-- [ ] Reducir `templates/` a contratos opcionales de proyecto nuevo.
-- [ ] Eliminar toda exigencia de instalar archivos en cada repositorio.
-- [ ] Commit: `docs: define global agent contract`
+- [x] Reescribir el contrato para carga global y reglas locales opcionales.
+- [x] Corregir los adaptadores de Claude y Gemini sin asignarles roles fijos.
+- [x] Reducir `templates/` a contratos opcionales de proyecto nuevo.
+- [x] Eliminar toda exigencia de instalar archivos en cada repositorio.
+- [x] Incluir en el commit global de implementacion.
 
 ## Fase 2 - Router app-first y contexto
 
-- [ ] Añadir preflight de recomendacion y confirmacion selectiva.
-- [ ] Definir `app-direct`, delegacion, paralelo, relevo CLI e hibrido.
-- [ ] Definir aliases `economy`, `balanced`, `frontier` y retornos compactos.
-- [ ] Definir roles genericos, briefs de dominio y reglas de equipos/worktrees.
-- [ ] Commit: `docs: define app first orchestration`
+- [x] Añadir preflight de recomendacion y confirmacion selectiva.
+- [x] Definir `app-direct`, delegacion, paralelo, relevo CLI e hibrido.
+- [x] Definir aliases `economy`, `balanced`, `frontier` y retornos compactos.
+- [x] Definir roles genericos, briefs de dominio y reglas de equipos/worktrees.
+- [x] Incluir en el commit global de implementacion.
 
 ## Fase 3 - Instalador global reversible
 
-- [ ] Implementar `install`, `status`, `doctor` y `uninstall` con dry-run.
-- [ ] Enlazar instrucciones globales y elementos gestionados de forma individual.
-- [ ] Crear manifiesto, backup, operaciones atomicas e idempotencia.
-- [ ] Cubrir instalacion, conflicto, repeticion y rollback con tests.
-- [ ] Commit: `feat: add global scaffolding installer`
+- [x] Implementar `install`, `status`, `doctor` y `uninstall` con dry-run.
+- [x] Enlazar instrucciones globales y elementos gestionados de forma individual.
+- [x] Crear manifiesto, backup, rollback e idempotencia.
+- [x] Cubrir instalacion, migracion, repeticion, drift y rollback con tests.
+- [x] Incluir en el commit global de implementacion.
 
 ## Fase 4 - Skills, agentes y settings seguros
 
-- [ ] Crear registro curado de skills internas y externas.
-- [ ] Validar frontmatter, triggers, herramientas y duplicados.
-- [ ] Crear roles nativos solo donde el host los soporte.
-- [ ] Versionar schemas/overlays allowlisted, nunca settings completos o secretos.
-- [ ] Commit: `feat: add capability registry`
+- [x] Crear registro curado de skills internas y externas.
+- [x] Validar ownership, frontmatter, triggers, paths y duplicados.
+- [x] Crear briefs de roles genericos portables entre hosts.
+- [x] Versionar schemas/overlays allowlisted, nunca settings completos o secretos.
+- [x] Incluir en el commit global de implementacion.
 
 ## Fase 5 - Validacion cruzada y GitHub
 
 - [ ] Probar los tres hosts desde directorio vacio, repo y subdirectorio.
 - [ ] Probar precedencia local, preflight, degradaciones y limites de contexto.
-- [ ] Ejecutar tests, doctor, auditoria de secretos y diff review.
+- [x] Ejecutar tests en HOME temporal y dry-run contra el HOME real.
+- [ ] Ejecutar doctor real, auditoria final de secretos y diff review.
 - [ ] Actualizar y revisar la draft PR sin hacer merge.
 - [ ] Commit: `test: validate global activation`
 
@@ -68,4 +69,7 @@ plan sustituye su supuesto de instalacion por proyecto.
 
 ## Review
 
-<!-- Se completa durante la ejecucion con evidencia real, bloqueos y riesgo residual. -->
+Implementacion local completada con workers Sol, Terra y Luna; las correcciones
+finales se integraron localmente tras agotarse su cuota. La rotacion de Outline
+queda diferida por decision explicita del usuario. Activacion real, validacion
+cross-host, piloto, merge y tag siguen siendo gates separados.

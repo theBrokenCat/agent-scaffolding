@@ -1,92 +1,81 @@
 # Agent Scaffolding
 
-Scaffolding personal mínimo para que Codex, Claude Code y Gemini CLI trabajen
-con un contrato común, ligero y verificable. Su objetivo es reducir diferencias
-entre herramientas sin convertir el repositorio en un sistema de orquestación
-complejo.
+Contrato global, pequeno y verificable para trabajar con Codex, Claude y Gemini
+desde apps o CLI. La fuente canónica vive en `~/agent-scaffolding`; no se instala
+una copia en cada proyecto.
 
-## Estado actual
+## Activacion global
 
-`v0.1` es una candidata de validación, no un tag `v0.1.0`: el piloto aún no
-se ha ejecutado y no hay autorización para hacer merge. La evidencia de cierre
-de Fase 5, incluidos resultados, bloqueos, riesgo residual y siguiente gate,
-está en [`tasks/todo.md`](tasks/todo.md).
+Los destinos gestionados de v0.1 son:
 
-- `README.md`: guía de alcance, instalación y evolución manual.
-- `AGENTS.md`: fuente canónica de las reglas compartidas.
-- `ROUTER.md`: clasificación determinista por mutación, riesgo y delegación.
-- `profiles/README.md`: contratos base y overlays operativos.
-- `agents/README.md`: límites y protocolo de delegación.
-- `policies/README.md`: índice único de políticas operativas.
-- `CLAUDE.md`: adaptador con capacidades exclusivas de Claude Code.
-- `GEMINI.md`: adaptador con capacidades exclusivas de Gemini CLI.
-- `templates/README.md`: contrato canónico de instalación de proyectos.
-- `.github/README.md`: contrato de configuración y operación en GitHub.
-- `.github/pull_request_template.md`: plantilla de evidencia para pull requests.
+```text
+~/.codex/AGENTS.md   -> ~/agent-scaffolding/AGENTS.md
+~/.claude/CLAUDE.md -> ~/agent-scaffolding/CLAUDE.md
+~/.gemini/GEMINI.md -> ~/agent-scaffolding/GEMINI.md
+```
 
-Estos archivos forman el contrato compartido disponible. El repositorio no
-ofrece automatización operativa.
-La carga selectiva del router es obligatoria. El host no debe considerarse
-ajustado al presupuesto si carga plugins o skills globales; la v0.1 no se
-considera lista hasta ejecutar el piloto y recibir autorización explícita.
+El enlace no basta como prueba. Cada host debe demostrar en runtime que carga el
+contrato comun. Instala siempre desde el checkout canonico de `main`, nunca desde
+un worktree temporal:
 
-## Arquitectura objetivo
+```sh
+scripts/scaffolding install
+scripts/scaffolding install --apply
+scripts/scaffolding status
+scripts/scaffolding doctor
+scripts/scaffolding uninstall
+scripts/scaffolding uninstall --apply
+```
 
-- `ROUTER.md`: selección de perfiles por tipo de tarea y riesgo.
-- `profiles/`: contratos operativos activados bajo demanda.
-- `agents/`: criterios y protocolos de delegación.
-- `policies/`: límites de autoridad y políticas operativas.
-- `templates/`: contratos para iniciar o ampliar proyectos.
-- `.github/`: reglas y plantilla de pull request.
+Todos los comandos son dry-run salvo `--apply`. Si existe cualquiera de los
+tres destinos, el instalador aplica STOP. Revisa primero el plan y usa
+`install --migrate-existing --apply` solo cuando quieras guardar y sustituir
+explicitamente esos destinos. El manifiesto y los backups quedan fuera del repo
+en `~/.local/state/agent-scaffolding/`; `uninstall --apply` restaura archivos,
+symlinks —incluidos los rotos— y ausencias anteriores.
 
-Router, perfiles, delegación, políticas, contrato de instalación y contrato de
-GitHub ya están disponibles. Los adaptadores importan `AGENTS.md`; no copian sus
-reglas. Los perfiles amplían el contrato solo cuando la tarea los necesita.
+Un proyecto puede no tener instrucciones de agentes. Cuando aporten valor, sus
+archivos locales contienen solo hechos, comandos y restricciones propias del
+proyecto; complementan el contrato global y no amplian permisos superiores. El
+contrato opcional para proyectos nuevos esta en
+[`templates/README.md`](templates/README.md).
 
-## Instalación manual
+## Contratos
 
-La lista canónica, la configuración obligatoria, las extensiones bajo demanda y
-el rollback viven únicamente en [`templates/README.md`](templates/README.md).
-Sigue ese contrato completo; este README no mantiene una segunda lista parcial.
+- [`AGENTS.md`](AGENTS.md): autoridad comun, preflight, contexto, Git,
+  delegacion, verificacion y STOP.
+- [`ROUTER.md`](ROUTER.md): seleccion app-first del mecanismo y coste.
+- [`profiles/README.md`](profiles/README.md): esfuerzo `fast|standard|deep`,
+  aliases `economy|balanced|frontier` y gates de riesgo.
+- [`agents/README.md`](agents/README.md): roles genericos, briefs, equipos y
+  retorno compacto.
+- [`policies/README.md`](policies/README.md): limites operativos de Git, contexto,
+  seguridad, produccion y loops.
+- [`CLAUDE.md`](CLAUDE.md) y [`GEMINI.md`](GEMINI.md): diferencias reales de
+  cada host, sin asignarles un rol fijo.
+- [`templates/README.md`](templates/README.md): estructura local opcional y bajo
+  demanda.
 
-Instala desde un SHA base limpio en una rama o worktree dedicada. Cuando un
-archivo ya exista, especialmente `README.md`, `.gitignore` o instrucciones de
-agentes, compara su contenido y fusiona las reglas aplicables. Nunca reemplaces
-archivos existentes a ciegas. Revisa el diff y confirma que las herramientas
-cargan el contexto antes de empezar trabajo real.
+## Modelo de trabajo
 
-Para actualizar una instalación, compara la versión registrada con el nuevo tag
-o commit, incorpora manualmente solo los cambios comunes aplicables y conserva
-las reglas locales. Registra después la nueva referencia de origen. No reemplaces
-archivos completos sin revisar el diff.
+`app-direct` es el default. Para trabajo sustancial, la app recomienda si debe
+ejecutar directamente, delegar, paralelizar, relevar a CLI o combinar ambos. La
+confirmacion se pide solo cuando esa eleccion cambia coste, autoridad, superficie
+de escritura o destino de ejecucion.
 
-El repositorio es siempre la fuente canónica para estado, implementación, ADRs y
-runbooks específicos. Outline conserva conocimiento transversal o histórico y
-enlaza esos documentos versionados en lugar de duplicarlos.
+La app conserva decisiones, contratos compartidos, integracion y verificacion.
+Los workers reciben contexto acotado, usan roles genericos y devuelven un
+envelope compacto. Los writers trabajan sobre paths disjuntos y en worktrees
+separados; no existe delegacion anidada.
 
-Ejecuta durante la instalación solo verificaciones locales, seguras y
-autorizadas. Registrar comandos de setup, red, bases de datos o producción no
-autoriza ejecutarlos; documenta cualquier omisión con su razón y riesgo residual.
+## Estado de v0.1
 
-Para operar en GitHub, sigue [`.github/README.md`](.github/README.md). Considera
-protección técnica solo un ruleset cuyo soporte y estado activo se hayan
-comprobado; en cualquier otro caso, describe las medidas como controles
-procedimentales.
+El contrato global, instalador reversible, registro de capacidades, roles y
+limites de settings estan implementados. Las pruebas locales cubren dry-run,
+migracion explicita, idempotencia, drift, doctor, rollback por fallo y
+restauracion. La activacion real, validacion de los tres runtimes y piloto solo
+pueden ejecutarse desde el checkout canonico despues del merge autorizado; un
+enlace al worktree de la PR quedaria roto al limpiarlo.
 
-La instalación es deliberadamente manual en v0.1. Permite observar qué partes
-se repiten de verdad antes de introducir un instalador o sincronización.
-
-## Evolución
-
-1. Parte de un caso observado: una tarea repetida, un fallo recurrente o una
-   restricción que no se está cumpliendo.
-2. Decide si corresponde al contrato común, a un adaptador, a un perfil o a una
-   política.
-3. Haz el cambio mínimo y evita duplicar reglas entre capas.
-4. Verifica los escenarios afectados en una rama corta. Usa draft PR solo con
-   `autonomous-pr` o autorización explícita.
-5. Pilota el cambio en un proyecto antes de promoverlo como convención general.
-
-No se añaden scripts, hooks, plantillas, agentes, directorios ni otra
-automatización sin un caso real que demuestre su necesidad. Una preferencia
-hipotética no basta.
+No hagas merge, tag ni deploy por el mero hecho de que esta implementacion
+exista. Consulta [`tasks/todo.md`](tasks/todo.md) para los gates pendientes.
