@@ -27,7 +27,22 @@ Definir cuándo activar skills de seguridad, cuándo crear ADR, incidente, runbo
 
 ## Step 5: Verificar y commitear
 
-Run: `rg -n "ff-only|force-with-lease|Outline|codebase-memory|tres intentos|dos rondas" policies/README.md`
-Expected: cada guardrail y límite tiene una regla concreta.
+Run:
+
+```sh
+set -eu
+rg -q -- 'pull --ff-only' policies/README.md
+rg -q -- '--force-with-lease' policies/README.md
+rg -q -- 'Outline' policies/README.md
+rg -q -- 'codebase-memory-mcp' policies/README.md
+rg -q -- 'tres intentos' policies/README.md
+rg -q -- 'presupuesto agregado máximo de dos rondas' policies/README.md
+rg -q -- '`standard` una y `deep` una' policies/README.md
+rg -q -- 'git config --get' policies/README.md
+rg -q -- '<redacted>' policies/README.md
+git diff --check
+```
+
+Expected: cada comando termina con código `0` de forma independiente.
 
 Commit: `docs: add operational policies`

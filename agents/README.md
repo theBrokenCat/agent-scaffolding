@@ -19,17 +19,24 @@ cuando no.
 
 ## Niveles y presupuesto
 
-Una **ronda** es un despacho con su retorno, o un feedback con su retorno. Una
-**pasada** es el trabajo completo de un agente, sea descubrimiento, ejecución,
-revisión o integración, hasta alcanzar el primero de sus topes de archivos,
-llamadas de herramienta o tiempo. Los topes individuales se aplican a todo
-participante, incluido el principal o lead.
+Una **ronda** es una revisión y su retorno. Una **pasada** es el trabajo completo
+de un agente, sea descubrimiento, ejecución, revisión o integración, hasta
+alcanzar el primero de sus topes de archivos, llamadas de herramienta o tiempo.
+Los topes individuales se aplican a todo participante, incluido el principal o
+lead.
 
 | Nivel | Límite individual | Presupuesto agregado de la tarea |
 | --- | --- | --- |
 | `fast` | Principal, sin delegación: 5 archivos, 10 llamadas o 10 minutos | 5 archivos únicos, 10 llamadas o 10 minutos |
-| `standard` | Principal y subagente read-only: 15 archivos, 25 llamadas o 30 minutos cada uno; una corrección y hasta dos rondas | 20 archivos únicos, 35 llamadas o 45 minutos, sumando principal y subagente |
-| `deep` | Lead y cada worker: 20 archivos, 40 llamadas o 45 minutos cada uno; máximo tres workers y hasta dos rondas | 60 archivos únicos, 120 llamadas o 90 minutos, sumando lead y workers |
+| `standard` | Principal y subagente read-only: 15 archivos, 25 llamadas o 30 minutos cada uno | 20 archivos únicos, 35 llamadas o 45 minutos, sumando principal y subagente |
+| `deep` | Lead y cada worker: 20 archivos, 40 llamadas o 45 minutos cada uno; máximo tres workers | 60 archivos únicos, 120 llamadas o 90 minutos, sumando lead y workers |
+
+En todos los niveles, las revisiones de requisitos, diff y feedback de PR
+comparten un presupuesto agregado máximo de dos rondas por tarea. Las
+correcciones totales permitidas son: `fast` cero, `standard` una y `deep` una.
+Una corrección consume ese límite y no crea otro presupuesto; su re-revisión
+consume otra ronda. Al agotar el límite de rondas o de correcciones, aplica STOP,
+preserva el estado y replantea antes de continuar.
 
 `deep` solo se activa por petición explícita, riesgo justificado o cumplimiento
 del umbral `orchestrated`. En el presupuesto agregado, cada archivo se cuenta una

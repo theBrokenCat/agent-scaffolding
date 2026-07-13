@@ -23,11 +23,11 @@
 
 ## Fase 3 - Políticas operativas
 
-- [ ] Crear `policies/README.md`.
-- [ ] Definir Git/GitHub, tokens, MCP, Outline, seguridad y documentación.
-- [ ] Acotar bucles, autoridad automática y condiciones de parada.
-- [ ] Comprobar que ninguna política contradiga los adaptadores.
-- [ ] Commit: `docs: add operational policies`
+- [x] Crear `policies/README.md`.
+- [x] Definir Git/GitHub, tokens, MCP, Outline, seguridad y documentación.
+- [x] Acotar bucles, autoridad automática y condiciones de parada.
+- [x] Comprobar que ninguna política contradiga los adaptadores.
+- [x] Commit: `docs: add operational policies`
 
 ## Fase 4 - Contrato de proyecto y pull requests
 

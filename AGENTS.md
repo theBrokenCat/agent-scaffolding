@@ -9,9 +9,10 @@ Aplica las instrucciones con esta precedencia de autoridad:
 3. `AGENTS.md` y reglas locales del proyecto activo.
 4. Router, perfil, planes y políticas aplicables del repositorio.
 
-Ante una contradicción, sigue la fuente de mayor prioridad y señala el conflicto.
-Para acciones Git o remotas, aplica siempre la regla más restrictiva entre los
-límites de sistema o plataforma, el usuario y el proyecto.
+Ante una contradicción, resuelve primero con esta precedencia y señala el
+conflicto. Aplica la regla más restrictiva entre las fuentes vigentes solo para
+acciones Git o remotas, operaciones destructivas, producción y seguridad. Si la
+precedencia no resuelve el conflicto, detente y solicita una decisión.
 
 Para la fiabilidad factual, el código, las pruebas, Git, CI y el estado observado
 prevalecen al describir la implementación actual. Los planes, la memoria y la
@@ -23,7 +24,8 @@ Indica cualquier discrepancia entre el estado observado y la documentación.
 Antes de editar:
 
 1. Confirma objetivo, alcance, archivos permitidos y criterio de finalización.
-2. Lee las instrucciones y el plan relevantes del proyecto.
+2. Lee las instrucciones, el plan y solo la sección aplicable de
+   `policies/README.md`.
 3. Comprueba rama, estado de Git y cambios preexistentes; conserva trabajo ajeno.
 4. Establece una línea base verificable para el comportamiento que vas a tocar.
 5. Identifica riesgos, permisos necesarios y acciones irreversibles.
@@ -34,10 +36,11 @@ primera pasada no permita tomar una decisión fundada.
 
 ## 3. Router
 
-`ROUTER.md`, `profiles/README.md` y `agents/README.md` son parte normal del
-contrato instalado. Úsalos para clasificar la tarea y limitar su ejecución. Si
-falta alguno, informa que la instalación está incompleta y mantén un solo agente
-sin ampliar autoridad hasta restaurarlo.
+`ROUTER.md`, `profiles/README.md`, `agents/README.md` y `policies/README.md`
+forman con este archivo el contrato completo instalado. Úsalos para clasificar y
+limitar la tarea, pero carga solo el perfil, presupuesto y sección de políticas
+aplicables. Si falta alguno, informa que la instalación está incompleta y mantén
+un solo agente sin ampliar autoridad hasta restaurarlo.
 
 Selecciona la forma de trabajo con esta precedencia:
 
@@ -143,7 +146,9 @@ Detente y solicita decisión cuando:
 - el alcance sea ambiguo y una suposición pueda causar daño o trabajo relevante;
 - aparezcan cambios ajenos que hagan insegura la integración;
 - una acción requiera destruir datos, desplegar o ampliar autoridad no concedida;
-- fallen tres intentos razonados de CI o dos rondas de revisión sin acuerdo;
+- fallen tres intentos razonados de CI o se agote el presupuesto agregado de dos
+  rondas de revisión definido en `policies/README.md`;
+- la precedencia de autoridad no resuelva un conflicto;
 - la evidencia contradiga el plan o no exista una verificación fiable.
 
 Al parar, informa qué ocurrió, qué intentaste, qué evidencia tienes y cuál es la

@@ -12,11 +12,12 @@ complejo.
 - `ROUTER.md`: clasificación determinista por mutación, riesgo y delegación.
 - `profiles/README.md`: contratos base y overlays operativos.
 - `agents/README.md`: límites y protocolo de delegación.
+- `policies/README.md`: índice único de políticas operativas.
 - `CLAUDE.md`: adaptador con capacidades exclusivas de Claude Code.
 - `GEMINI.md`: adaptador con capacidades exclusivas de Gemini CLI.
 
 Estos archivos forman el contrato compartido disponible. El repositorio todavía
-no ofrece políticas, plantillas ni automatización operativa.
+no ofrece plantillas ni automatización operativa.
 La v0.1 no se considera lista hasta cerrar y verificar todas las fases del plan.
 
 ## Arquitectura objetivo
@@ -28,9 +29,9 @@ La v0.1 no se considera lista hasta cerrar y verificar todas las fases del plan.
 - `templates/`: contratos para iniciar o ampliar proyectos.
 - `.github/`: reglas y plantilla de pull request.
 
-Router, perfiles y delegación ya están disponibles; el resto describe el destino
-previsto. Los adaptadores importan `AGENTS.md`; no copian sus reglas. Los perfiles
-amplían el contrato solo cuando la tarea los necesita.
+Router, perfiles, delegación y políticas ya están disponibles; el resto describe
+el destino previsto. Los adaptadores importan `AGENTS.md`; no copian sus reglas.
+Los perfiles amplían el contrato solo cuando la tarea los necesita.
 
 ## Instalación manual
 
@@ -42,7 +43,7 @@ amplían el contrato solo cuando la tarea los necesita.
    `Git publication mode: autonomous-pr`. Se recomienda `autonomous-pr` para este
    flujo personal; si no registras ningún modo, se aplica `local-only`.
 4. Copia `AGENTS.md` y `ROUTER.md` al directorio raíz del proyecto de destino.
-5. Copia completos los directorios `profiles/` y `agents/`.
+5. Copia completos los directorios `profiles/`, `agents/` y `policies/`.
 6. Copia `CLAUDE.md`, `GEMINI.md` o ambos según las herramientas utilizadas.
 7. Conserva `@AGENTS.md` como primera línea operativa de cada adaptador.
 8. Mantén las reglas propias del proyecto en su documentación local; no las
