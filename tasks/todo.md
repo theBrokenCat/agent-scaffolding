@@ -12,7 +12,7 @@ plan sustituye su supuesto de instalacion por proyecto.
 
 - [ ] Rotar las credenciales de Outline expuestas durante el inventario anterior. Diferido explicitamente por el usuario.
 - [x] Inventariar instrucciones, skills, agentes y settings sin imprimir secretos.
-- [ ] Guardar backups fuera del repositorio durante la instalacion; checksums y destinos ya registrados.
+- [x] Guardar backups fuera del repositorio durante la instalacion; checksums y destinos registrados.
 - [x] Verificar estado de rama, PR y worktree.
 - [x] Registrar baseline redactado; se incluye en el commit global de implementacion.
 
@@ -50,18 +50,18 @@ plan sustituye su supuesto de instalacion por proyecto.
 
 ## Fase 5 - Validacion cruzada y GitHub
 
-- [ ] Probar los tres hosts desde directorio vacio, repo y subdirectorio.
-- [ ] Probar precedencia local, preflight, degradaciones y limites de contexto.
+- [ ] Probar los tres hosts: Codex pasa; Claude y Gemini quedan bloqueados antes de inferencia.
+- [x] Probar preflight, degradacion sin teams y limites de contexto en Codex.
 - [x] Ejecutar tests en HOME temporal y dry-run contra el HOME real.
-- [ ] Ejecutar doctor real, auditoria final de secretos y diff review.
-- [ ] Actualizar y revisar la draft PR sin hacer merge.
-- [ ] Commit: `test: validate global activation`
+- [x] Ejecutar doctor real, auditoria final de secretos y diff review.
+- [x] Integrar la PR #1 autorizada y activar desde `main`.
+- [x] Registrar validacion global en una rama post-merge.
 
 ## Fase 6 - Piloto y release
 
-- [ ] Piloto aislado en `personal-life` sin archivos locales obligatorios.
-- [ ] Medir friccion, consumo de contexto, delegaciones y fallos.
-- [ ] Corregir solo problemas observados y repetir gates afectados.
+- [x] Piloto read-only en `personal-life` sin archivos locales obligatorios.
+- [x] Medir friccion, consumo de contexto, degradaciones y fallos.
+- [ ] Sanear skills externas y desbloquear Claude/Gemini; repetir solo gates afectados.
 - [ ] Solicitar autorizacion explicita para merge y despues para tag `v0.1.0`.
 - [ ] Commit: `docs: record v0.1 pilot`
 
@@ -69,7 +69,9 @@ plan sustituye su supuesto de instalacion por proyecto.
 
 ## Review
 
-Implementacion local completada con workers Sol, Terra y Luna; las correcciones
-finales se integraron localmente tras agotarse su cuota. La rotacion de Outline
-queda diferida por decision explicita del usuario. Activacion real, validacion
-cross-host, piloto, merge y tag siguen siendo gates separados.
+Implementacion y merge completados; activacion global queda `managed current` y
+`doctor` pasa. Codex carga el flujo global desde un directorio vacio y desde
+`personal-life`, pero el piloto es parcial: Claude no esta autenticado, Gemini
+usa un cliente free-tier no soportado y skills externas invalidas elevan el
+coste de Codex. La rotacion de Outline sigue diferida por decision explicita del
+usuario. No se crea tag hasta cerrar esos gates.

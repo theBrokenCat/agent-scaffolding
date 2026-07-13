@@ -10,9 +10,9 @@
 
 | Host | Observed version | Global activation | Empty dir | Repo local rules | Nested dir |
 |---|---|---|---|---|---|
-| Codex CLI | `0.144.1` | pending merge/install | pending | pending | pending |
-| Claude Code | `2.1.205` | pending merge/install | pending | pending | pending |
-| Gemini CLI | `0.46.0` | pending merge/install | pending | pending | pending |
+| Codex CLI | `0.144.1` | pass | pass | no local AGENTS present | pass in `personal-life/src/lifeops_agent` |
+| Claude Code | `2.1.205` | blocked | blocked: not logged in | not run | not run |
+| Gemini CLI | `0.46.0` | blocked | blocked: unsupported free-tier client | not run | not run |
 
 ## Required prompts
 
@@ -28,9 +28,27 @@ Each host must return only a compact classification for:
 Record command, exit status, mechanism, whether the expected global marker was
 loaded, and deviations. Do not retain full transcripts or secrets.
 
-## Gate
+## Observed results
 
-Run this matrix only after the PR is merged and
-`~/agent-scaffolding/scripts/scaffolding install --migrate-existing --apply`
-has completed. Running it from the feature worktree would validate links that
-must later be deleted and is therefore invalid evidence.
+- Global install from canonical `main`: `STATUS managed current`; `DOCTOR ok`.
+- Empty-directory Codex: `GLOBAL_OK | app-direct | no`.
+- Nested `personal-life` Codex: `FAST | app-direct | no`;
+  `STANDARD_MULTI | app-parallel | decisiones, contratos compartidos,
+  integracion y verificacion final`; no-teams fallback was explicit.
+- Codex reported 17,901 and 27,447 tokens. Both exceed the `fast` intent for
+  these classification-only prompts.
+- Claude returned `Not logged in`; no contract verdict was produced.
+- Gemini returned `UNSUPPORTED_CLIENT` for its free-tier client; no contract
+  verdict was produced.
+
+Codex also reported invalid frontmatter in eight externally installed
+`~/.agents/skills` entries and one cached plugin skill. These files are not
+managed by this repository, but their load errors and skill-description budget
+warning are a measured context-cost problem.
+
+## Release gate
+
+Do not tag `v0.1.0` yet. First authenticate Claude, migrate or replace the Gemini
+client, and quarantine/fix the invalid external skills after identifying their
+owner. Re-run only the affected smoke cases; do not repeat successful Codex
+cases without new evidence.
