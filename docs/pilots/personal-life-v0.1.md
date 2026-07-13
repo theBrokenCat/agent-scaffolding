@@ -28,15 +28,17 @@ The project remained clean. No project-local scaffolding files were created.
 
 - Empty-directory classification: 17,901 tokens.
 - Nested-project classification: 27,447 tokens.
-- The host shortened skill descriptions to fit its skill-context budget.
-- Eight skills under `~/.agents/skills` had missing frontmatter; one cached
-  plugin skill had invalid YAML.
-- A GitHub Copilot MCP connection also lacked an access token, but the routing
-  result completed without it.
+- Eight local skill frontmatters were repaired and the invalid cached
+  `schedule` skill was removed.
+- GitHub MCP was disabled in favor of the authenticated `gh` CLI.
+- Duplicate and unused plugin families were disabled reversibly.
+- The controlled cost smoke moved from 21,450 input tokens (8,960 cached) with
+  a skill-budget warning to 21,134 (8,960 cached) without the warning.
 
-The global activation works in Codex, but the context cost is not acceptable
-for trivial classification. Invalid and unused external skills are the first
-optimization target; the router itself should not be expanded to compensate.
+The global activation works in Codex. Plugin pruning removed the skill-budget
+warning but reduced input by only 316 tokens, so the remaining cost is dominated
+by Codex runtime, tool and global instruction context. The router should not be
+expanded, and further broad capability removal is not justified by this result.
 
 ## Cross-host status
 
@@ -47,10 +49,10 @@ optimization target; the router itself should not be expanded to compensate.
 
 ## Decision
 
-Pilot status: partial. Keep the global installation active because `doctor`
-passes and Codex/Claude behavior is correct. Do not tag `v0.1.0` until the
-external-skill errors and measured Codex context cost are addressed. Gemini is
-not a release gate for now.
+Pilot status: pass for active hosts. Keep the global installation active because
+`doctor` passes, Codex/Claude behavior is correct, invalid skill errors are gone,
+and the residual context cost has been isolated as a host-level constraint.
+Gemini is not a release gate for now.
 
 Rollback remains:
 

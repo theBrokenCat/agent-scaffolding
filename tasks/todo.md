@@ -61,9 +61,9 @@ plan sustituye su supuesto de instalacion por proyecto.
 
 - [x] Piloto read-only en `personal-life` sin archivos locales obligatorios.
 - [x] Medir friccion, consumo de contexto, degradaciones y fallos.
-- [ ] Sanear skills externas y repetir solo el smoke de coste Codex; Gemini queda fuera de scope.
+- [x] Sanear skills externas y repetir solo el smoke de coste Codex; Gemini queda fuera de scope.
 - [ ] Solicitar autorizacion explicita para merge y despues para tag `v0.1.0`.
-- [ ] Commit: `docs: record v0.1 pilot`
+- [x] Commit: `docs: record v0.1 pilot`
 
 ---
 
@@ -72,6 +72,8 @@ plan sustituye su supuesto de instalacion por proyecto.
 Implementacion y merge completados; activacion global queda `managed current` y
 `doctor` pasa. Codex carga el flujo global desde un directorio vacio y desde
 `personal-life`; Claude tambien carga el contrato global tras autenticarse.
-Gemini queda diferido por decision del usuario. El piloto sigue parcial porque
-skills externas invalidas elevan el coste de Codex. La rotacion de Outline sigue
-diferida. No se crea tag hasta cerrar el gate de skills/coste.
+Gemini queda diferido por decision del usuario. Las skills invalidas fueron
+reparadas o retiradas y la poda de plugins elimino el warning de presupuesto.
+El coste residual fue aislado como contexto fijo del host: el smoke comparable
+bajo solo 316 tokens. La rotacion de Outline sigue diferida. Merge y tag se
+mantienen como autorizaciones humanas separadas.
