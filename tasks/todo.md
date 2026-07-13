@@ -1,115 +1,71 @@
-# Agent Scaffolding v0.1 - Plan
+# Agent Scaffolding global v0.1 - Plan
 
-**Goal:** Crear un scaffolding personal mínimo y compartido por Codex, Claude y Gemini.
-**Stack:** Markdown, Git, GitHub CLI y shell POSIX solo si el piloto justifica scripts.
+**Goal:** Activar un workflow app-first global, reversible y compartido por Codex, Claude y Gemini sin modificar cada proyecto.
+**Stack:** Markdown, shell POSIX, Git, GitHub CLI y tests de shell.
+
+El prototipo documentado en los commits anteriores queda como evidencia. Este
+plan sustituye su supuesto de instalacion por proyecto.
 
 ---
 
-## Fase 1 - Contrato común y adaptadores
+## Fase 0 - Seguridad y baseline
 
-- [x] Crear `README.md` y explicar instalación, alcance y mantenimiento.
-- [x] Crear `AGENTS.md` como fuente canónica.
-- [x] Crear adaptadores mínimos `CLAUDE.md` y `GEMINI.md`.
-- [x] Verificar que no existan reglas comunes duplicadas.
-- [x] Commit: `docs: add shared agent contract`
+- [ ] Rotar las credenciales de Outline expuestas durante el inventario anterior.
+- [ ] Inventariar instrucciones, skills, agentes y settings sin imprimir secretos.
+- [ ] Guardar checksums, destinos y backups fuera del repositorio.
+- [ ] Verificar estado de rama, PR y worktree.
+- [ ] Commit: `chore: record migration baseline`
 
-## Fase 2 - Router, perfiles y delegación
+## Fase 1 - Contrato global y adaptadores
 
-- [x] Crear `ROUTER.md` con precedencia y tabla de decisión.
-- [x] Crear `profiles/README.md` con seis perfiles y gates.
-- [x] Crear `agents/README.md` con escalera de delegación y protocolo de equipos.
-- [x] Validar seis escenarios de enrutamiento manualmente.
-- [x] Commit: `docs: define workflow routing and delegation`
+- [ ] Reescribir el contrato para carga global y reglas locales opcionales.
+- [ ] Corregir los adaptadores de Claude y Gemini sin asignarles roles fijos.
+- [ ] Reducir `templates/` a contratos opcionales de proyecto nuevo.
+- [ ] Eliminar toda exigencia de instalar archivos en cada repositorio.
+- [ ] Commit: `docs: define global agent contract`
 
-## Fase 3 - Políticas operativas
+## Fase 2 - Router app-first y contexto
 
-- [x] Crear `policies/README.md`.
-- [x] Definir Git/GitHub, tokens, MCP, Outline, seguridad y documentación.
-- [x] Acotar bucles, autoridad automática y condiciones de parada.
-- [x] Comprobar que ninguna política contradiga los adaptadores.
-- [x] Commit: `docs: add operational policies`
+- [ ] Añadir preflight de recomendacion y confirmacion selectiva.
+- [ ] Definir `app-direct`, delegacion, paralelo, relevo CLI e hibrido.
+- [ ] Definir aliases `economy`, `balanced`, `frontier` y retornos compactos.
+- [ ] Definir roles genericos, briefs de dominio y reglas de equipos/worktrees.
+- [ ] Commit: `docs: define app first orchestration`
 
-## Fase 4 - Contrato de proyecto y pull requests
+## Fase 3 - Instalador global reversible
 
-- [x] Crear `templates/README.md` con estructura mínima y extensiones bajo demanda.
-- [x] Crear `.github/README.md` con reglas del repositorio.
-- [x] Crear `.github/pull_request_template.md`.
-- [x] Verificar que el template no genere directorios opcionales.
-- [x] Commit: `docs: add project and pull request contracts`
+- [ ] Implementar `install`, `status`, `doctor` y `uninstall` con dry-run.
+- [ ] Enlazar instrucciones globales y elementos gestionados de forma individual.
+- [ ] Crear manifiesto, backup, operaciones atomicas e idempotencia.
+- [ ] Cubrir instalacion, conflicto, repeticion y rollback con tests.
+- [ ] Commit: `feat: add global scaffolding installer`
 
-## Fase 5 - Validación, GitHub y piloto
+## Fase 4 - Skills, agentes y settings seguros
 
-- [x] Revisar enlaces, imports, nombres y límites de contexto.
-- [x] Ejecutar escenarios de presión y registrar resultados.
-- [x] Crear repositorio privado de GitHub y publicar la rama.
-- [ ] Abrir PR de v0.1 y verificar su flujo completo.
-- [x] Seleccionar un proyecto piloto sin modificarlo todavía.
-- [x] Commit: `test: validate scaffolding workflow`
+- [ ] Crear registro curado de skills internas y externas.
+- [ ] Validar frontmatter, triggers, herramientas y duplicados.
+- [ ] Crear roles nativos solo donde el host los soporte.
+- [ ] Versionar schemas/overlays allowlisted, nunca settings completos o secretos.
+- [ ] Commit: `feat: add capability registry`
+
+## Fase 5 - Validacion cruzada y GitHub
+
+- [ ] Probar los tres hosts desde directorio vacio, repo y subdirectorio.
+- [ ] Probar precedencia local, preflight, degradaciones y limites de contexto.
+- [ ] Ejecutar tests, doctor, auditoria de secretos y diff review.
+- [ ] Actualizar y revisar la draft PR sin hacer merge.
+- [ ] Commit: `test: validate global activation`
+
+## Fase 6 - Piloto y release
+
+- [ ] Piloto aislado en `personal-life` sin archivos locales obligatorios.
+- [ ] Medir friccion, consumo de contexto, delegaciones y fallos.
+- [ ] Corregir solo problemas observados y repetir gates afectados.
+- [ ] Solicitar autorizacion explicita para merge y despues para tag `v0.1.0`.
+- [ ] Commit: `docs: record v0.1 pilot`
 
 ---
 
 ## Review
 
-### Hechos observados
-
-- Validación mecánica: enlaces Markdown relativos OK; `CLAUDE.md` y `GEMINI.md`
-  importan `@AGENTS.md` en la primera línea; no hay directorios vacíos.
-  `git diff --check` queda como verificación final de esta documentación.
-- Contexto: `AGENTS.md` tiene 1257 palabras y el contrato completo 6711. La
-  carga selectiva del router es obligatoria. No se afirma que el host respete el
-  presupuesto cuando carga plugins o skills globales.
-- Casos esperados: typo en docs -> `solo/fast/principal`; typo en código ->
-  `software/fast/principal`; `/improve` read-only ->
-  `audit/standard/principal`; security review read-only ->
-  `audit+security/deep/principal`; hotfix de producción con datos ->
-  `software+production/deep/principal`, con aprobación y rollback; frontend y
-  backend independientes con umbral probado ->
-  `software+orchestrated/deep/2 writers` en worktrees disjuntos.
-- Evidencia runtime reproducible, sin secretos ni logs extensos:
-
-  ```sh
-  codex exec --ephemeral --sandbox read-only --color never "Valida el router de este repositorio sin editar nada. Clasifica exactamente estos dos casos conforme a AGENTS.md, ROUTER.md, profiles/README.md y agents/README.md: (1) corregir un typo en código; (2) auditoría /improve read-only de todo el repo. Devuelve solo dos líneas: caso | perfil+overlays | coste | mecanismo | gate principal. No expliques."
-  claude -p --no-session-persistence --permission-mode plan --tools "" --effort low "Valida el router de este repositorio sin editar nada. Clasifica exactamente estos dos casos conforme a AGENTS.md, ROUTER.md, profiles/README.md y agents/README.md: (1) revisión de seguridad read-only; (2) hotfix de producción que cambia código y toca datos persistentes. Devuelve solo dos líneas: caso | perfil+overlays | coste | mecanismo | gate principal. No expliques."
-  gemini --approval-mode plan --output-format text -p "Valida el router de este repositorio sin editar nada. Clasifica exactamente estos dos casos conforme a AGENTS.md, ROUTER.md, profiles/README.md y agents/README.md: (1) corregir un typo en documentación; (2) implementar frontend y backend independientes con escrituras disjuntas y ahorro neto de coordinación demostrado. Devuelve solo dos líneas: caso | perfil+overlays | coste | mecanismo | gate principal. No expliques."
-  ```
-
-  La primera invocación de Codex dentro del sandbox terminó con exit `1` por
-  `EPERM` al iniciar el app-server; la repetición autorizada en el host mantuvo
-  sandbox read-only. Codex CLI 0.144.1, sesión
-  `019f5b6b-232b-75e0-921d-56b49f97fd40`, terminó con exit `0` y clasificó las
-  dos líneas como `software/fast/principal` y
-  `audit/standard/principal`, aunque también reportó errores de skills/MCP.
-  Consumió 39.307 tokens: es un overrun frente al cap agregado `fast` de 12k y
-  demuestra que el host actual no cumple `fast`, no solo un riesgo genérico.
-  Claude Code 2.1.205 terminó con exit `1` por `401 invalid auth`; su validación
-  está bloqueada. Gemini CLI 0.46.0 falló tras un cliente free-tier no soportado
-  y una escritura de credenciales restringida; su validación también está
-  bloqueada y no se obtuvo una salida de éxito. No se reintentó ni se declara
-  éxito cruzado.
-- GitHub: `theBrokenCat/agent-scaffolding` es privado, `main` está publicada,
-  el ruleset `Protect main` está activo con
-  `required_review_thread_resolution=true`. Se verificaron mediante la API el
-  requisito de PR, el bloqueo de deletion, el bloqueo de non-fast-forward y la
-  resolución obligatoria de conversaciones. La draft PR #1 está abierta y
-  mergeable. No hay CI justificada.
-- Piloto: `/Users/arturo/Proyectos/personal-life`, limpio al seleccionar, de
-  riesgo moderado, Python con tests y superficies de API, persistencia,
-  Telegram, Outline y operaciones. No se modifica en esta fase.
-
-### Desviaciones y riesgo residual
-
-La presión fue ejecutada, pero quedó parcialmente bloqueada en Claude y Gemini;
-por tanto es ejecución registrada, no validación exitosa de los tres runtimes.
-El ciclo Git completo no se cerró: no se hizo merge, ni squash, ni pull final,
-ni eliminación de rama/worktree. Tampoco se creó commit en esta acción. El
-riesgo residual es la interferencia del contexto global y la falta de evidencia
-del piloto y de validación cruzada en Claude/Gemini.
-
-### Siguiente gate
-
-Ejecutar el piloto desde un SHA limpio en un worktree: preservar las reglas
-locales, clasificar los seis casos, comprobar que la suite local no empeora y
-que el diff contiene solo scaffolding/documentación acordada, y dejar una draft
-PR usable. El éxito permite proponer `v0.1.0`; requiere además autorización
-explícita antes de etiquetar o hacer merge. Rollback: abandonar el worktree o
-la rama antes de publicar, o hacer `git revert` del commit/PR después.
+<!-- Se completa durante la ejecucion con evidencia real, bloqueos y riesgo residual. -->
