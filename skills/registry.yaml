@@ -1,0 +1,113 @@
+capabilities:
+  - id: ponytail-family
+    owner: ponytail
+    hosts: [codex, claude, gemini]
+    trigger: "explicit minimal-change or overengineering review request"
+    mode: "review"
+    cost: "fast"
+    source: "external:ponytail"
+    managed: false
+  - id: improve
+    owner: superpowers
+    hosts: [codex, claude, gemini]
+    trigger: "read-only whole-codebase advisory plan for other agents"
+    mode: "plan"
+    cost: "standard"
+    source: "external:superpowers"
+    managed: false
+  - id: brainstorming
+    owner: superpowers
+    hosts: [codex, claude, gemini]
+    trigger: "new feature or behavior needs intent and design clarification"
+    mode: "design"
+    cost: "standard"
+    source: "external:superpowers"
+    managed: false
+  - id: writing-plans
+    owner: superpowers
+    hosts: [codex, claude, gemini]
+    trigger: "approved design needs an implementation plan"
+    mode: "plan"
+    cost: "standard"
+    source: "external:superpowers"
+    managed: false
+  - id: executing-plans
+    owner: superpowers
+    hosts: [codex, claude, gemini]
+    trigger: "written implementation plan is ready to execute"
+    mode: "implement"
+    cost: "standard"
+    source: "external:superpowers"
+    managed: false
+  - id: systematic-debugging
+    owner: superpowers
+    hosts: [codex, claude, gemini]
+    trigger: "bug test failure or unexpected behavior"
+    mode: "debug"
+    cost: "standard"
+    source: "external:superpowers"
+    managed: false
+  - id: test-driven-development
+    owner: superpowers
+    hosts: [codex, claude, gemini]
+    trigger: "behavior change or bugfix requires a regression test"
+    mode: "implement"
+    cost: "standard"
+    source: "external:superpowers"
+    managed: false
+  - id: requesting-code-review
+    owner: superpowers
+    hosts: [codex, claude, gemini]
+    trigger: "implementation is ready for independent review"
+    mode: "review"
+    cost: "standard"
+    source: "external:superpowers"
+    managed: false
+  - id: git-worktrees
+    owner: superpowers
+    hosts: [codex, claude, gemini]
+    trigger: "isolated branch or worktree is needed for owned changes"
+    mode: "git"
+    cost: "fast"
+    source: "external:superpowers"
+    managed: false
+  - id: github
+    owner: github
+    hosts: [codex, claude, gemini]
+    trigger: "GitHub repository issue pull request or CI work is requested"
+    mode: "git"
+    cost: "standard"
+    source: "external:github"
+    managed: false
+  - id: parallel-agents
+    owner: superpowers
+    hosts: [codex, claude, gemini]
+    trigger: "two or more independent scopes meet the orchestration threshold"
+    mode: "orchestrate"
+    cost: "deep"
+    source: "external:superpowers"
+    managed: false
+  - id: agent-teams
+    owner: superpowers
+    hosts: [codex, claude, gemini]
+    trigger: "coordinated workers are explicitly justified"
+    mode: "orchestrate"
+    cost: "deep"
+    source: "external:superpowers"
+    managed: false
+  - id: codex-security
+    owner: codex-security
+    hosts: [codex]
+    trigger: "security audit finding validation or security fix is requested"
+    mode: "security"
+    cost: "deep"
+    source: "external:codex-security"
+    managed: false
+  - id: registry-validation
+    owner: core
+    hosts: [codex, claude, gemini]
+    trigger: "capability registry or managed skill changes"
+    mode: "validate"
+    cost: "fast"
+    source: "skills/registry-validation/SKILL.md"
+    managed: true
