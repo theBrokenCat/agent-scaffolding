@@ -50,7 +50,7 @@ plan sustituye su supuesto de instalacion por proyecto.
 
 ## Fase 5 - Validacion cruzada y GitHub
 
-- [ ] Probar los tres hosts: Codex pasa; Claude y Gemini quedan bloqueados antes de inferencia.
+- [x] Probar hosts activos: Codex y Claude pasan; Gemini queda diferido por decision del usuario.
 - [x] Probar preflight, degradacion sin teams y limites de contexto en Codex.
 - [x] Ejecutar tests en HOME temporal y dry-run contra el HOME real.
 - [x] Ejecutar doctor real, auditoria final de secretos y diff review.
@@ -61,7 +61,7 @@ plan sustituye su supuesto de instalacion por proyecto.
 
 - [x] Piloto read-only en `personal-life` sin archivos locales obligatorios.
 - [x] Medir friccion, consumo de contexto, degradaciones y fallos.
-- [ ] Sanear skills externas y desbloquear Claude/Gemini; repetir solo gates afectados.
+- [ ] Sanear skills externas y repetir solo el smoke de coste Codex; Gemini queda fuera de scope.
 - [ ] Solicitar autorizacion explicita para merge y despues para tag `v0.1.0`.
 - [ ] Commit: `docs: record v0.1 pilot`
 
@@ -71,7 +71,7 @@ plan sustituye su supuesto de instalacion por proyecto.
 
 Implementacion y merge completados; activacion global queda `managed current` y
 `doctor` pasa. Codex carga el flujo global desde un directorio vacio y desde
-`personal-life`, pero el piloto es parcial: Claude no esta autenticado, Gemini
-usa un cliente free-tier no soportado y skills externas invalidas elevan el
-coste de Codex. La rotacion de Outline sigue diferida por decision explicita del
-usuario. No se crea tag hasta cerrar esos gates.
+`personal-life`; Claude tambien carga el contrato global tras autenticarse.
+Gemini queda diferido por decision del usuario. El piloto sigue parcial porque
+skills externas invalidas elevan el coste de Codex. La rotacion de Outline sigue
+diferida. No se crea tag hasta cerrar el gate de skills/coste.

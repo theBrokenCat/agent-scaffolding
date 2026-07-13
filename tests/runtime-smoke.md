@@ -11,8 +11,8 @@
 | Host | Observed version | Global activation | Empty dir | Repo local rules | Nested dir |
 |---|---|---|---|---|---|
 | Codex CLI | `0.144.1` | pass | pass | no local AGENTS present | pass in `personal-life/src/lifeops_agent` |
-| Claude Code | `2.1.205` | blocked | blocked: not logged in | not run | not run |
-| Gemini CLI | `0.46.0` | blocked | blocked: unsupported free-tier client | not run | not run |
+| Claude Code | `2.1.205` | pass | pass after login | not run | not run |
+| Gemini CLI | `0.46.0` | deferred by user | unsupported free-tier client | not run | not run |
 
 ## Required prompts
 
@@ -37,9 +37,8 @@ loaded, and deviations. Do not retain full transcripts or secrets.
   integracion y verificacion final`; no-teams fallback was explicit.
 - Codex reported 17,901 and 27,447 tokens. Both exceed the `fast` intent for
   these classification-only prompts.
-- Claude returned `Not logged in`; no contract verdict was produced.
-- Gemini returned `UNSUPPORTED_CLIENT` for its free-tier client; no contract
-  verdict was produced.
+- After login, Claude returned `CLAUDE_GLOBAL_OK | app-direct | no`.
+- Gemini returned `UNSUPPORTED_CLIENT`; the user explicitly deferred Gemini.
 
 Codex also reported invalid frontmatter in eight externally installed
 `~/.agents/skills` entries and one cached plugin skill. These files are not
@@ -48,7 +47,7 @@ warning are a measured context-cost problem.
 
 ## Release gate
 
-Do not tag `v0.1.0` yet. First authenticate Claude, migrate or replace the Gemini
-client, and quarantine/fix the invalid external skills after identifying their
-owner. Re-run only the affected smoke cases; do not repeat successful Codex
-cases without new evidence.
+Do not tag `v0.1.0` yet. First quarantine/fix the invalid external skills after
+identifying their owner and rerun one Codex cost smoke. Gemini is outside the
+current release gate by explicit user decision. Do not repeat successful Codex
+or Claude behavior cases without new evidence.

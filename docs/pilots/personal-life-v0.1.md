@@ -40,15 +40,17 @@ optimization target; the router itself should not be expanded to compensate.
 
 ## Cross-host status
 
-- Claude: blocked before inference because the CLI is not logged in.
-- Gemini: blocked before inference because CLI `0.46.0` is unsupported for the
-  configured free tier.
+- Claude: global empty-directory smoke passes after login with
+  `CLAUDE_GLOBAL_OK | app-direct | no`.
+- Gemini: deferred by explicit user decision; CLI `0.46.0` remains unsupported
+  for the configured free tier.
 
 ## Decision
 
 Pilot status: partial. Keep the global installation active because `doctor`
-passes and Codex behavior is correct. Do not tag `v0.1.0` until the two host
-blocks and external-skill errors are addressed and only those cases are rerun.
+passes and Codex/Claude behavior is correct. Do not tag `v0.1.0` until the
+external-skill errors and measured Codex context cost are addressed. Gemini is
+not a release gate for now.
 
 Rollback remains:
 
