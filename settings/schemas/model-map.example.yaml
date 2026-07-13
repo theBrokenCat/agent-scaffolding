@@ -1,0 +1,5 @@
+# Example only. Keep the real provider/model mapping in local configuration.
+models:
+  economy: luna
+  balanced: terra
+  frontier: sol
