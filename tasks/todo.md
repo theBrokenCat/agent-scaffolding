@@ -31,11 +31,11 @@
 
 ## Fase 4 - Contrato de proyecto y pull requests
 
-- [ ] Crear `templates/README.md` con estructura mínima y extensiones bajo demanda.
-- [ ] Crear `.github/README.md` con reglas del repositorio.
-- [ ] Crear `.github/pull_request_template.md`.
-- [ ] Verificar que el template no genere directorios opcionales.
-- [ ] Commit: `docs: add project and pull request contracts`
+- [x] Crear `templates/README.md` con estructura mínima y extensiones bajo demanda.
+- [x] Crear `.github/README.md` con reglas del repositorio.
+- [x] Crear `.github/pull_request_template.md`.
+- [x] Verificar que el template no genere directorios opcionales.
+- [x] Commit: `docs: add project and pull request contracts`
 
 ## Fase 5 - Validación, GitHub y piloto
 

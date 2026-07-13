@@ -15,9 +15,12 @@ complejo.
 - `policies/README.md`: índice único de políticas operativas.
 - `CLAUDE.md`: adaptador con capacidades exclusivas de Claude Code.
 - `GEMINI.md`: adaptador con capacidades exclusivas de Gemini CLI.
+- `templates/README.md`: contrato canónico de instalación de proyectos.
+- `.github/README.md`: contrato de configuración y operación en GitHub.
+- `.github/pull_request_template.md`: plantilla de evidencia para pull requests.
 
-Estos archivos forman el contrato compartido disponible. El repositorio todavía
-no ofrece plantillas ni automatización operativa.
+Estos archivos forman el contrato compartido disponible. El repositorio no
+ofrece automatización operativa.
 La v0.1 no se considera lista hasta cerrar y verificar todas las fases del plan.
 
 ## Arquitectura objetivo
@@ -29,32 +32,39 @@ La v0.1 no se considera lista hasta cerrar y verificar todas las fases del plan.
 - `templates/`: contratos para iniciar o ampliar proyectos.
 - `.github/`: reglas y plantilla de pull request.
 
-Router, perfiles, delegación y políticas ya están disponibles; el resto describe
-el destino previsto. Los adaptadores importan `AGENTS.md`; no copian sus reglas.
-Los perfiles amplían el contrato solo cuando la tarea los necesita.
+Router, perfiles, delegación, políticas, contrato de instalación y contrato de
+GitHub ya están disponibles. Los adaptadores importan `AGENTS.md`; no copian sus
+reglas. Los perfiles amplían el contrato solo cuando la tarea los necesita.
 
 ## Instalación manual
 
-1. Clona este repositorio en una ubicación estable y selecciona una versión o
-   commit concreto como origen.
-2. Registra el repositorio y el tag o SHA de origen en la documentación existente
-   del proyecto de destino.
-3. Elige y registra una línea exacta: `Git publication mode: local-only` o
-   `Git publication mode: autonomous-pr`. Se recomienda `autonomous-pr` para este
-   flujo personal; si no registras ningún modo, se aplica `local-only`.
-4. Copia `AGENTS.md` y `ROUTER.md` al directorio raíz del proyecto de destino.
-5. Copia completos los directorios `profiles/`, `agents/` y `policies/`.
-6. Copia `CLAUDE.md`, `GEMINI.md` o ambos según las herramientas utilizadas.
-7. Conserva `@AGENTS.md` como primera línea operativa de cada adaptador.
-8. Mantén las reglas propias del proyecto en su documentación local; no las
-   sustituyas ni las dupliques en los adaptadores.
-9. Revisa el diff y confirma que las herramientas cargan el contexto antes de
-   empezar trabajo real.
+La lista canónica, la configuración obligatoria, las extensiones bajo demanda y
+el rollback viven únicamente en [`templates/README.md`](templates/README.md).
+Sigue ese contrato completo; este README no mantiene una segunda lista parcial.
+
+Instala desde un SHA base limpio en una rama o worktree dedicada. Cuando un
+archivo ya exista, especialmente `README.md`, `.gitignore` o instrucciones de
+agentes, compara su contenido y fusiona las reglas aplicables. Nunca reemplaces
+archivos existentes a ciegas. Revisa el diff y confirma que las herramientas
+cargan el contexto antes de empezar trabajo real.
 
 Para actualizar una instalación, compara la versión registrada con el nuevo tag
 o commit, incorpora manualmente solo los cambios comunes aplicables y conserva
 las reglas locales. Registra después la nueva referencia de origen. No reemplaces
 archivos completos sin revisar el diff.
+
+El repositorio es siempre la fuente canónica para estado, implementación, ADRs y
+runbooks específicos. Outline conserva conocimiento transversal o histórico y
+enlaza esos documentos versionados en lugar de duplicarlos.
+
+Ejecuta durante la instalación solo verificaciones locales, seguras y
+autorizadas. Registrar comandos de setup, red, bases de datos o producción no
+autoriza ejecutarlos; documenta cualquier omisión con su razón y riesgo residual.
+
+Para operar en GitHub, sigue [`.github/README.md`](.github/README.md). Considera
+protección técnica solo un ruleset cuyo soporte y estado activo se hayan
+comprobado; en cualquier otro caso, describe las medidas como controles
+procedimentales.
 
 La instalación es deliberadamente manual en v0.1. Permite observar qué partes
 se repiten de verdad antes de introducir un instalador o sincronización.
