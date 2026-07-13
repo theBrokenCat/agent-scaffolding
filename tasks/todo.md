@@ -39,15 +39,60 @@
 
 ## Fase 5 - Validación, GitHub y piloto
 
-- [ ] Revisar enlaces, imports, nombres y límites de contexto.
-- [ ] Ejecutar escenarios de presión y registrar resultados.
-- [ ] Crear repositorio privado de GitHub y publicar la rama.
+- [x] Revisar enlaces, imports, nombres y límites de contexto.
+- [x] Ejecutar escenarios de presión y registrar resultados.
+- [x] Crear repositorio privado de GitHub y publicar la rama.
 - [ ] Abrir PR de v0.1 y verificar su flujo completo.
-- [ ] Seleccionar un proyecto piloto sin modificarlo todavía.
-- [ ] Commit: `test: validate scaffolding workflow`
+- [x] Seleccionar un proyecto piloto sin modificarlo todavía.
+- [x] Commit: `test: validate scaffolding workflow`
 
 ---
 
 ## Review
 
-<!-- Se completa después de implementar y pilotar v0.1. -->
+### Hechos observados
+
+- Validación mecánica: enlaces Markdown relativos OK; `CLAUDE.md` y `GEMINI.md`
+  importan `@AGENTS.md` en la primera línea; no hay directorios vacíos.
+  `git diff --check` queda como verificación final de esta documentación.
+- Contexto: `AGENTS.md` tiene 1128 palabras y el contrato completo 5926. La
+  carga selectiva del router es obligatoria. No se afirma que el host respete el
+  presupuesto cuando carga plugins o skills globales.
+- Presión esperada: typo en docs -> `solo/fast/principal`; typo en código ->
+  `software/fast/principal`; `/improve` read-only ->
+  `audit/standard/principal`; security review read-only ->
+  `audit+security/deep/principal`; hotfix de producción con datos ->
+  `software+production/deep/principal`, con aprobación y rollback; frontend y
+  backend independientes con umbral probado ->
+  `software+orchestrated/deep/2 writers` en worktrees disjuntos.
+- Runtime: Codex CLI 0.144.1 validó correctamente typo de código y `/improve`,
+  pero consumió 39.307 tokens por el contexto global y mostró errores de
+  skills/MCP. Esto evidencia que hooks, plugins y skills globales pueden
+  dominar el presupuesto. Claude Code 2.1.205 quedó bloqueado por 401 de
+  credenciales inválidas. Gemini CLI 0.46.0 quedó bloqueado por cliente free-tier
+  no soportado y escritura de credenciales restringida. No se reintentó ni se
+  declara éxito cruzado.
+- GitHub: `theBrokenCat/agent-scaffolding` es privado, `main` está publicada,
+  el ruleset `Protect main` está activo y la draft PR #1 está abierta y
+  mergeable. No hay CI justificada.
+- Piloto: `/Users/arturo/Proyectos/personal-life`, limpio al seleccionar, de
+  riesgo moderado, Python con tests y superficies de API, persistencia,
+  Telegram, Outline y operaciones. No se modifica en esta fase.
+
+### Desviaciones y riesgo residual
+
+La presión fue ejecutada, pero quedó parcialmente bloqueada en Claude y Gemini;
+por tanto es ejecución registrada, no validación exitosa de los tres runtimes.
+El ciclo Git completo no se cerró: no se hizo merge, ni squash, ni pull final,
+ni eliminación de rama/worktree. Tampoco se creó commit en esta acción. El
+riesgo residual es la interferencia del contexto global y la falta de evidencia
+del piloto y de validación cruzada en Claude/Gemini.
+
+### Siguiente gate
+
+Ejecutar el piloto desde un SHA limpio en un worktree: preservar las reglas
+locales, clasificar los seis casos, comprobar que la suite local no empeora y
+que el diff contiene solo scaffolding/documentación acordada, y dejar una draft
+PR usable. El éxito permite proponer `v0.1.0`; requiere además autorización
+explícita antes de etiquetar o hacer merge. Rollback: abandonar el worktree o
+la rama antes de publicar, o hacer `git revert` del commit/PR después.

@@ -7,6 +7,11 @@ complejo.
 
 ## Estado actual
 
+`v0.1` es una candidata de validación, no un tag `v0.1.0`: el piloto aún no
+se ha ejecutado y no hay autorización para hacer merge. La evidencia de cierre
+de Fase 5, incluidos resultados, bloqueos, riesgo residual y siguiente gate,
+está en [`tasks/todo.md`](tasks/todo.md).
+
 - `README.md`: guía de alcance, instalación y evolución manual.
 - `AGENTS.md`: fuente canónica de las reglas compartidas.
 - `ROUTER.md`: clasificación determinista por mutación, riesgo y delegación.
@@ -21,7 +26,9 @@ complejo.
 
 Estos archivos forman el contrato compartido disponible. El repositorio no
 ofrece automatización operativa.
-La v0.1 no se considera lista hasta cerrar y verificar todas las fases del plan.
+La carga selectiva del router es obligatoria. El host no debe considerarse
+ajustado al presupuesto si carga plugins o skills globales; la v0.1 no se
+considera lista hasta ejecutar el piloto y recibir autorización explícita.
 
 ## Arquitectura objetivo
 
