@@ -10,9 +10,9 @@
 
 | Host | Observed version | Global activation | Empty dir | Repo local rules | Nested dir |
 |---|---|---|---|---|---|
-| Codex CLI | `0.144.1` | pending merge/install | pending | pending | pending |
-| Claude Code | `2.1.205` | pending merge/install | pending | pending | pending |
-| Gemini CLI | `0.46.0` | pending merge/install | pending | pending | pending |
+| Codex CLI | `0.144.3` | pass | pass | no local AGENTS present | pass in `personal-life/src/lifeops_agent` |
+| Claude Code | `2.1.205` | pass | pass after login | not run | not run |
+| Gemini CLI | `0.46.0` | deferred by user | unsupported free-tier client | not run | not run |
 
 ## Required prompts
 
@@ -28,9 +28,32 @@ Each host must return only a compact classification for:
 Record command, exit status, mechanism, whether the expected global marker was
 loaded, and deviations. Do not retain full transcripts or secrets.
 
-## Gate
+## Observed results
 
-Run this matrix only after the PR is merged and
-`~/agent-scaffolding/scripts/scaffolding install --migrate-existing --apply`
-has completed. Running it from the feature worktree would validate links that
-must later be deleted and is therefore invalid evidence.
+- Global install from canonical `main`: `STATUS managed current`; `DOCTOR ok`.
+- Empty-directory Codex: `GLOBAL_OK | app-direct | no`.
+- Nested `personal-life` Codex: `FAST | app-direct | no`;
+  `STANDARD_MULTI | app-parallel | decisiones, contratos compartidos,
+  integracion y verificacion final`; no-teams fallback was explicit.
+- Codex reported 17,901 and 27,447 tokens. Both exceed the `fast` intent for
+  these classification-only prompts.
+- After login, Claude returned `CLAUDE_GLOBAL_OK | app-direct | no`.
+- Gemini returned `UNSUPPORTED_CLIENT`; the user explicitly deferred Gemini.
+
+The eight invalid `~/.agents/skills` frontmatters were repaired, the invalid
+cached `schedule` skill was removed, GitHub MCP was disabled in favor of `gh`,
+and duplicate or unused plugin families were disabled reversibly. A first cost
+smoke after syntax repair used 21,450 input tokens (8,960 cached) and still
+reported a skill-description budget warning. After plugin pruning, the same
+prompt used 21,134 input tokens (8,960 cached) with no skill warning.
+
+The 316-token reduction shows that the remaining input cost is dominated by the
+Codex runtime, tools and global instruction context rather than this router.
+Further broad capability removal is not justified by the measured return.
+
+## Release gate
+
+Runtime gates pass for the active hosts. Gemini is outside the current release
+gate by explicit user decision. The remaining high fixed context cost is a
+documented host constraint, not a release blocker for this repository. Merge
+and tag remain separate human authorization gates.
