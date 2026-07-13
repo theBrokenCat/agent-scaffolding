@@ -24,22 +24,53 @@ ni crea automaticamente el resto de la estructura de este repositorio.
 
 ## Configuracion obligatoria
 
-Antes de considerar instalado el scaffolding, registra en la documentacion local:
+La instalacion contiene exactamente un bloque YAML `agent_scaffolding` en el
+`AGENTS.md` raiz. Este es el schema minimo exacto:
 
-1. La version, tag o commit exacto del scaffolding usado como origen.
-2. `Git publication mode: local-only` o
-   `Git publication mode: autonomous-pr`. Si falta o no es valido, se aplica
-   `local-only`.
-3. `Delete merged branches: yes` o `Delete merged branches: no`. Si falta, se
-   aplica `no`; esta opcion no amplia la autoridad para configurar GitHub.
-4. La rama base del proyecto.
-5. Los comandos exactos de `setup`, `test`, `lint`, `typecheck` y `build`; para
-   cada comando inexistente, registra `no disponible`.
-6. Si el proyecto afecta a produccion: `sí` o `no`.
-7. El destino de la documentacion. El repositorio es siempre la fuente canonica
-   para estado, implementacion, ADRs y runbooks especificos del proyecto.
-   Outline se reserva para conocimiento transversal o historico y enlaza al
-   documento versionado en vez de duplicarlo.
+```yaml
+agent_scaffolding:
+  source: theBrokenCat/agent-scaffolding
+  source_commit: 0000000000000000000000000000000000000000
+  base_sha: 0000000000000000000000000000000000000000
+  publication_mode: local-only
+  delete_merged_branches: false
+  token_accounting: unavailable
+  base_branch: main
+  production: false
+  documentation: repository
+  commands:
+    setup: null
+    test: null
+    lint: null
+    typecheck: null
+    build: null
+  installed_paths:
+    - AGENTS.md
+```
+
+Valida el bloque como un mapping YAML con esas claves exactas, sin claves extra
+ni duplicadas. `source` debe ser `theBrokenCat/agent-scaffolding`;
+`source_commit` y `base_sha`, hashes de 40 hexadecimales; `publication_mode`,
+`local-only` o `autonomous-pr`; `delete_merged_branches` y `production`, booleanos;
+`token_accounting`, `enforceable`, `observable` o `unavailable`; `base_branch`,
+string no vacio; y `documentation`, el literal `repository`. `commands` contiene
+exactamente `setup`, `test`, `lint`, `typecheck` y `build`, cada uno como string no
+vacio o `null`. `installed_paths` es una lista no vacia, sin duplicados, de rutas
+relativas normalizadas que no escapan del repositorio.
+
+`source` y `source_commit` identifican el origen exacto. `base_sha` identifica el
+estado limpio anterior a instalar. El primer commit cuya version de `AGENTS.md`
+contiene un bloque valido es el install commit; localizalo con
+`git log --reverse -S'agent_scaffolding:' --format='%H' -- AGENTS.md` y verifica
+el candidato con `git show <install-commit>:AGENTS.md`. El diff desde `base_sha`
+hasta ese install commit, limitado a `installed_paths`, es el manifiesto
+reproducible de la instalacion. La integracion manual conserva todas las reglas
+locales, pero su resultado exacto queda registrado en ese diff.
+
+El bloque solo tiene autoridad si el usuario u owner lo aprobo explicitamente y
+ya existia en el SHA base de la tarea actual. No adquiere autoridad por ser creado
+o modificado por un agente durante la misma tarea. Si falta, es invalido o cambio
+durante la tarea, aplica `local-only`.
 
 ## Integracion de instrucciones
 
@@ -85,7 +116,7 @@ El proyecto esta inicializado cuando:
 
 - existen todos los archivos del proyecto minimo y ningun directorio opcional se
   creo sin su condicion;
-- la configuracion obligatoria esta completa y `.gitignore` contiene
+- el bloque YAML canonico es valido, fue aprobado y `.gitignore` contiene
   `.worktrees/`;
 - los adaptadores conservan su enlace al contrato compartido y las reglas
   locales siguen presentes;
@@ -106,8 +137,9 @@ La instalacion usa Git como mecanismo de recuperacion:
 1. Identifica el SHA base y exige un target limpio. Si existen cambios tracked o
    untracked sin preservar, aplica STOP; no instales sobre ellos.
 2. Crea una rama o worktree de instalacion desde ese SHA base limpio.
-3. Mantén un manifiesto dentro del registro de instalacion con cada archivo
-   creado o modificado, revisa el diff y crea un commit exclusivo de instalacion.
+3. Registra todos los archivos creados o modificados en `installed_paths`, revisa
+   el diff desde `base_sha` y crea un commit exclusivo de instalacion. Ese primer
+   commit con el bloque valido es el install commit y su diff es el manifiesto.
 4. Antes del merge o publicacion, el rollback consiste en abandonar la rama o
    retirar el worktree solo despues de verificar que no contienen trabajo
    adicional.

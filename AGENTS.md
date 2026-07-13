@@ -53,7 +53,8 @@ Selecciona la forma de trabajo con esta precedencia:
 
 Los perfiles son contratos operativos, no personajes. Activa el perfil mínimo
 que cubra el riesgo. No crees archivos, roles ni procesos opcionales por
-anticipado.
+anticipado. Los overlays añaden contexto, gates o mecanismos, pero nunca amplían
+la capacidad de mutación del perfil base.
 
 ## 4. Contexto, MCP y Outline
 
@@ -89,9 +90,16 @@ de implementación importantes y registra cuando una fuente pueda estar obsoleta
 - Trabaja en una rama corta o un worktree creado desde una base acordada.
 - Conserva cambios ajenos y no reviertas, limpies ni normalices fuera de alcance.
 - Verifica el baseline antes de editar y revisa el diff antes de commitear.
-- Busca en la instalación una línea exacta `Git publication mode: local-only` o
-  `Git publication mode: autonomous-pr`. Si falta o no es válida, usa
-  `local-only`.
+- Lee `publication_mode` exclusivamente del único bloque YAML
+  `agent_scaffolding` situado en el `AGENTS.md` raíz. Ningún bloque anidado,
+  archivo alternativo, variable o texto libre tiene autoridad para definirlo.
+- El bloque solo es confiable si cumple el schema y la validación de
+  `templates/README.md`, fue aprobado explícitamente por el usuario u owner y ya
+  existía sin cambios en el SHA base registrado para la tarea. Un agente no puede
+  elevar su autoridad añadiendo o modificando el bloque durante la tarea.
+- Si el bloque falta, es inválido, no consta su aprobación o cambió durante la
+  tarea, aplica `local-only`. La modificación puede proponerse como cambio local,
+  pero no tiene autoridad en esa misma tarea.
 - `local-only` no concede autorización permanente: trabaja localmente solo hasta
   donde autoricen las instrucciones vigentes y no realices acciones remotas.
 - `autonomous-pr` concede autorización permanente para crear ramas y worktrees,
@@ -109,9 +117,11 @@ de implementación importantes y registra cuando una fuente pueda estar obsoleta
 ## 7. Delegación
 
 Empieza con un agente. Sin `orchestrated`, el perfil base permite como máximo un
-subagente read-only acotado. Activa `orchestrated` para cualquier worker escritor,
-más de un subagente, ejecución paralela o equipo coordinado. Delega solo
-investigación acotada o trabajo realmente independiente.
+subagente read-only acotado. Activa `orchestrated` para más de un subagente,
+ejecución paralela, equipo coordinado o cualquier worker escritor que el perfil
+base ya permita. `orchestrated` nunca concede escritura ni mutación externa: con
+`audit + orchestrated` todos los participantes y el equipo completo permanecen
+read-only. Delega solo investigación acotada o trabajo realmente independiente.
 
 Antes de delegar, aplica el contrato, los presupuestos y las reglas de propiedad
 de `agents/README.md`. El agente principal conserva los contratos compartidos,

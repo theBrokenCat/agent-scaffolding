@@ -13,8 +13,9 @@ STOP únicamente cuando esa precedencia no resuelva el conflicto.
 - `local-only` permite trabajo local autorizado, pero no operaciones remotas.
 - `autonomous-pr` permite crear ramas o worktrees, commits lógicos, push de la
   rama de feature y creación o actualización de una draft PR sin reconfirmar.
-- Si el modo falta, es inválido o entra en conflicto con otra instrucción, se
-  aplica la regla más restrictiva y el fallback es `local-only`.
+- El modo se obtiene solo del bloque YAML canónico y confiable definido en
+  `AGENTS.md`. Si falta, es inválido, no estaba aprobado en el SHA base de la
+  tarea o cambió durante la tarea, el fallback es `local-only`.
 - `main` está protegida: nunca se hace push directo. Merge, despliegue, force
   push y borrado remoto requieren autorización explícita.
 
@@ -33,8 +34,10 @@ git worktree list --porcelain
 La inspección y los flujos operativos usan nombres de remotos, nunca su URL. Si
 diagnosticar conectividad exige conocerla, no la consultes en una sesión con
 output registrado: usa una herramienta del host que devuelva campos ya
-sanitizados o pide al usuario una inspección segura. Los formatos desconocidos
-nunca se imprimen.
+sanitizados o pide al usuario una inspección segura. En particular, NO ejecutes
+`git config --get remote.origin.url` en sesiones registradas. Si una herramienta
+saneada devuelve el valor, represéntalo únicamente como `<redacted>`; los
+formatos desconocidos nunca se imprimen.
 
 Después, cuando el modo y los permisos permitan acceso remoto, ejecuta
 `git fetch --prune`. En `local-only`, no hagas fetch salvo autorización
@@ -106,10 +109,22 @@ Usa los límites `fast`, `standard` y `deep` definidos en `agents/README.md`.
 Carga solo instrucciones, archivos, símbolos y evidencia necesarios; no leas el
 repositorio completo por defecto. Entrega briefs acotados con punteros y
 extractos mínimos, y no reindexes sin necesidad. Selecciona modelos por capacidad
-y coste requerido, no por nombres de producto. Si el host expone tokens, define
-caps explícitos y aplica el primer límite alcanzado. Cuando se agote un límite
-individual o agregado, cierra nuevos despachos, preserva lo existente y aplica
-STOP con estado, evidencia y trabajo pendiente.
+y coste requerido, no por nombres de producto.
+
+Los caps agregados por defecto son `fast` 12k, `standard` 40k y `deep` 120k,
+contados como input más output consumido o facturable que reporte el host para
+lead y agentes. Los caps individuales son: `fast`, lead 12k;
+`standard`, lead 32k y subagente 12k; `deep`, lead 60k y cada worker 30k. El cap
+agregado se aplica primero. El usuario solo puede cambiarlos explícitamente antes
+de empezar la tarea y el agente nunca los amplía automáticamente.
+
+Usa el `token_accounting` del bloque canónico; si falta o es inválido, aplica
+`unavailable`. Con `enforceable`, configura caps antes de lanzar. Con `observable`,
+revisa el acumulado después de cada retorno y aplica STOP al superar el cap. Con
+`unavailable`, no uses subagentes ni equipos y haz una sola pasada acotada, salvo
+autorización explícita previa del usuario para aceptar delegación sin medición.
+Al agotar cualquier límite, cierra nuevos despachos, preserva lo existente y
+aplica STOP con estado, evidencia y trabajo pendiente.
 
 ## 3. codebase-memory-mcp
 
@@ -142,10 +157,11 @@ canónica.
 ## 5. Seguridad
 
 Activa el overlay `security` para autenticación, autorización o permisos,
-secretos, exposición, dependencias, input no confiable, producción o petición
-explícita. Usa el skill especializado que corresponda: diff scan, standard o
-deep scan, threat model, validation o fix; no sustituyas esta selección por un
-security reviewer genérico.
+secretos, exposición, dependencias, input no confiable o petición explícita.
+Producción por sí sola activa `production`, no `security`; combina ambos overlays
+cuando concurran sus triggers. Usa el skill especializado que corresponda: diff
+scan, standard o deep scan, threat model, validation o fix; no sustituyas esta
+selección por un security reviewer genérico.
 
 Los skills de seguridad no amplían autoridad, escritura, intrusividad, número de
 workers ni presupuesto. Si el workflow especializado exige ampliar cualquiera

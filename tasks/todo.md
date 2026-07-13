@@ -55,25 +55,42 @@
 - Validación mecánica: enlaces Markdown relativos OK; `CLAUDE.md` y `GEMINI.md`
   importan `@AGENTS.md` en la primera línea; no hay directorios vacíos.
   `git diff --check` queda como verificación final de esta documentación.
-- Contexto: `AGENTS.md` tiene 1128 palabras y el contrato completo 5926. La
+- Contexto: `AGENTS.md` tiene 1257 palabras y el contrato completo 6711. La
   carga selectiva del router es obligatoria. No se afirma que el host respete el
   presupuesto cuando carga plugins o skills globales.
-- Presión esperada: typo en docs -> `solo/fast/principal`; typo en código ->
+- Casos esperados: typo en docs -> `solo/fast/principal`; typo en código ->
   `software/fast/principal`; `/improve` read-only ->
   `audit/standard/principal`; security review read-only ->
   `audit+security/deep/principal`; hotfix de producción con datos ->
   `software+production/deep/principal`, con aprobación y rollback; frontend y
   backend independientes con umbral probado ->
   `software+orchestrated/deep/2 writers` en worktrees disjuntos.
-- Runtime: Codex CLI 0.144.1 validó correctamente typo de código y `/improve`,
-  pero consumió 39.307 tokens por el contexto global y mostró errores de
-  skills/MCP. Esto evidencia que hooks, plugins y skills globales pueden
-  dominar el presupuesto. Claude Code 2.1.205 quedó bloqueado por 401 de
-  credenciales inválidas. Gemini CLI 0.46.0 quedó bloqueado por cliente free-tier
-  no soportado y escritura de credenciales restringida. No se reintentó ni se
-  declara éxito cruzado.
+- Evidencia runtime reproducible, sin secretos ni logs extensos:
+
+  ```sh
+  codex exec --ephemeral --sandbox read-only --color never "Valida el router de este repositorio sin editar nada. Clasifica exactamente estos dos casos conforme a AGENTS.md, ROUTER.md, profiles/README.md y agents/README.md: (1) corregir un typo en código; (2) auditoría /improve read-only de todo el repo. Devuelve solo dos líneas: caso | perfil+overlays | coste | mecanismo | gate principal. No expliques."
+  claude -p --no-session-persistence --permission-mode plan --tools "" --effort low "Valida el router de este repositorio sin editar nada. Clasifica exactamente estos dos casos conforme a AGENTS.md, ROUTER.md, profiles/README.md y agents/README.md: (1) revisión de seguridad read-only; (2) hotfix de producción que cambia código y toca datos persistentes. Devuelve solo dos líneas: caso | perfil+overlays | coste | mecanismo | gate principal. No expliques."
+  gemini --approval-mode plan --output-format text -p "Valida el router de este repositorio sin editar nada. Clasifica exactamente estos dos casos conforme a AGENTS.md, ROUTER.md, profiles/README.md y agents/README.md: (1) corregir un typo en documentación; (2) implementar frontend y backend independientes con escrituras disjuntas y ahorro neto de coordinación demostrado. Devuelve solo dos líneas: caso | perfil+overlays | coste | mecanismo | gate principal. No expliques."
+  ```
+
+  La primera invocación de Codex dentro del sandbox terminó con exit `1` por
+  `EPERM` al iniciar el app-server; la repetición autorizada en el host mantuvo
+  sandbox read-only. Codex CLI 0.144.1, sesión
+  `019f5b6b-232b-75e0-921d-56b49f97fd40`, terminó con exit `0` y clasificó las
+  dos líneas como `software/fast/principal` y
+  `audit/standard/principal`, aunque también reportó errores de skills/MCP.
+  Consumió 39.307 tokens: es un overrun frente al cap agregado `fast` de 12k y
+  demuestra que el host actual no cumple `fast`, no solo un riesgo genérico.
+  Claude Code 2.1.205 terminó con exit `1` por `401 invalid auth`; su validación
+  está bloqueada. Gemini CLI 0.46.0 falló tras un cliente free-tier no soportado
+  y una escritura de credenciales restringida; su validación también está
+  bloqueada y no se obtuvo una salida de éxito. No se reintentó ni se declara
+  éxito cruzado.
 - GitHub: `theBrokenCat/agent-scaffolding` es privado, `main` está publicada,
-  el ruleset `Protect main` está activo y la draft PR #1 está abierta y
+  el ruleset `Protect main` está activo con
+  `required_review_thread_resolution=true`. Se verificaron mediante la API el
+  requisito de PR, el bloqueo de deletion, el bloqueo de non-fast-forward y la
+  resolución obligatoria de conversaciones. La draft PR #1 está abierta y
   mergeable. No hay CI justificada.
 - Piloto: `/Users/arturo/Proyectos/personal-life`, limpio al seleccionar, de
   riesgo moderado, Python con tests y superficies de API, persistencia,

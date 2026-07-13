@@ -27,7 +27,8 @@ Cuando el preflight confirme soporte, configura un ruleset que:
 
 - requiera pull request para integrar cambios;
 - bloquee force push y borrado de la rama;
-- requiera que todas las conversaciones esten resueltas;
+- requiera que todas las conversaciones esten resueltas
+  (`required_review_thread_resolution=true`);
 - requiera checks solo cuando esos checks existan y representen verificaciones
   reales del proyecto.
 
@@ -40,7 +41,7 @@ del agente y del usuario con evidencia de la verificacion aplicable.
 
 - Usa squash merge por defecto.
 - El borrado remoto automatico de ramas esta desactivado por defecto. Activalo
-  solo si la instalacion registra `Delete merged branches: yes` y existe
+  solo si el bloque canonico registra `delete_merged_branches: true` y existe
   autorizacion humana explicita o una preautorizacion concreta para configurar
   y ejecutar ese borrado remoto.
 - Activa auto-merge para una PR concreta solo cuando este preautorizado por las

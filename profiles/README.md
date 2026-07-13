@@ -3,7 +3,8 @@
 El router elige un perfil base por mutación y añade overlays ortogonales. Los
 perfiles limitan autoridad, contexto y coste; no son personajes y nunca reemplazan
 `AGENTS.md`. Sin `orchestrated`, cualquier perfil base usa el agente principal y,
-como máximo, un subagente read-only acotado según `agents/README.md`.
+como máximo, un subagente read-only acotado según `agents/README.md`. Ningún
+overlay amplía la capacidad de mutación del perfil base.
 
 ## Perfiles base
 
@@ -45,8 +46,9 @@ como máximo, un subagente read-only acotado según `agents/README.md`.
 
 ### `security`
 
-- **Disparadores:** vulnerabilidad, amenazas, secretos, autenticación,
-  autorización, criptografía o riesgo especializado.
+- **Disparadores:** autenticación, autorización o permisos, secretos, exposición,
+  dependencias, input no confiable, petición explícita o riesgo de seguridad
+  especializado. Producción por sí sola no lo activa.
 - **Contexto:** superficie afectada, confianza, flujo de datos y controles.
 - **Permitido:** skills especializados de seguridad, no un reviewer genérico;
   combina con cualquier perfil base y no concede escritura.
@@ -57,8 +59,9 @@ como máximo, un subagente read-only acotado según `agents/README.md`.
 
 ### `production`
 
-- **Disparadores:** producción, despliegues, migraciones, datos persistentes,
-  credenciales, secretos o acciones difíciles de revertir.
+- **Disparadores:** producción, despliegues, migraciones, datos de producción o
+  `production: true` en la configuración canónica. Actívalo siempre que la tarea
+  afecte realmente a producción.
 - **Contexto:** estado observado, datos, runbook, observabilidad y permisos.
 - **Permitido:** combinar con cualquier perfil base; no concede escritura ni
   ejecución. En `audit + production`, toda actuación permanece read-only.
@@ -70,11 +73,15 @@ como máximo, un subagente read-only acotado según `agents/README.md`.
 ### `orchestrated`
 
 - **Disparadores:** obligatorio para más de un subagente, cualquier worker
-  escritor, ejecución paralela o equipo; nunca es default.
+  escritor que el perfil base permita, ejecución paralela o equipo; nunca es
+  default.
 - **Contexto:** contrato compartido y brief mínimo por worker.
 - **Permitido:** hasta tres workers sin delegación anidada, únicamente si se
-  supera el umbral de `agents/README.md`; cumplirlo activa el nivel `deep`.
-- **Gates:** dominios independientes, escrituras disjuntas, ahorro neto, propiedad
-  explícita, aislamiento, integración del lead y cleanup.
+  supera el umbral de `agents/README.md`; cumplirlo activa el nivel `deep`. Hereda
+  la autoridad del perfil base y no concede escritura ni mutación externa. Con
+  `audit + orchestrated` puede haber varios workers o equipo, todos read-only.
+- **Gates:** dominios independientes, escrituras disjuntas solo si el perfil base
+  permite escribir, ahorro neto, propiedad explícita, aislamiento, integración
+  del lead y cleanup.
 - **Documentación:** decisiones duraderas solo si el perfil base permite escribir.
 - **Salida:** retornos por worker, integración verificada y recursos cerrados.
