@@ -1,87 +1,49 @@
-# Perfiles operativos
+# Perfiles de ejecucion
 
-El router elige un perfil base por mutación y añade overlays ortogonales. Los
-perfiles limitan autoridad, contexto y coste; no son personajes y nunca reemplazan
-`AGENTS.md`. Sin `orchestrated`, cualquier perfil base usa el agente principal y,
-como máximo, un subagente read-only acotado según `agents/README.md`. Ningún
-overlay amplía la capacidad de mutación del perfil base.
+Un perfil combina esfuerzo, alias de modelo, gates de riesgo y mecanismo del
+[`ROUTER.md`](../ROUTER.md). Limita el trabajo; no es una personalidad, no fija
+un dominio y no concede autoridad.
 
-## Perfiles base
+## Esfuerzo
 
-### `solo`
+| Nivel | Cuando usarlo | Default operativo |
+| --- | --- | --- |
+| `fast` | Cambio pequeno, pregunta concreta o exploracion acotada | `app-direct`, una pasada, sin delegacion ni confirmacion |
+| `standard` | Feature normal, diagnostico o analisis con varias evidencias | `app-direct`; un worker solo si aporta ahorro neto |
+| `deep` | Seguridad, produccion, ambiguedad alta, integracion compleja o revision exigente | preflight y equipo solo si cumple el umbral |
 
-- **Disparadores:** tarea no auditora que no cambia código ni configuración, como
-  una edición documental o de estado operativo acotada.
-- **Contexto:** instrucciones y evidencia mínima.
-- **Permitido:** principal; como máximo un subagente read-only acotado.
-- **Gates:** alcance, diff si escribe y verificación proporcional.
-- **Documentación:** solo el documento solicitado.
-- **Salida:** respuesta o cambio verificado y límites explícitos.
+## Aliases de modelo
 
-### `software`
+Los aliases portables son `economy`, `balanced` y `frontier`. El mapping local
+inicial es `economy -> Luna`, `balanced -> Terra` y `frontier -> Sol`. Es una
+configuracion local, no una garantia ni un requisito del repositorio. Los hosts
+sin selector usan el modelo disponible y registran el fallback.
 
-- **Disparadores:** cualquier cambio de código, configuración, pruebas o artefacto
-  de implementación, aunque sea un typo.
-- **Contexto:** contrato, símbolos, dependencias directas, pruebas y estado Git.
-- **Permitido:** editar dentro del scope; sin `orchestrated`, solo el principal
-  escribe y puede usar como máximo un subagente read-only acotado.
-- **Gates:** baseline, prueba de fallo para comportamiento, pruebas, lint/build
-  aplicables y revisión del diff.
-- **Documentación:** actualizar contratos solo cuando cambien.
-- **Salida:** cambio mínimo, evidencia fresca y estado Git.
+Como punto de partida usa `fast / economy`, `standard / balanced` y
+`deep / frontier`, pero mantenlos separados: un alias elige capacidad/coste; el
+nivel limita proceso. Ninguno amplia permisos.
 
-### `audit`
+## Gates de riesgo
 
-- **Disparadores:** análisis, revisión, diagnóstico, arquitectura, deuda o
-  `/improve` sin mutación.
-- **Contexto:** alcance, grafo o arquitectura, código y evidencia vigente.
-- **Permitido:** lectura y recomendaciones; principal y, como máximo, un
-  subagente read-only acotado. Es estrictamente read-only.
-- **Gates:** hechos separados de inferencias, referencias verificables y ninguna
-  alteración de archivos, índice o estado externo.
-- **Documentación:** ninguna escritura, incluida la clasificación.
-- **Salida:** hallazgos priorizados, evidencia, riesgos y plan accionable.
+Los gates se combinan con cualquier nivel:
 
-## Overlays
+- **read-only:** ninguna escritura local o remota; hallazgos con evidencia.
+- **write:** scope y paths definidos, baseline, diff y verificacion proporcional.
+- **security:** redaccion, skill especializado, validacion de hallazgos y
+  aprobacion para acciones intrusivas.
+- **production:** estado observado, autorizacion explicita para actuar, rollback
+  verificable y comprobacion posterior.
+- **remote:** el ciclo global permite feature branches, checkpoint pushes y
+  draft PR; merge, deploy/produccion, force-push, push a `main` y acciones
+  destructivas siempre se confirman por separado.
 
-### `security`
+Elige el nivel y alias mas bajos que cubran complejidad y riesgo. Si la seleccion
+cambia coste o autoridad, aplica el preflight de [`ROUTER.md`](../ROUTER.md).
 
-- **Disparadores:** autenticación, autorización o permisos, secretos, exposición,
-  dependencias, input no confiable, petición explícita o riesgo de seguridad
-  especializado. Producción por sí sola no lo activa.
-- **Contexto:** superficie afectada, confianza, flujo de datos y controles.
-- **Permitido:** skills especializados de seguridad, no un reviewer genérico;
-  combina con cualquier perfil base y no concede escritura.
-- **Gates:** evidencia reproducible, validación especializada, mínimo privilegio,
-  redacción de secretos y aprobación para acciones intrusivas.
-- **Documentación:** según sensibilidad y solo si el perfil base permite escribir.
-- **Salida:** riesgo, evidencia, alcance, mitigación y riesgo residual.
+## Contexto
 
-### `production`
-
-- **Disparadores:** producción, despliegues, migraciones, datos de producción o
-  `production: true` en la configuración canónica. Actívalo siempre que la tarea
-  afecte realmente a producción.
-- **Contexto:** estado observado, datos, runbook, observabilidad y permisos.
-- **Permitido:** combinar con cualquier perfil base; no concede escritura ni
-  ejecución. En `audit + production`, toda actuación permanece read-only.
-- **Gates:** aprobación explícita para actuar, rollback verificable, protección y
-  respaldo del estado persistente, manejo seguro de secretos y comprobación final.
-- **Documentación:** runbook, cambio o incidente solo si el perfil base lo permite.
-- **Salida:** estado observado, verificaciones, rollback y riesgos pendientes.
-
-### `orchestrated`
-
-- **Disparadores:** obligatorio para más de un subagente, cualquier worker
-  escritor que el perfil base permita, ejecución paralela o equipo; nunca es
-  default.
-- **Contexto:** contrato compartido y brief mínimo por worker.
-- **Permitido:** hasta tres workers sin delegación anidada, únicamente si se
-  supera el umbral de `agents/README.md`; cumplirlo activa el nivel `deep`. Hereda
-  la autoridad del perfil base y no concede escritura ni mutación externa. Con
-  `audit + orchestrated` puede haber varios workers o equipo, todos read-only.
-- **Gates:** dominios independientes, escrituras disjuntas solo si el perfil base
-  permite escribir, ahorro neto, propiedad explícita, aislamiento, integración
-  del lead y cleanup.
-- **Documentación:** decisiones duraderas solo si el perfil base permite escribir.
-- **Salida:** retornos por worker, integración verificada y recursos cerrados.
+Carga contrato, instrucciones locales aplicables y evidencia minima. Los
+dominios, tecnologias y criterios concretos pertenecen al brief del worker, no a
+perfiles especializados. Usa los roles genericos de
+[`agents/README.md`](../agents/README.md) y los limites de
+[`policies/README.md`](../policies/README.md).

@@ -1,166 +1,128 @@
-# Contrato compartido de agentes
+# Contrato global de agentes
 
-## 1. Autoridad y fuentes de verdad
+Este archivo es el contrato comun de `~/agent-scaffolding`. Se activa desde el
+directorio global de cada host; un proyecto no tiene que instalarlo ni copiarlo.
+Las instrucciones locales son opcionales y deben limitarse a hechos, comandos y
+restricciones propios del proyecto.
 
-Aplica las instrucciones con esta precedencia de autoridad:
+## 1. Autoridad y activacion
 
-1. Límites de sistema y plataforma, que ninguna otra fuente puede reemplazar.
-2. Instrucciones explícitas del usuario.
-3. `AGENTS.md` y reglas locales del proyecto activo.
-4. Router, perfil, planes y políticas aplicables del repositorio.
+Aplica, en este orden, sistema y plataforma, instruccion explicita del usuario,
+instrucciones locales aplicables y este contrato global. La capa local puede ser
+mas especifica, pero no ampliar permisos restringidos por una capa superior. Si
+la precedencia no resuelve un conflicto que pueda cambiar autoridad, coste o
+riesgo, aplica STOP y solicita la decision minima necesaria.
 
-Ante una contradicción, resuelve primero con esta precedencia y señala el
-conflicto. Aplica la regla más restrictiva entre las fuentes vigentes solo para
-acciones Git o remotas, operaciones destructivas, producción y seguridad. Si la
-precedencia no resuelve el conflicto, detente y solicita una decisión.
+Los destinos globales gestionados son:
 
-Para la fiabilidad factual, el código, las pruebas, Git, CI y el estado observado
-prevalecen al describir la implementación actual. Los planes, la memoria y la
-documentación histórica aportan contexto, pero no sustituyen evidencia vigente.
-Indica cualquier discrepancia entre el estado observado y la documentación.
+```text
+~/.codex/AGENTS.md   -> ~/agent-scaffolding/AGENTS.md
+~/.claude/CLAUDE.md -> ~/agent-scaffolding/CLAUDE.md
+~/.gemini/GEMINI.md -> ~/agent-scaffolding/GEMINI.md
+```
 
-## 2. Protocolo inicial
+Cada adaptador debe cargar este archivo mediante un mecanismo soportado y
+probado en runtime por su host. Si un import relativo no se resuelve desde un
+symlink, usa el enlace auxiliar minimo o un adaptador estable generado desde el
+repositorio. No des por valida la activacion solo porque el enlace exista.
 
-Antes de editar:
+## 2. Inicio y preflight
 
-1. Confirma objetivo, alcance, archivos permitidos y criterio de finalización.
-2. Lee las instrucciones, el plan y solo la sección aplicable de
-   `policies/README.md`.
-3. Comprueba rama, estado de Git y cambios preexistentes; conserva trabajo ajeno.
-4. Establece una línea base verificable para el comportamiento que vas a tocar.
-5. Identifica riesgos, permisos necesarios y acciones irreversibles.
-6. Propón un plan breve para trabajo no trivial y resuelve bloqueos reales.
+Detecta si operas en app o CLI y que capacidades reales ofrece el host: ejecucion
+directa, delegacion, paralelo, teams, seleccion de modelo, permisos y medicion de
+coste. No simules capacidades ausentes.
 
-No explores todo el repositorio por defecto. Amplía el contexto solo cuando la
-primera pasada no permita tomar una decisión fundada.
+Para una tarea sustancial, antes de ejecutar presenta:
 
-## 3. Router
+```text
+Recomiendo: <app-direct|app-delegated|app-parallel|cli-handoff|hybrid>
+Motivo: <una frase>
+La app conservara: <decisiones e integracion>
+Delegare: <scope o nada>
+Confirmacion necesaria: <si/no>
+```
 
-`ROUTER.md`, `profiles/README.md`, `agents/README.md` y `policies/README.md`
-forman con este archivo el contrato completo instalado. Úsalos para clasificar y
-limitar la tarea, pero carga solo el perfil, presupuesto y sección de políticas
-aplicables. Si falta alguno, informa que la instalación está incompleta y mantén
-un solo agente sin ampliar autoridad hasta restaurarlo.
+`fast` no pregunta. En `standard` o `deep`, escrituras amplias, equipos,
+seguridad, produccion o relevo, pide confirmacion solo cuando la opcion propuesta
+cambie coste, autoridad, superficie de escritura o destino de ejecucion. Una
+instruccion explicita ya resuelve esa decision mientras no contradiga una capa
+superior.
 
-Selecciona la forma de trabajo con esta precedencia:
+## 3. Router y contexto
 
-1. Instrucción explícita del usuario.
-2. Restricciones del proyecto activo.
-3. Perfil base según mutación: `audit` para read-only, `software` para cambios de
-   código o configuración y `solo` para el resto.
-4. Overlays de riesgo `security` y `production`.
-5. Overlay `orchestrated` cuando el mecanismo de agentes lo exija.
+Usa [`ROUTER.md`](ROUTER.md) para elegir mecanismo y nivel; `app-direct` es el
+default. Carga despues solo el perfil, las politicas y los briefs necesarios en
+[`profiles/README.md`](profiles/README.md), [`policies/README.md`](policies/README.md)
+y [`agents/README.md`](agents/README.md). La CLI es una opcion de relevo, no el
+destino obligatorio.
 
-Los perfiles son contratos operativos, no personajes. Activa el perfil mínimo
-que cubra el riesgo. No crees archivos, roles ni procesos opcionales por
-anticipado. Los overlays añaden contexto, gates o mecanismos, pero nunca amplían
-la capacidad de mutación del perfil base.
+Antes de editar confirma objetivo, scope, paths permitidos, SHA o baseline,
+cambios preexistentes y evidencia de finalizacion. Amplia el contexto una sola
+vez si la primera pasada acotada no basta; no leas todo el repositorio por
+defecto.
 
-## 4. Contexto, MCP y Outline
-
-Para descubrir arquitectura, símbolos, llamadas e impacto, usa primero
+Para arquitectura, simbolos, llamadas e impacto usa primero
 `codebase-memory-mcp`: `search_graph`, `trace_path`, `get_code_snippet`,
-`query_graph` y `get_architecture`, en ese orden según la necesidad. Recurre a
-búsqueda textual para literales, configuración, archivos no indexados o cuando
-el grafo sea insuficiente.
+`query_graph` y `get_architecture`, segun la necesidad. Usa busqueda textual para
+literales, configuracion, documentacion, archivos no indexados o resultados
+insuficientes del grafo.
 
-Consulta Outline mediante sus herramientas MCP para decisiones técnicas previas,
-documentación transversal y notas de despliegue. No uses accesos alternativos
-para eludir permisos. Solo modifica Outline cuando el usuario lo pida de forma
-explícita y la escritura MCP esté habilitada. No expongas secretos ni elimines
-documentos.
+Consulta Outline mediante MCP para documentacion, decisiones previas y notas de
+despliegue. No eludas permisos con shell, Docker, bases de datos, `curl` ni
+archivos de entorno. Solo modifica Outline por peticion explicita y con escritura
+MCP habilitada; no expongas secretos ni elimines documentos. Verifica en el
+repositorio los detalles de implementacion importantes.
 
-Trata MCP y Outline como contexto útil. Verifica en el repositorio los detalles
-de implementación importantes y registra cuando una fuente pueda estar obsoleta.
+## 4. Ejecucion y delegacion
 
-## 5. Ejecución
+- Haz el cambio correcto mas pequeno y conserva trabajo ajeno.
+- Sigue patrones y dependencias existentes; evita refactors no relacionados.
+- El agente de la app conserva decisiones, contratos compartidos, integracion y
+  verificacion final incluso cuando delega.
+- Usa solo los roles genericos y el envelope compacto de
+  [`agents/README.md`](agents/README.md); los dominios viajan en el brief.
+- No permitas delegacion anidada. Los writers declaran paths disjuntos y usan
+  worktree o aislamiento equivalente desde un SHA conocido.
+- Cierra workers y recursos temporales al terminar sin borrar trabajo no
+  integrado.
 
-- Haz el cambio correcto más pequeño que satisfaga el objetivo.
-- Sigue los patrones, herramientas y dependencias existentes.
-- No mezcles refactors, formato o limpieza sin relación con la tarea.
-- Usa APIs y formatos estructurados en lugar de manipulación textual frágil.
-- Pide autorización antes de acciones destructivas, despliegues o ampliaciones
-  relevantes de alcance.
-- Mantén informado al usuario durante trabajo prolongado y comunica bloqueos
-  con evidencia concreta.
-- Completa implementación, verificación y registro del resultado antes de cerrar.
+## 5. Git, GitHub y limites
 
-## 6. Git y GitHub
+Una tarea de cambio autorizada incluye, sin confirmacion por cada accion, el
+ciclo normal de feature: actualizar refs, crear rama/worktree desde `origin/main`,
+ejecutar baseline, crear commits logicos, hacer push de la feature tras checkpoints
+verdes y crear o actualizar una draft PR. Una restriccion superior o local puede
+reducir esta autoridad.
 
-- Trabaja en una rama corta o un worktree creado desde una base acordada.
-- Conserva cambios ajenos y no reviertas, limpies ni normalices fuera de alcance.
-- Verifica el baseline antes de editar y revisa el diff antes de commitear.
-- Lee `publication_mode` exclusivamente del único bloque YAML
-  `agent_scaffolding` situado en el `AGENTS.md` raíz. Ningún bloque anidado,
-  archivo alternativo, variable o texto libre tiene autoridad para definirlo.
-- El bloque solo es confiable si cumple el schema y la validación de
-  `templates/README.md`, fue aprobado explícitamente por el usuario u owner y ya
-  existía sin cambios en el SHA base registrado para la tarea. Un agente no puede
-  elevar su autoridad añadiendo o modificando el bloque durante la tarea.
-- Si el bloque falta, es inválido, no consta su aprobación o cambió durante la
-  tarea, aplica `local-only`. La modificación puede proponerse como cambio local,
-  pero no tiene autoridad en esa misma tarea.
-- `local-only` no concede autorización permanente: trabaja localmente solo hasta
-  donde autoricen las instrucciones vigentes y no realices acciones remotas.
-- `autonomous-pr` concede autorización permanente para crear ramas y worktrees,
-  crear commits lógicos con Conventional Commits en inglés, hacer push de feature
-  branches y crear o actualizar draft PRs. No reconfirmes estas acciones.
-- Incluso en `autonomous-pr`, prevalece cualquier restricción más estricta del
-  sistema, el usuario o el proyecto.
-- El push directo a `main`, force-push, merge, cualquier borrado remoto y cualquier
-  acción sobre producción requieren autorización explícita.
-- Limpia una rama o worktree local solo después de confirmar que el merge terminó
-  y que no contienen trabajo sin integrar.
-- Si el estado del árbol contradice el alcance acordado, detente antes de alterar
-  trabajo ajeno.
+Sigue este ciclo:
 
-## 7. Delegación
+1. Inspecciona status, rama, remotos y worktrees; conserva trabajo ajeno.
+2. Ejecuta `git fetch --prune origin` y localiza el worktree limpio que posee
+   `main`. Actualizalo con `pull --ff-only` solo si esta limpio.
+3. Crea la rama y su worktree desde `origin/main`; no reutilices un checkout con
+   cambios ni alteres el worktree de `main` para desarrollar.
+4. Registra SHA base y baseline antes de editar.
+5. Crea commits logicos. Tras cada checkpoint verde, permite push de la feature
+   y creacion o actualizacion de su draft PR sin reconfirmar.
+6. Ejecuta CI y reviews dentro de los limites de
+   [`policies/README.md`](policies/README.md). El merge sigue siendo un gate
+   explicito.
+7. Tras confirmar el merge, actualiza el worktree limpio de `main` con
+   `pull --ff-only`; despues retira solo worktrees limpios, elimina solo ramas
+   locales ya integradas con borrado seguro y poda refs/metadatos obsoletos.
 
-Empieza con un agente. Sin `orchestrated`, el perfil base permite como máximo un
-subagente read-only acotado. Activa `orchestrated` para más de un subagente,
-ejecución paralela, equipo coordinado o cualquier worker escritor que el perfil
-base ya permita. `orchestrated` nunca concede escritura ni mutación externa: con
-`audit + orchestrated` todos los participantes y el equipo completo permanecen
-read-only. Delega solo investigación acotada o trabajo realmente independiente.
+Push directo a `main`, force-push, merge, deploy/produccion, borrado remoto,
+`reset`, restore destructivo, `clean` y cualquier operacion destructiva requieren
+autorizacion explicita. No normalices cambios fuera de propiedad.
 
-Antes de delegar, aplica el contrato, los presupuestos y las reglas de propiedad
-de `agents/README.md`. El agente principal conserva los contratos compartidos,
-integra resultados y verifica por sí mismo. No permitas delegación anidada y
-cierra todos los workers al terminar.
+## 6. Verificacion y STOP
 
-## 8. Verificación
+Define evidencia observable antes de afirmar exito. Para cambios de
+comportamiento reproduce primero el fallo; despues ejecuta pruebas, lint, build y
+validaciones proporcionales. Lee la salida y revisa el diff. Un retorno de worker
+no sustituye verificacion del lead.
 
-- Define qué comando o evidencia demuestra cada criterio antes de afirmar éxito.
-- Para cambios de comportamiento, prueba primero el fallo y después la corrección.
-- Ejecuta pruebas, linters, compilación o validaciones proporcionales al riesgo.
-- Lee la salida completa, comprueba el código de salida y revisa `git diff`.
-- No sustituyas evidencia fresca por confianza, memoria o el informe de otro agente.
-- Si una comprobación no puede ejecutarse, indica cuál falta y el riesgo residual.
-
-## 9. Documentación
-
-Mantén en el repositorio el estado operativo, los contratos y las decisiones de
-implementación. Usa Outline para conocimiento transversal o histórico. No copies
-sesiones completas ni dupliques información sin definir una fuente canónica.
-
-Actualiza solo la documentación afectada. Crea ADRs, runbooks, incidentes,
-lecciones o tareas persistentes cuando la duración, repetición o impacto lo
-justifiquen, no como ceremonia preventiva. Usa español claro; conserva nombres
-técnicos y mensajes de commit en inglés.
-
-## 10. Condiciones de parada
-
-Detente y solicita decisión cuando:
-
-- falten permisos, credenciales, datos o una dependencia imprescindible;
-- el alcance sea ambiguo y una suposición pueda causar daño o trabajo relevante;
-- aparezcan cambios ajenos que hagan insegura la integración;
-- una acción requiera destruir datos, desplegar o ampliar autoridad no concedida;
-- fallen tres intentos razonados de CI o se agote el presupuesto agregado de dos
-  rondas de revisión definido en `policies/README.md`;
-- la precedencia de autoridad no resuelva un conflicto;
-- la evidencia contradiga el plan o no exista una verificación fiable.
-
-Al parar, informa qué ocurrió, qué intentaste, qué evidencia tienes y cuál es la
-decisión mínima necesaria para continuar. No ocultes fallos ni declares éxito
-parcial como finalización completa.
+Aplica STOP si faltan permisos o datos, cambia el scope o la propiedad, la
+evidencia contradice el plan, una accion seria destructiva, se agota un limite o
+no existe verificacion fiable. Informa `status`, evidencia, riesgos y la decision
+minima para continuar; no presentes trabajo parcial como cierre completo.

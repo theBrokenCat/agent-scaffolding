@@ -1,20 +1,17 @@
 @AGENTS.md
 
-# Adaptador de Gemini CLI
+# Adaptador de Gemini
 
-## Memoria y contexto jerárquico
+Gemini App y Gemini CLI son hosts generalistas: pueden investigar, disenar,
+implementar, revisar e integrar cuando [`ROUTER.md`](ROUTER.md) los seleccione.
+Gemini no es un perfil design-only y `app-direct` sigue siendo el default.
 
-- Ejecuta `/memory show` para comprobar que el contrato común y el contexto local
-  esperado forman parte de la memoria activa.
-- Ejecuta `/memory reload` cuando cambien los archivos de instrucciones o el
-  contexto cargado esté incompleto u obsoleto.
-- Respeta el contexto jerárquico: combina las instrucciones generales con las más
-  cercanas al directorio de trabajo y aplica la precedencia de `AGENTS.md`.
-
-## Relevo de capacidades
-
-Cuando falte una capacidad necesaria, no la simules ni omitas silenciosamente el
-trabajo. Prepara un relevo con objetivo, evidencia, intentos realizados, estado
-actual y verificación pendiente, y solicita al usuario el destino adecuado. Crea
-una issue o tarea solo cuando exista una autorización permanente aplicable o el
-usuario conceda permiso explícito.
+- Comprueba con la memoria jerarquica del host que `AGENTS.md` y cualquier
+  instruccion local aplicable estan cargados.
+- Recarga la memoria cuando cambien instrucciones o el contexto este incompleto.
+- Usa delegacion, paralelo o seleccion de modelo solo cuando la capacidad exista
+  realmente; no simules teams, workers ni aliases no configurables.
+- Cuando falte una capacidad necesaria, prepara el relevo compacto definido en
+  [`agents/README.md`](agents/README.md) y vuelve a
+  [`ROUTER.md`](ROUTER.md) para elegir `cli-handoff` o `hybrid`.
+- Conserva en la app las decisiones e integracion cuando delegue trabajo a CLI.

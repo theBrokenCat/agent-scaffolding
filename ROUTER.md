@@ -1,72 +1,86 @@
-# Router de trabajo
+# Router app-first
 
-## Propósito y precedencia
+El router elige el mecanismo minimo que puede completar la tarea. No concede
+permisos y no asigna herramientas a roles fijos. `app-direct` es el default.
 
-El router selecciona el contrato mínimo sin conceder autoridad adicional. Aplica
-primero la precedencia superior de `AGENTS.md`: usuario y proyecto, configuración
-canónica confiable, clasificación de esta tarea, `software` y por último `solo`.
-Los perfiles son contratos, no personajes.
+## Orden de decision
 
-## Clasificación determinista
+Clasifica con esta precedencia:
 
-Responde en orden, sin leer todos los perfiles:
+1. instruccion explicita del usuario;
+2. autoridad y restricciones aplicables;
+3. mutacion y superficie de escritura;
+4. riesgo, especialmente seguridad y produccion;
+5. coste del contexto que debe conservarse;
+6. independencia real entre scopes;
+7. capacidades disponibles en el host.
 
-1. ¿Es read-only, incluido análisis, revisión o `/improve`?
-2. ¿Cambia código, configuración o artefactos de implementación?
-3. ¿Activa un trigger real de seguridad: authn/authz/permisos, secretos,
-   exposición, dependencias, input no confiable o petición explícita?
-4. ¿Afecta realmente a producción, su despliegue o sus datos, o la configuración
-   canónica declara `production: true`?
-5. ¿Propone más de un agente, un worker escritor permitido por el perfil base,
-   paralelo o equipo?
-6. ¿Cumple el umbral de orquestación de `agents/README.md`?
+Si una opcion no existe en el host, degrada a la siguiente viable y dilo. No
+simules teams, workers, seleccion de modelo ni medicion de coste.
 
-La mutación elige exactamente un perfil base:
+## Mecanismos
 
-| Mutación | Perfil base |
+| Mecanismo | Uso |
 | --- | --- |
-| Ninguna; la tarea es análisis o auditoría | `audit` |
-| Cambia código, configuración o implementación | `software` |
-| No cambia código/configuración y no es auditoría | `solo` |
+| `app-direct` | Default: la app investiga, implementa, revisa e integra. |
+| `app-delegated` | La app conserva decisiones e integracion; un worker resuelve un scope acotado. |
+| `app-parallel` | La app integra scopes independientes; writers usan paths y worktrees disjuntos. |
+| `cli-handoff` | El usuario pide CLI o la app carece de una capacidad necesaria; se entrega un brief autocontenido. |
+| `hybrid` | La app gobierna decisiones e integracion y usa CLI para una parte concreta. |
 
-Después añade overlays ortogonales y combinables:
+Elige delegacion solo si reduce contexto o tiempo neto. Elige paralelo solo para
+dos o mas scopes independientes, con propiedad disjunta y coste de integracion
+menor que el ahorro. Sigue los limites de [`agents/README.md`](agents/README.md).
 
-| Condición | Overlay | Efecto |
-| --- | --- | --- |
-| Trigger real de seguridad o petición explícita | `security` | Añade skills y gates de seguridad; no concede escritura |
-| Producción, despliegue, datos de producción o `production: true` | `production` | Añade aprobación, rollback y protección de estado; no concede escritura |
-| El mecanismo supera principal + un subagente read-only | `orchestrated` | Habilita varios participantes, paralelo o equipo dentro de la autoridad del perfil base |
+## Preflight selectivo
 
-Producción por sí sola activa `production`, no `security`. Combina ambos overlays
-solo cuando también exista un trigger real de seguridad. `audit + security`,
-`audit + production` y `audit + orchestrated` son válidos y permanecen read-only;
-el último puede usar varios workers o un equipo, pero nunca writers ni mutación
-externa. `software` puede combinarse con los tres overlays. Si no se cumplen los
-tres requisitos del umbral `orchestrated`, ejecuta secuencialmente.
-
-## Resultado de clasificación
-
-La clasificación es contexto interno o una sola línea breve, por ejemplo:
+Para trabajo sustancial usa exactamente:
 
 ```text
-software + security; standard; principal; gates: pruebas y validación especializada.
+Recomiendo: <app-direct|app-delegated|app-parallel|cli-handoff|hybrid>
+Motivo: <una frase>
+La app conservara: <decisiones e integracion>
+Delegare: <scope o nada>
+Confirmacion necesaria: <si/no>
 ```
 
-Persístela solo cuando la tarea abarque varias sesiones o lo exijan el usuario o
-el perfil. Nunca escribas clasificación ni documentación durante `audit`.
+No preguntes para `fast`. En `standard` o `deep`, escrituras amplias, equipos,
+seguridad, produccion o relevo, pregunta solo si el mecanismo cambia coste,
+autoridad, paths de escritura o destino. Una preferencia explicita del usuario
+ya cuenta como decision salvo conflicto superior.
 
-Antes de ejecutar deben quedar resueltos, aunque no se publiquen como plantilla:
-perfil base, overlays, contexto mínimo, mecanismo, nivel de coste, gates y
-criterio observable de finalización. Carga solo las secciones seleccionadas y los
-punteros necesarios; amplía el contexto únicamente con evidencia.
+## Esfuerzo, modelo y mapping local
 
-## Ejemplos
+El esfuerzo es `fast`, `standard` o `deep`. `fast` cubre una pasada acotada;
+`standard` es el nivel sustancial normal; `deep` exige riesgo o complejidad
+justificados. Esfuerzo no significa autoridad.
 
-| Solicitud | Respuesta de clasificación |
-| --- | --- |
-| Corregir un typo en documentación | `solo; fast; principal; escritura documental acotada` |
-| Corregir un typo o cambio mínimo en código | `software; fast; principal; pruebas proporcionales` |
-| Auditar seguridad sin cambios | `audit + security; deep por riesgo; principal; read-only` |
-| Analizar un incidente de producción | `audit + production; deep por riesgo; principal; read-only` |
-| Auditar varios dominios independientes | `audit + orchestrated; deep; varios workers read-only` |
-| Implementar frontend y backend realmente independientes | `software + orchestrated; deep; paralelo solo si supera el umbral` |
+Los aliases portables son `economy`, `balanced` y `frontier`. El mapping inicial
+local es:
+
+| Alias | Mapping local inicial | Uso |
+| --- | --- | --- |
+| `economy` | Luna | tarea acotada y baja ambiguedad |
+| `balanced` | Terra | implementacion o analisis normal |
+| `frontier` | Sol | alto riesgo, contexto complejo o revision exigente |
+
+Luna, Terra y Sol no forman parte del contrato portable. Cada host puede mapear
+los aliases a capacidades equivalentes. Si no permite seleccionar modelo, usa
+el disponible, conserva el alias como intencion y no afirmes que aplicaste el
+mapping.
+
+## Tabla de decisiones
+
+| Caso | Mecanismo | Pregunta | Esfuerzo / alias | Contexto que conserva la app | Gate |
+| --- | --- | --- | --- | --- | --- |
+| Typo | `app-direct` | no | `fast / economy` | archivo y diff | diff/check |
+| Feature acotada | `app-direct` | no, salvo escritura amplia | `standard / balanced` | contrato, codigo y pruebas | baseline y pruebas |
+| Investigacion grande | `app-delegated` | si si cambia coste | `standard / balanced` | pregunta, evidencia e integracion | referencias verificadas |
+| Frontend/backend disjuntos | `app-parallel` | si | `deep / balanced` | contrato compartido e integracion | paths/worktrees y suite final |
+| Security diff | `app-delegated` o `app-direct` | si si cambia coste o autoridad | `deep / frontier` | threat context y veredicto | skill y validacion especializada |
+| Hotfix de produccion | `app-direct` o `hybrid` | si | `deep / frontier` | decisiones, rollback e integracion | aprobacion, rollback y checks |
+| Usuario pide CLI sin selector de modelo | `cli-handoff` | no | nivel aplicable / alias como intencion | alcance y aceptacion del retorno | declarar fallback y verificar |
+
+Los perfiles de coste y riesgo estan en
+[`profiles/README.md`](profiles/README.md); roles y envelopes en
+[`agents/README.md`](agents/README.md).
