@@ -34,6 +34,14 @@ explicitamente esos destinos. El manifiesto y los backups quedan fuera del repo
 en `~/.local/state/agent-scaffolding/`; `uninstall --apply` restaura archivos,
 symlinks —incluidos los rotos— y ausencias anteriores.
 
+Valida el contrato, el instalador y el registro con:
+
+```sh
+sh tests/contract_test.sh
+sh tests/scaffolding_test.sh
+sh tests/registry_test.sh
+```
+
 Un proyecto puede no tener instrucciones de agentes. Cuando aporten valor, sus
 archivos locales contienen solo hechos, comandos y restricciones propias del
 proyecto; complementan el contrato global y no amplian permisos superiores. El

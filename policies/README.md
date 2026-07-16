@@ -59,8 +59,32 @@ confirmacion explicita. Nunca uses cleanup para resolver cambios ajenos.
 Para descubrir codigo usa primero `codebase-memory-mcp`: `search_graph`,
 `trace_path`, `get_code_snippet`, `query_graph` y `get_architecture`. Usa busqueda
 textual para literales, configuracion, documentacion, archivos no indexados o
-cuando el grafo no baste. Reindexa solo si es necesario y el perfil permite esa
-mutacion; verifica detalles importantes contra el repositorio.
+cuando el grafo no baste. Verifica detalles importantes contra el repositorio.
+
+### Frescura de codebase-memory-mcp
+
+Antes de usar el grafo como evidencia para arquitectura, impacto o navegacion:
+
+1. Consulta `list_projects` o `index_status` y confirma el root del repositorio.
+2. Contrasta su escala con los archivos de codigo y prueba una consulta
+   representativa cuando la cobertura sea dudosa. El estado `ready` no prueba
+   que el indice este completo o actualizado.
+3. Considera el indice stale o incompleto si falta, apunta a otra ruta, tiene
+   una escala inverosimil, cambio la rama/worktree, hubo cambios sustanciales o
+   el texto contiene un simbolo conocido que el grafo no encuentra.
+4. Reindexa el root actual con `persistence=false` y repite la consulta una sola
+   vez. Esta actualizacion del estado MCP queda autorizada dentro de una tarea de
+   descubrimiento y no requiere confirmacion adicional porque no escribe en el
+   repositorio.
+5. Si sigue fallando, degrada a busqueda textual, informa que el grafo no es
+   fiable para esa tarea y no vuelvas a reindexar en el mismo loop.
+
+Usa `fast` para refrescos cotidianos, `moderate` cuando importen relaciones
+cross-file y `full` para recuperacion de un indice incompleto, arquitectura o
+analisis profundo. `persistence=true` puede crear un artefacto compartible en el
+repositorio y requiere peticion explicita. La indexacion siempre refleja el
+filesystem del worktree elegido, incluidos cambios sin commit; registra rama,
+SHA y estado dirty cuando esa diferencia pueda afectar las conclusiones.
 
 Usa Outline por MCP para documentacion, decisiones previas y despliegues. No
 eludas permisos mediante shell, Docker, Postgres, MinIO, `curl` ni `.env`. Solo
