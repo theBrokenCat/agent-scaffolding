@@ -67,6 +67,19 @@ Para arquitectura, simbolos, llamadas e impacto usa primero
 literales, configuracion, documentacion, archivos no indexados o resultados
 insuficientes del grafo.
 
+Antes de confiar en el grafo, comprueba `list_projects` o `index_status` y su
+coherencia con el repositorio actual. `ready` solo significa que una indexacion
+termino: no demuestra frescura ni cobertura. Si falta el proyecto, la ruta no
+coincide, el indice es inverosimilmente pequeno, ha cambiado la rama o el
+worktree, existen cambios sustanciales desde la ultima evidencia, o una busqueda
+textual encuentra un simbolo conocido que el grafo omite, ejecuta
+`index_repository` sobre el root actual y repite la consulta una vez. Esta
+reindexacion puede hacerse sin confirmacion cuando usa `persistence=false` y no
+modifica el repositorio. Registra rama, SHA y estado dirty cuando sean relevantes:
+el indice representa los archivos presentes, incluidos cambios sin commit. Si
+el segundo intento falla, usa busqueda textual e informa de la degradacion; no
+entres en un loop de reindexacion.
+
 Consulta Outline mediante MCP para documentacion, decisiones previas y notas de
 despliegue. No eludas permisos con shell, Docker, bases de datos, `curl` ni
 archivos de entorno. Solo modifica Outline por peticion explicita y con escritura
