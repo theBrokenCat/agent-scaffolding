@@ -1,0 +1,182 @@
+#!/bin/sh
+
+# protect-repo — aplica las barreras de flujo git de agent-scaffolding a un repo
+# de GitHub. La cuenta personal no tiene org rulesets, asi que el candado se
+# aplica por repositorio con este script.
+#
+# Por repo garantiza, de forma idempotente:
+#   - un ruleset de rama sobre la rama por defecto: exige pull request, exige los
+#     status checks requeridos, bloquea force-push y borrado de rama y exige que
+#     las conversaciones esten resueltas;
+#   - auto-merge de repositorio activado con squash como metodo de merge;
+#   - (opcional, --seed-ci) el workflow de CI sembrado mediante una pull request,
+#     nunca con push directo a la rama por defecto.
+#
+# Dry-run por defecto; --apply ejecuta. --all recorre cada repo del usuario
+# autenticado. Ver .github/README.md para la especificacion canonica.
+#
+# El check `reviewer` NO se exige salvo --with-reviewer: mientras el revisor-en-CI
+# siga desactivado, exigirlo seria un control ficticio. Ver .github/workflows/ci.yml.
+
+set -eu
+
+script_dir=$(CDPATH= cd -- "$(dirname "$0")" && pwd -P)
+repo_root=$(CDPATH= cd -- "$script_dir/.." && pwd -P)
+template_ci=$repo_root/.github/workflows/ci.yml
+
+RULESET_NAME=${PROTECT_RULESET_NAME:-'Protect main'}
+
+usage() {
+  printf '%s\n' 'usage: protect-repo <owner/repo | --all> [--apply] [--with-reviewer] [--seed-ci] [--ruleset-name NAME]' >&2
+}
+
+stop() { printf '%s\n' "STOP $*" >&2; exit 1; }
+
+apply=false
+all=false
+with_reviewer=false
+seed_ci=false
+repo=''
+while [ "$#" -gt 0 ]; do
+  case $1 in
+    --apply) apply=true ;;
+    --all) all=true ;;
+    --with-reviewer) with_reviewer=true ;;
+    --seed-ci) seed_ci=true ;;
+    --ruleset-name) shift; [ "$#" -gt 0 ] || { usage; exit 1; }; RULESET_NAME=$1 ;;
+    -h|--help) usage; exit 0 ;;
+    -*) usage; exit 1 ;;
+    *) [ -z "$repo" ] || { usage; exit 1; }; repo=$1 ;;
+  esac
+  shift
+done
+
+command -v gh >/dev/null 2>&1 || stop 'missing command gh'
+if [ "$all" = true ]; then
+  [ -z "$repo" ] || stop 'pass either --all or a single repo, not both'
+else
+  [ -n "$repo" ] || { usage; exit 1; }
+fi
+
+required_checks_json() {
+  if [ "$with_reviewer" = true ]; then
+    printf '%s' '[{"context":"tests"},{"context":"reviewer"}]'
+  else
+    printf '%s' '[{"context":"tests"}]'
+  fi
+}
+
+ruleset_payload() {
+  # ~DEFAULT_BRANCH mantiene el ruleset portable entre repos.
+  cat <<EOF
+{
+  "name": "$RULESET_NAME",
+  "target": "branch",
+  "enforcement": "active",
+  "conditions": { "ref_name": { "include": ["~DEFAULT_BRANCH"], "exclude": [] } },
+  "rules": [
+    { "type": "deletion" },
+    { "type": "non_fast_forward" },
+    { "type": "pull_request", "parameters": {
+        "required_approving_review_count": 0,
+        "dismiss_stale_reviews_on_push": false,
+        "require_code_owner_review": false,
+        "require_last_push_approval": false,
+        "required_review_thread_resolution": true,
+        "allowed_merge_methods": ["squash"]
+    } },
+    { "type": "required_status_checks", "parameters": {
+        "strict_required_status_checks_policy": false,
+        "do_not_enforce_on_create": false,
+        "required_status_checks": $(required_checks_json)
+    } }
+  ]
+}
+EOF
+}
+
+seed_ci_pr() {
+  slug=$1
+  default_branch=$2
+  [ -f "$template_ci" ] || stop "template CI workflow not found: $template_ci"
+  base_sha=$(gh api "repos/$slug/git/refs/heads/$default_branch" --jq '.object.sha')
+  branch=chore/ci-bootstrap
+  gh api -X POST "repos/$slug/git/refs" -f "ref=refs/heads/$branch" -f "sha=$base_sha" >/dev/null 2>&1 || :
+  content=$(base64 < "$template_ci" | tr -d '\n')
+  gh api -X PUT "repos/$slug/contents/.github/workflows/ci.yml" \
+    -f "message=ci: sembrar workflow de agent-scaffolding" \
+    -f "branch=$branch" \
+    -f "content=$content" >/dev/null
+  gh pr create --repo "$slug" --base "$default_branch" --head "$branch" \
+    --title "ci: bootstrap agent-scaffolding CI" \
+    --body 'Anade el workflow de CI compartido. Ajusta los comandos de test al proyecto antes de exigir el check `tests`.' \
+    >/dev/null 2>&1 || :
+  printf '%s\n' "APPLY $slug seeded CI workflow via PR on branch $branch"
+}
+
+protect_one() {
+  slug=$1
+  default_branch=$(gh api "repos/$slug" --jq '.default_branch' 2>/dev/null) \
+    || stop "cannot read repo $slug (check name and gh auth)"
+  auto_merge=$(gh api "repos/$slug" --jq '.allow_auto_merge' 2>/dev/null || printf 'false')
+  ruleset_id=$(gh api "repos/$slug/rulesets" --jq ".[] | select(.name==\"$RULESET_NAME\") | .id" 2>/dev/null | head -n1 || :)
+  ci_present=false
+  if gh api "repos/$slug/contents/.github/workflows/ci.yml" --jq '.path' >/dev/null 2>&1; then
+    ci_present=true
+  fi
+
+  checks='tests'
+  [ "$with_reviewer" = false ] || checks='tests, reviewer'
+
+  if [ "$apply" = false ]; then
+    printf '%s\n' "PLAN $slug default-branch=$default_branch"
+    if [ -n "$ruleset_id" ]; then
+      printf '%s\n' "PLAN $slug update ruleset '$RULESET_NAME' (id $ruleset_id): PR + block force-push/deletion + thread-resolution + required checks [$checks]"
+    else
+      printf '%s\n' "PLAN $slug create ruleset '$RULESET_NAME': PR + block force-push/deletion + thread-resolution + required checks [$checks]"
+    fi
+    if [ "$auto_merge" = true ]; then
+      printf '%s\n' "PLAN $slug auto-merge already enabled"
+    else
+      printf '%s\n' "PLAN $slug enable auto-merge + squash"
+    fi
+    if [ "$ci_present" = true ]; then
+      printf '%s\n' "PLAN $slug CI workflow present"
+    elif [ "$seed_ci" = true ]; then
+      printf '%s\n' "PLAN $slug CI workflow absent -> would open bootstrap PR (--seed-ci)"
+    else
+      printf '%s\n' "PLAN $slug CI workflow absent (pass --seed-ci to open a bootstrap PR)"
+    fi
+    return 0
+  fi
+
+  # --apply below this point.
+  if [ "$auto_merge" != true ]; then
+    gh api -X PATCH "repos/$slug" -F allow_auto_merge=true -F allow_squash_merge=true >/dev/null
+    printf '%s\n' "APPLY $slug enabled auto-merge + squash"
+  else
+    printf '%s\n' "APPLY $slug auto-merge already enabled"
+  fi
+
+  if [ -n "$ruleset_id" ]; then
+    ruleset_payload | gh api -X PUT "repos/$slug/rulesets/$ruleset_id" --input - >/dev/null
+    printf '%s\n' "APPLY $slug updated ruleset '$RULESET_NAME' (id $ruleset_id) required checks [$checks]"
+  else
+    ruleset_payload | gh api -X POST "repos/$slug/rulesets" --input - >/dev/null
+    printf '%s\n' "APPLY $slug created ruleset '$RULESET_NAME' required checks [$checks]"
+  fi
+
+  if [ "$ci_present" = false ] && [ "$seed_ci" = true ]; then
+    seed_ci_pr "$slug" "$default_branch"
+  fi
+}
+
+if [ "$all" = true ]; then
+  gh repo list --no-archived --source --limit 200 --json nameWithOwner --jq '.[].nameWithOwner' \
+    | while IFS= read -r slug; do
+        [ -n "$slug" ] || continue
+        protect_one "$slug"
+      done
+else
+  protect_one "$repo"
+fi

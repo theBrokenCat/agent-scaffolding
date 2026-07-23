@@ -102,27 +102,36 @@ repositorio los detalles de implementacion importantes.
 ## 5. Git, GitHub y limites
 
 Una tarea de cambio autorizada incluye, sin confirmacion por cada accion, el
-ciclo normal de feature: actualizar refs, crear rama/worktree desde `origin/main`,
-ejecutar baseline, crear commits logicos, hacer push de la feature tras checkpoints
-verdes y crear o actualizar una draft PR. Una restriccion superior o local puede
-reducir esta autoridad.
+ciclo normal de feature: crear o enlazar un issue, actualizar refs, crear
+rama/worktree desde `origin/main`, ejecutar baseline, crear commits logicos, hacer
+push de la feature tras checkpoints verdes y crear o actualizar una draft PR que
+cierre el issue. Una restriccion superior o local puede reducir esta autoridad.
 
 Sigue este ciclo:
 
-1. Inspecciona status, rama, remotos y worktrees; conserva trabajo ajeno.
+1. Crea o enlaza el issue que la tarea cierra; inspecciona status, rama, remotos
+   y worktrees, y conserva trabajo ajeno.
 2. Ejecuta `git fetch --prune origin` y localiza el worktree limpio que posee
    `main`. Actualizalo con `pull --ff-only` solo si esta limpio.
-3. Crea la rama y su worktree desde `origin/main`; no reutilices un checkout con
-   cambios ni alteres el worktree de `main` para desarrollar.
+3. Crea la rama `feat/<n>-slug` (n = numero del issue) y su worktree desde
+   `origin/main`; no reutilices un checkout con cambios ni alteres el worktree de
+   `main` para desarrollar.
 4. Registra SHA base y baseline antes de editar.
 5. Crea commits logicos. Tras cada checkpoint verde, permite push de la feature
-   y creacion o actualizacion de su draft PR sin reconfirmar.
-6. Ejecuta CI y reviews dentro de los limites de
-   [`policies/README.md`](policies/README.md). El merge sigue siendo un gate
-   explicito.
-7. Tras confirmar el merge, actualiza el worktree limpio de `main` con
-   `pull --ff-only`; despues retira solo worktrees limpios, elimina solo ramas
-   locales ya integradas con borrado seguro y poda refs/metadatos obsoletos.
+   y creacion o actualizacion de su draft PR (con `Closes #<n>`) sin reconfirmar.
+6. Ejecuta CI y la revision del agente dentro de los limites de
+   [`policies/README.md`](policies/README.md). En cuenta personal el revisor no
+   puede aprobar su propia PR: va como check de CI, no como approval. La puerta
+   antes de integrar es CI verde Y revisor verde. El merge sigue siendo un gate
+   explicito; solo el auto-merge preautorizado lo cierra sin accion manual, y
+   unicamente con los checks requeridos en verde.
+7. Confirma la integracion con `gh pr view <n> --json state,mergedAt` antes de
+   limpiar: el squash merge por defecto reescribe el head, por lo que
+   `git branch -d` siempre falla y dejaria ramas y worktrees huerfanos. Solo si
+   `state` es `MERGED`, actualiza el worktree limpio de `main` con
+   `pull --ff-only`, retira los worktrees limpios de la feature con
+   `git worktree remove`, borra la rama local ya integrada con `git branch -D` y
+   poda refs/metadatos obsoletos. El borrado remoto sigue requiriendo autorizacion.
 
 Push directo a `main`, force-push, merge, deploy/produccion, borrado remoto,
 `reset`, restore destructivo, `clean` y cualquier operacion destructiva requieren
