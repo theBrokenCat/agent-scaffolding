@@ -21,13 +21,15 @@ autoridad de una capa superior.
 Una tarea de cambio autorizada concede el siguiente ciclo de feature sin pedir
 permiso para cada paso. Las restricciones superiores o locales siguen mandando.
 
-1. **Inspeccion y refs.** Ejecuta `git status --short`, identifica rama, remotos y
-   worktrees, y despues `git fetch --prune origin`. No muestres URLs ni secretos.
+1. **Issue y refs.** Crea o enlaza el issue que la tarea cierra. Ejecuta
+   `git status --short`, identifica rama, remotos y worktrees, y despues
+   `git fetch --prune origin`. No muestres URLs ni secretos.
 2. **Main limpio.** Localiza con `git worktree list --porcelain` el worktree que
    posee `main`. Si esta limpio, actualizalo con `git -C <main> pull --ff-only`.
    Si esta sucio, no lo alteres ni escondas sus cambios.
-3. **Aislamiento.** Crea una rama corta y worktree desde `origin/main`, por
-   ejemplo `git worktree add -b <feature> <path> origin/main`. Cada writer parte
+3. **Aislamiento.** Crea una rama `feat/<n>-slug` (n = numero del issue) y su
+   worktree desde `origin/main`, por ejemplo
+   `git worktree add -b feat/<n>-slug <path> origin/main`. Cada writer parte
    del SHA registrado y posee paths disjuntos. Contratos compartidos, schemas,
    lockfiles, migrations, generated, snapshots e integracion pertenecen al lead
    salvo asignacion unica y explicita.
@@ -36,19 +38,37 @@ permiso para cada paso. Las restricciones superiores o locales siguen mandando.
    STOP salvo autorizacion acotada para continuar.
 5. **Checkpoints.** Revisa el diff, crea commits logicos y ejecuta las
    verificaciones aplicables. Tras un checkpoint verde, haz push de la feature
-   con upstream si hace falta y crea o actualiza una draft PR. No reconfirmes
-   cada commit, push o actualizacion de draft PR.
-6. **CI y review.** La draft PR incluye alcance, cambios, verificaciones y
+   con upstream si hace falta y crea o actualiza una draft PR con `Closes #<n>`.
+   No reconfirmes cada commit, push o actualizacion de draft PR.
+6. **CI y revisor.** La draft PR incluye alcance, cambios, verificaciones y
    riesgos. CI permite tres intentos razonados y requisitos/diff/feedback
-   comparten dos rondas de review. Al agotar un limite, aplica STOP; no hagas
-   merge automatico.
-7. **Merge.** Solicita autorizacion explicita para integrar el head revisado.
-   Merge y deploy/produccion son gates separados.
-8. **Post-merge.** Confirma el merge y que no queda trabajo sin preservar.
-   Actualiza el worktree limpio de `main` con `git -C <main> pull --ff-only`.
-   Retira solo worktrees limpios, elimina solo ramas locales integradas mediante
-   `git branch -d`, ejecuta `git worktree prune` y actualiza refs con
-   `git fetch --prune origin`. El borrado remoto sigue requiriendo autorizacion.
+   comparten dos rondas de review. En cuenta personal el revisor no puede aprobar
+   su propia PR: se ejecuta como check de CI, no como approval. La puerta antes de
+   integrar es CI verde Y revisor verde. Al agotar un limite, aplica STOP.
+7. **Merge.** El merge es un gate explicito. El auto-merge solo procede cuando
+   esta preautorizado y con todos los checks requeridos (CI y, cuando este activo,
+   revisor) en verde; hasta que el revisor-en-CI se active, gobierna la capa
+   determinista. Merge y deploy/produccion son gates separados.
+8. **Post-merge.** Confirma la integracion con `gh pr view <n> --json state,mergedAt`
+   antes de limpiar; el squash merge por defecto reescribe el head, asi que
+   `git branch -d` siempre falla y dejaria ramas y worktrees huerfanos. Solo si
+   `state` es `MERGED`: actualiza el worktree limpio de `main` con
+   `git -C <main> pull --ff-only`, retira los worktrees limpios de la feature con
+   `git worktree remove`, borra la rama local integrada con `git branch -D`,
+   ejecuta `git worktree prune` y actualiza refs con `git fetch --prune origin`.
+   El borrado remoto sigue requiriendo autorizacion.
+
+### Auto-merge en cuenta personal
+
+Sin org rulesets, el candado se aplica por repo con `scripts/protect-repo`: crea o
+actualiza el ruleset de la rama por defecto (PR obligatoria, checks requeridos,
+bloqueo de force-push y borrado, conversaciones resueltas) y activa el auto-merge
+de repositorio con squash. El revisor va como check de CI porque el autor no puede
+aprobar su propia PR. El auto-merge cierra la PR sin accion manual solo cuando los
+checks requeridos estan en verde; el check `reviewer` se exige (`--with-reviewer`)
+unicamente cuando existen su secret y su harness, y hasta entonces gobierna la capa
+determinista. La primera publicacion de `main`, el ruleset y `--all` sobre todos
+los repos requieren autorizacion humana explicita.
 
 Push directo a `main`, force-push, merge, deploy/produccion, borrado remoto,
 `reset`, restore destructivo, `clean` y cualquier operacion destructiva requieren
