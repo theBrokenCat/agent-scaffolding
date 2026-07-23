@@ -1,0 +1,66 @@
+# CI para agent-scaffolding. Sirve ademas de plantilla para otros repos
+# personales: copia este archivo y ajusta el paso `tests` a los comandos reales
+# del proyecto. `scripts/protect-repo` puede sembrarlo con `--seed-ci`.
+name: ci
+
+on:
+  pull_request:
+    branches: [main]
+
+# Solo lectura: la CI no publica ni muta el repositorio.
+permissions:
+  contents: read
+
+jobs:
+  # Capa determinista (ACTIVA). Es el check requerido por el ruleset de `main`.
+  tests:
+    name: tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: contract_test
+        run: sh tests/contract_test.sh
+      - name: scaffolding_test
+        run: sh tests/scaffolding_test.sh
+      - name: registry_test
+        run: sh tests/registry_test.sh
+      - name: protect_repo_test
+        run: sh tests/protect_repo_test.sh
+
+  # Revisor-en-CI (PREPARADO pero DESACTIVADO). Corre en cada PR pero es un no-op
+  # que reporta exito mientras no exista el secret `ANTHROPIC_API_KEY`.
+  #
+  # Activacion:
+  #   1. Anade el secret `ANTHROPIC_API_KEY` al repo.
+  #   2. Implementa `scripts/ci-reviewer` (debe fallar ante regresion contra la
+  #      base o efectos negativos sobre `main`; ver agents/roles/quality-reviewer.md).
+  #   3. Vuelve a correr `scripts/protect-repo <repo> --apply --with-reviewer`
+  #      para exigir el check `reviewer` en el ruleset.
+  # Hasta entonces NO es un check requerido: la capa determinista gobierna el merge.
+  reviewer:
+    name: reviewer
+    runs-on: ubuntu-latest
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - name: Gate
+        id: gate
+        run: |
+          if [ -z "${ANTHROPIC_API_KEY}" ]; then
+            echo "reviewer: DESACTIVADO (sin secret ANTHROPIC_API_KEY); reporto pase neutral."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Checkout
+        if: steps.gate.outputs.enabled == 'true'
+        uses: actions/checkout@v4
+      - name: Run reviewer
+        if: steps.gate.outputs.enabled == 'true'
+        run: |
+          if [ ! -x scripts/ci-reviewer ]; then
+            echo "reviewer: ACTIVADO pero falta scripts/ci-reviewer." >&2
+            echo "Implementa el harness del revisor antes de exigir este check." >&2
+            exit 1
+          fi
+          scripts/ci-reviewer
