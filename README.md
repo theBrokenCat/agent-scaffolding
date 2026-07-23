@@ -40,7 +40,13 @@ Valida el contrato, el instalador y el registro con:
 sh tests/contract_test.sh
 sh tests/scaffolding_test.sh
 sh tests/registry_test.sh
+sh tests/protect_repo_test.sh
 ```
+
+En cada PR a `main`, [`.github/workflows/ci.yml`](.github/workflows/ci.yml)
+ejecuta estos tests como capa determinista. `scripts/protect-repo` aplica por
+repositorio el ruleset de `main` y el auto-merge; ver
+[`.github/README.md`](.github/README.md).
 
 Un proyecto puede no tener instrucciones de agentes. Cuando aporten valor, sus
 archivos locales contienen solo hechos, comandos y restricciones propias del

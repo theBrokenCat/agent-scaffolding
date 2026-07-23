@@ -21,21 +21,38 @@ remoto, la primera publicacion de `main` y cualquier lectura o cambio de
 configuracion requieren autorizacion humana explicita o una preautorizacion
 concreta para esa accion.
 
+## Issues y milestones
+
+- Todo cambio parte de un issue: crealo o enlazalo antes de ramificar. La rama es
+  `feat/<n>-slug` (n = numero del issue) y la PR lo cierra con `Closes #<n>`.
+- El titulo del issue describe el resultado buscado, no la tarea mecanica; el
+  cuerpo fija objetivo, alcance y decisiones ya tomadas.
+- Usa milestones para agrupar los issues de una misma entrega o release y seguir
+  su avance; asigna el issue a su milestone al crearlo cuando aplique.
+
 ## Proteccion de `main`
 
-Cuando el preflight confirme soporte, configura un ruleset que:
+Aplica el ruleset con `scripts/protect-repo <owner/repo> --apply` (dry-run por
+defecto; `--all` recorre los repos personales; ambos requieren autorizacion
+humana para la primera publicacion de `main` y para el propio ruleset). El
+ruleset canonico sobre la rama por defecto:
 
-- requiera pull request para integrar cambios;
-- bloquee force push y borrado de la rama;
-- requiera que todas las conversaciones esten resueltas
+- requiere pull request para integrar cambios, con
+  `required_approving_review_count=0` porque en cuenta personal el autor no puede
+  aprobar su propia PR;
+- restringe el metodo de merge a squash;
+- bloquea force push y borrado de la rama;
+- requiere que todas las conversaciones esten resueltas
   (`required_review_thread_resolution=true`);
-- requiera checks solo cuando esos checks existan y representen verificaciones
-  reales del proyecto.
+- exige el check `tests` (capa determinista). El check `reviewer` se añade con
+  `protect-repo --with-reviewer` solo cuando existen su secret y su harness;
+  exigir un check que aun no verifica nada seria un control ficticio.
 
-Estas garantias son tecnicas solo despues de comprobar que el ruleset esta
-activo. Sin ruleset son controles procedimentales: no exijas una aprobacion
-humana imposible en un repositorio personal y exige, antes del merge, revision
-del agente y del usuario con evidencia de la verificacion aplicable.
+Estas garantias son tecnicas solo despues de comprobar que el ruleset esta activo
+(`gh api repos/<owner>/<repo>/rulesets`). Sin ruleset son controles
+procedimentales: no exijas una aprobacion humana imposible en un repositorio
+personal y exige, antes del merge, revision del agente con evidencia de la
+verificacion aplicable.
 
 ## Pull requests y merge
 
@@ -44,8 +61,12 @@ del agente y del usuario con evidencia de la verificacion aplicable.
   solo si el bloque canonico registra `delete_merged_branches: true` y existe
   autorizacion humana explicita o una preautorizacion concreta para configurar
   y ejecutar ese borrado remoto.
-- Activa auto-merge para una PR concreta solo cuando este preautorizado por las
-  instrucciones vigentes.
+- `scripts/protect-repo --apply` activa el auto-merge de repositorio
+  (`allow_auto_merge=true`, squash). Con eso habilitado, encola el auto-merge de
+  una PR concreta con `gh pr merge <n> --auto --squash` solo cuando este
+  preautorizado; la PR se integra sola en cuanto los checks requeridos (CI y,
+  cuando este activo, `reviewer`) esten en verde. Sin preautorizacion, el merge
+  sigue siendo un gate manual.
 - Abre una draft PR temprano para trabajo multisesion u orquestado, de modo que
   el estado y el diff sean visibles durante la ejecucion.
 - Para un cambio pequeño y de una sola sesion, abre una PR normal al finalizar
