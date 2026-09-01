@@ -1,0 +1,301 @@
+#!/bin/sh
+
+# Materialize the canonical roles in agents/roles/ as host-specific subagent
+# definitions. The role files are the single source of truth; this script only
+# resolves each role's alias through a model map and renders it per host.
+
+set -eu
+
+script_dir=$(CDPATH= cd -- "$(dirname "$0")" && pwd -P)
+GEN_ROOT=${GEN_ROOT:-$(CDPATH= cd -- "$script_dir/.." && pwd -P)}
+roles_dir=$GEN_ROOT/agents/roles
+example_map=$GEN_ROOT/settings/schemas/model-map.example.yaml
+
+usage() {
+  cat >&2 <<'EOF'
+usage:
+  gen-agents --host <codex|claude> --out DIR   [--model-map PATH] [--require-local-map]
+  gen-agents --host <codex|claude> --role NAME [--model-map PATH] [--require-local-map]
+  gen-agents --host <codex|claude> --list
+  gen-agents --resolve   [--model-map PATH]
+  gen-agents --map-path  [--model-map PATH]
+EOF
+}
+
+stop() {
+  printf '%s\n' "STOP $*" >&2
+  exit 1
+}
+
+host=
+out=
+role=
+map=
+action=
+require_local=false
+
+while [ "$#" -gt 0 ]; do
+  case $1 in
+    --host)
+      shift; [ "$#" -gt 0 ] || { usage; exit 1; }
+      host=$1
+      ;;
+    --out)
+      shift; [ "$#" -gt 0 ] || { usage; exit 1; }
+      out=$1; action=${action:-render_all}
+      ;;
+    --role)
+      shift; [ "$#" -gt 0 ] || { usage; exit 1; }
+      role=$1; action=${action:-render_one}
+      ;;
+    --model-map)
+      shift; [ "$#" -gt 0 ] || { usage; exit 1; }
+      map=$1
+      ;;
+    --list) action=list ;;
+    --resolve) action=resolve ;;
+    --map-path) action=map_path ;;
+    --require-local-map) require_local=true ;;
+    *) usage; exit 1 ;;
+  esac
+  shift
+done
+
+[ -n "$action" ] || { usage; exit 1; }
+[ -d "$roles_dir" ] || stop "missing roles directory $roles_dir"
+
+case $action in
+  render_all|render_one|list)
+    case $host in
+      codex|claude) ;;
+      '') stop '--host is required' ;;
+      *) stop "unsupported host $host; only codex and claude expose subagent files" ;;
+    esac
+    ;;
+esac
+
+resolve_map() {
+  if [ -n "$map" ]; then
+    [ -f "$map" ] || stop "model map not found: $map"
+    printf '%s\n' "$map"
+    return 0
+  fi
+  if [ -n "${XDG_CONFIG_HOME-}" ] && [ -f "$XDG_CONFIG_HOME/agent-scaffolding/model-map.yaml" ]; then
+    printf '%s\n' "$XDG_CONFIG_HOME/agent-scaffolding/model-map.yaml"
+    return 0
+  fi
+  if [ -n "${HOME-}" ] && [ -f "$HOME/.config/agent-scaffolding/model-map.yaml" ]; then
+    printf '%s\n' "$HOME/.config/agent-scaffolding/model-map.yaml"
+    return 0
+  fi
+  printf '%s\n' "$example_map"
+}
+
+map_file=$(resolve_map)
+[ -f "$map_file" ] || stop "model map not found: $map_file"
+if [ "$map_file" = "$example_map" ]; then
+  if [ "$require_local" = true ]; then
+    stop 'only the example model map is available; it holds code names, not model ids. Copy settings/schemas/model-map.example.yaml to ~/.config/agent-scaffolding/model-map.yaml and set real model ids.'
+  fi
+fi
+
+map_lookup() {
+  awk -v want="$1" -v field="$2" '
+    /^[[:space:]]*#/ { next }
+    /^[[:space:]]*$/ { next }
+    /^  - id:[[:space:]]*/ {
+      value = $0
+      sub(/^  - id:[[:space:]]*/, "", value)
+      gsub(/"/, "", value)
+      current = (value == want)
+      next
+    }
+    current && $0 ~ ("^    " field ":[[:space:]]*") {
+      value = $0
+      sub(/^    [a-z_]+:[[:space:]]*/, "", value)
+      gsub(/"/, "", value)
+      print value
+      exit
+    }
+  ' "$map_file"
+}
+
+alias_model() {
+  value=$(map_lookup "$1" model)
+  [ -n "$value" ] || stop "alias $1 has no model in $map_file"
+  printf '%s\n' "$value"
+}
+
+alias_effort() {
+  value=$(map_lookup "$1" effort)
+  [ -n "$value" ] || stop "alias $1 has no effort in $map_file"
+  printf '%s\n' "$value"
+}
+
+role_field() {
+  awk -v key="$2" '
+    NR == 1 && $0 == "---" { inside = 1; next }
+    inside && $0 == "---" { exit }
+    inside {
+      k = $0
+      sub(/:.*/, "", k)
+      if (k == key) {
+        value = $0
+        sub(/^[a-z_]+:[[:space:]]*/, "", value)
+        sub(/^"/, "", value)
+        sub(/"$/, "", value)
+        print value
+        exit
+      }
+    }
+  ' "$1"
+}
+
+role_envelope() {
+  awk '
+    /^## Compact envelope/ { section = 1; next }
+    section && /^```/ { if (started) exit; started = 1; next }
+    started { print }
+  ' "$1"
+}
+
+toml_escape() {
+  printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
+}
+
+role_files() {
+  for candidate in "$roles_dir"/*.md; do
+    [ -f "$candidate" ] || continue
+    printf '%s\n' "$candidate"
+  done
+}
+
+host_filename() {
+  case $host in
+    codex) printf '%s.toml\n' "$1" ;;
+    claude) printf '%s.md\n' "$1" ;;
+  esac
+}
+
+load_role() {
+  role_file=$1
+  role_name=$(role_field "$role_file" name)
+  role_description=$(role_field "$role_file" description)
+  role_alias=$(role_field "$role_file" alias)
+  role_effort=$(role_field "$role_file" effort)
+  role_escalated_alias=$(role_field "$role_file" escalated_alias)
+  role_escalated_effort=$(role_field "$role_file" escalated_effort)
+  role_trigger=$(role_field "$role_file" escalation_trigger)
+  role_authority=$(role_field "$role_file" authority)
+
+  for required in role_name role_description role_alias role_effort \
+    role_escalated_alias role_escalated_effort role_trigger role_authority; do
+    eval "value=\$$required"
+    [ -n "$value" ] || stop "role ${role_file##*/} is missing ${required#role_}"
+  done
+
+  role_model=$(alias_model "$role_alias")
+  role_escalated_model=$(alias_model "$role_escalated_alias")
+  case $role_authority in
+    read-only|write) ;;
+    *) stop "role ${role_file##*/} has unsupported authority $role_authority" ;;
+  esac
+}
+
+role_instructions() {
+  printf '%s\n' "Act as the \`$role_name\` role of the agent-scaffolding contract, for the bounded"
+  printf '%s\n' "task the lead assigns. Follow agents/roles/$role_name.md and the launch brief."
+  printf '\n'
+  if [ "$role_authority" = read-only ]; then
+    printf '%s\n' 'Authority: read-only. Do not write files, run mutating commands, publish to Git,'
+    printf '%s\n' 'delegate further, or expand scope. Report; do not decide.'
+  else
+    printf '%s\n' 'Authority: write, restricted to the paths the brief assigns. Do not touch shared'
+    printf '%s\n' 'contracts, schemas, lockfiles, generated files or snapshots unless the brief'
+    printf '%s\n' 'assigns them to you, and never delegate further.'
+  fi
+  printf '\n'
+  printf '%s\n' "Routing: this definition is the \`$role_alias\` alias ($role_model, reasoning effort $role_effort)."
+  printf '%s\n' "The lead re-dispatches at \`$role_escalated_alias\` ($role_escalated_model, effort $role_escalated_effort) when"
+  printf '%s\n' "$role_trigger."
+  printf '%s\n' 'Never change your own model or effort, and never silently continue past that line.'
+  printf '\n'
+  printf '%s\n' 'Return exactly this compact envelope and nothing else:'
+  printf '\n'
+  role_envelope "$role_file"
+  printf '\n'
+  printf '%s\n' 'STOP and return `blocked` with evidence when the base SHA, ownership, contract or'
+  printf '%s\n' 'required evidence is missing, when scope would grow, or when your budget is spent.'
+}
+
+render_codex() {
+  printf '%s\n' "# Generated by scripts/gen-agents from agents/roles/$role_name.md. Do not edit by hand."
+  printf 'name = "%s"\n' "$(toml_escape "$role_name")"
+  printf 'description = "%s"\n' "$(toml_escape "$role_description")"
+  printf 'model = "%s"\n' "$(toml_escape "$role_model")"
+  printf 'model_reasoning_effort = "%s"\n' "$(toml_escape "$role_effort")"
+  printf 'developer_instructions = """\n'
+  role_instructions | sed 's/"""/\\"\\"\\"/g'
+  printf '"""\n'
+}
+
+render_claude() {
+  printf '%s\n' '---'
+  printf 'name: %s\n' "$role_name"
+  printf 'description: %s\n' "$role_description"
+  printf 'model: %s\n' "$role_model"
+  if [ "$role_authority" = read-only ]; then
+    printf 'tools: Read, Grep, Glob\n'
+  fi
+  printf '%s\n' '---'
+  printf '\n'
+  printf '%s\n' "<!-- Generated by scripts/gen-agents from agents/roles/$role_name.md. Do not edit by hand. -->"
+  printf '\n'
+  role_instructions
+}
+
+render_role() {
+  load_role "$1"
+  case $host in
+    codex) render_codex ;;
+    claude) render_claude ;;
+  esac
+}
+
+case $action in
+  map_path)
+    printf '%s\n' "$map_file"
+    ;;
+  resolve)
+    for id in economy balanced frontier critical diagnostic; do
+      model=$(map_lookup "$id" model)
+      effort=$(map_lookup "$id" effort)
+      [ -n "$model" ] || continue
+      printf '%s|%s|%s\n' "$id" "$model" "$effort"
+    done
+    ;;
+  list)
+    role_files | while read -r role_file; do
+      name=$(role_field "$role_file" name)
+      [ -n "$name" ] || stop "role ${role_file##*/} is missing name"
+      printf '%s|%s|%s\n' "$name" "$(host_filename "$name")" "$role_file"
+    done
+    ;;
+  render_one)
+    found=false
+    for role_file in $(role_files); do
+      [ "$(role_field "$role_file" name)" = "$role" ] || continue
+      found=true
+      render_role "$role_file"
+    done
+    [ "$found" = true ] || stop "unknown role $role"
+    ;;
+  render_all)
+    [ -d "$out" ] || stop "output directory does not exist: $out"
+    for role_file in $(role_files); do
+      name=$(role_field "$role_file" name)
+      render_role "$role_file" > "$out/$(host_filename "$name")"
+      printf '%s\n' "WROTE $out/$(host_filename "$name")"
+    done
+    ;;
+esac
