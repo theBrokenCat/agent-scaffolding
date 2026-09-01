@@ -60,7 +60,13 @@ validate_registry() {
             if (hosts !~ /^\[[^][]+\]$/) error("hosts must be a simple list for " id)
             if (managed == "true") {
                 if (owner != "core") error("managed capability must have core owner: " id)
-                if (source !~ /^[^\/:][^:]*\/SKILL[.]md$/) error("managed source must end in /SKILL.md: " id)
+                if (source ~ /^contract:/) {
+                    target = substr(source, 10)
+                    sub(/#.*/, "", target)
+                    if (target !~ /^[^\/:][^:]*[.]md$/) error("contract source must be a repository-relative .md path: " id)
+                } else if (source !~ /^[^\/:][^:]*\/SKILL[.]md$/) {
+                    error("managed source must end in /SKILL.md or use contract:<path>: " id)
+                }
             } else {
                 if (owner == "core") error("unmanaged capability cannot have core owner: " id)
                 if (owner == "external" || owner == "plugin") error("unmanaged capability needs its real owner family: " id)
@@ -131,7 +137,13 @@ validate_registry() {
         [ -n "$id" ] || continue
         if [ "$managed" = true ]; then
             case "$source" in
-                /*|*..*|external:*|SKILL.md)
+                contract:*)
+                    source=${source#contract:}
+                    source=${source%%#*}
+                    ;;
+            esac
+            case "$source" in
+                /*|*..*|external:*|contract:*|SKILL.md|'')
                     printf '%s\n' "registry: invalid managed path for $id: $source" >&2
                     rm -f "$parsed"
                     return 1
@@ -290,6 +302,64 @@ capabilities:
     managed: true
 EOF
 assert_rejects "managed non-SKILL target" "$TMP_ROOT/managed-non-skill.yaml" "$TMP_ROOT"
+
+cat > "$TMP_ROOT/contract-missing.yaml" <<'EOF'
+capabilities:
+  - id: contract-missing
+    owner: core
+    hosts: [codex]
+    trigger: "test"
+    mode: "orchestrate"
+    cost: "standard"
+    source: "contract:agents/MISSING.md#section"
+    managed: true
+EOF
+assert_rejects "missing contract target" "$TMP_ROOT/contract-missing.yaml" "$TMP_ROOT"
+
+cat > "$TMP_ROOT/contract-absolute.yaml" <<'EOF'
+capabilities:
+  - id: contract-absolute
+    owner: core
+    hosts: [codex]
+    trigger: "test"
+    mode: "orchestrate"
+    cost: "standard"
+    source: "contract:/etc/passwd.md"
+    managed: true
+EOF
+assert_rejects "absolute contract target" "$TMP_ROOT/contract-absolute.yaml" "$TMP_ROOT"
+
+mkdir -p "$TMP_ROOT/agents"
+printf '%s\n' '# contract' > "$TMP_ROOT/agents/README.md"
+cat > "$TMP_ROOT/contract-unmanaged.yaml" <<'EOF'
+capabilities:
+  - id: contract-unmanaged
+    owner: github
+    hosts: [codex]
+    trigger: "test"
+    mode: "orchestrate"
+    cost: "standard"
+    source: "contract:agents/README.md"
+    managed: false
+EOF
+assert_rejects "contract source on unmanaged entry" "$TMP_ROOT/contract-unmanaged.yaml" "$TMP_ROOT"
+
+cat > "$TMP_ROOT/contract-ok.yaml" <<'EOF'
+capabilities:
+  - id: contract-ok
+    owner: core
+    hosts: [codex]
+    trigger: "test"
+    mode: "orchestrate"
+    cost: "standard"
+    source: "contract:agents/README.md#orquestacion"
+    managed: true
+EOF
+if validate_registry "$TMP_ROOT/contract-ok.yaml" "$TMP_ROOT"; then
+    printf '%s\n' "PASS: accepts a contract pointer with a section fragment"
+else
+    fail "valid contract pointer was rejected"
+fi
 
 if [ "$failures" -ne 0 ]; then
     printf '%s\n' "registry tests failed: $failures" >&2

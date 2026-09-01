@@ -103,6 +103,14 @@ capabilities:
     cost: "deep"
     source: "external:codex-security"
     managed: false
+  - id: orchestration
+    owner: core
+    hosts: [codex, claude, gemini]
+    trigger: "a batch of subagents must be spawned, awaited, grouped, or corrected"
+    mode: "orchestrate"
+    cost: "standard"
+    source: "contract:agents/README.md#orquestacion"
+    managed: true
   - id: registry-validation
     owner: core
     hosts: [codex, claude, gemini]
