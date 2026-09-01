@@ -24,6 +24,8 @@ jobs:
         run: sh tests/scaffolding_test.sh
       - name: registry_test
         run: sh tests/registry_test.sh
+      - name: gen_agents_test
+        run: sh tests/gen_agents_test.sh
       - name: protect_repo_test
         run: sh tests/protect_repo_test.sh
 

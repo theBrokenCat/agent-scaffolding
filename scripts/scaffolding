@@ -7,7 +7,7 @@ script_dir=$(CDPATH= cd -- "$(dirname "$0")" && pwd -P)
 . "$script_dir/lib/manifest.sh"
 
 usage() {
-  printf '%s\n' 'usage: scaffolding <install|status|doctor|uninstall> [--apply] [--migrate-existing] [--home PATH]' >&2
+  printf '%s\n' 'usage: scaffolding <install|status|doctor|uninstall> [--agents] [--apply] [--migrate-existing] [--home PATH]' >&2
 }
 
 stop() {
@@ -21,10 +21,12 @@ shift
 
 apply=false
 migrate=false
+SCAFFOLDING_TARGET_SET=instructions
 SCAFFOLDING_HOME_INPUT=${HOME-}
 while [ "$#" -gt 0 ]; do
   case $1 in
     --apply) apply=true ;;
+    --agents) SCAFFOLDING_TARGET_SET=agents ;;
     --migrate-existing) migrate=true ;;
     --home)
       shift
@@ -46,6 +48,14 @@ esac
 
 scaffolding_init_paths || exit 1
 
+if [ "$SCAFFOLDING_TARGET_SET" = agents ]; then
+  unit_prefix='agents '
+  unit_name=agents
+else
+  unit_prefix=''
+  unit_name=instructions
+fi
+
 required_commands_are_available() {
   for required in git grep sed awk cksum readlink ln mv cp rm mkdir chmod date; do
     command -v "$required" >/dev/null 2>&1 || {
@@ -62,6 +72,11 @@ sources_are_valid() {
       exit 1
     }
   done
+  if [ "$SCAFFOLDING_TARGET_SET" = agents ]; then
+    # A host must never receive the example map's code names as model ids.
+    "$SCAFFOLDING_ROOT/scripts/gen-agents" --map-path --require-local-map >/dev/null || return 1
+    return 0
+  fi
   [ "$(sed -n '1p' "$SCAFFOLDING_ROOT/CLAUDE.md")" = '@AGENTS.md' ] || return 1
   [ "$(sed -n '1p' "$SCAFFOLDING_ROOT/GEMINI.md")" = '@AGENTS.md' ] || return 1
 }
@@ -83,8 +98,24 @@ all_destinations_supported() {
 all_destinations_managed() {
   scaffolding_target_parents_are_safe || return 1
   scaffolding_targets | while IFS='|' read -r name destination source; do
-    [ -L "$destination" ] && [ -e "$destination" ] || exit 1
-    [ "$(readlink "$destination")" = "$source" ] || exit 1
+    if [ "$SCAFFOLDING_TARGET_SET" = agents ]; then
+      [ -f "$destination" ] && [ ! -L "$destination" ] || exit 1
+      recorded=$(scaffolding_manifest_field "$(scaffolding_manifest_entry "$name")" 7)
+      [ "$(cksum < "$destination")" = "$recorded" ] || exit 1
+    else
+      [ -L "$destination" ] && [ -e "$destination" ] || exit 1
+      [ "$(readlink "$destination")" = "$source" ] || exit 1
+    fi
+  done
+}
+
+# A generated definition drifts when the role, the model map or the generator
+# changed. That is status, not corruption: the fix is to re-install the unit.
+all_agent_renders_are_current() {
+  scaffolding_targets | while IFS='|' read -r name destination source; do
+    recorded=$(scaffolding_manifest_field "$(scaffolding_manifest_entry "$name")" 7)
+    current=$(scaffolding_render_agent "$destination" | cksum) || exit 1
+    [ "$current" = "$recorded" ] || exit 1
   done
 }
 
@@ -150,7 +181,11 @@ apply_install() {
       symlink) [ "$(readlink "$destination")" = "$(cat "$transaction/$5")" ] || { failed=true; break; } ;;
     esac
     [ "$current_type" = absent ] || rm "$destination"
-    if ! ln -s "$source" "$destination"; then failed=true; break; fi
+    if [ "$SCAFFOLDING_TARGET_SET" = agents ]; then
+      if ! cp "$transaction/render/$name" "$destination"; then failed=true; break; fi
+    else
+      if ! ln -s "$source" "$destination"; then failed=true; break; fi
+    fi
     installed=$((installed + 1))
     if [ "${SCAFFOLDING_FAIL_AFTER-}" = "$installed" ]; then failed=true; break; fi
   done < "$transaction/targets"
@@ -161,9 +196,10 @@ apply_install() {
     stop 'install failed and previous state was restored'
   fi
 
-  mv "$transaction/backups" "$SCAFFOLDING_BACKUP_DIR"
+  mv "$transaction/$SCAFFOLDING_BACKUP_NAME" "$SCAFFOLDING_BACKUP_DIR"
   mv "$transaction/manifest" "$SCAFFOLDING_MANIFEST"
   rm "$transaction/targets"
+  rm -rf "$transaction/render"
   rmdir "$transaction"
   printf '%s\n' 'APPLY install complete'
 }
@@ -188,17 +224,21 @@ status() {
   required_commands_are_available || stop 'status dependency validation failed'
   sources_are_valid || stop 'status source validation failed'
   if ! scaffolding_manifest_exists; then
-    printf '%s\n' 'STATUS uninstalled'
+    printf 'STATUS %suninstalled\n' "$unit_prefix"
     return 1
   fi
   scaffolding_manifest_is_valid || stop "invalid manifest $SCAFFOLDING_MANIFEST"
-  all_destinations_managed || { printf '%s\n' 'STATUS managed destination changed'; return 1; }
+  all_destinations_managed || { printf 'STATUS %smanaged destination changed\n' "$unit_prefix"; return 1; }
+  if [ "$SCAFFOLDING_TARGET_SET" = agents ] && ! all_agent_renders_are_current; then
+    printf 'STATUS %smanaged render-changed\n' "$unit_prefix"
+    return 0
+  fi
   manifest_sha=$(sed -n 's/^source_sha=//p' "$SCAFFOLDING_MANIFEST")
   current_sha=$(scaffolding_source_sha)
   if [ "$manifest_sha" = "$current_sha" ]; then
-    printf '%s\n' 'STATUS managed current'
+    printf 'STATUS %smanaged current\n' "$unit_prefix"
   else
-    printf '%s\n' 'STATUS managed source-sha-changed'
+    printf 'STATUS %smanaged source-sha-changed\n' "$unit_prefix"
   fi
 }
 
@@ -207,13 +247,30 @@ doctor() {
   sources_are_valid || stop 'doctor source/import validation failed'
   scaffolding_state_path_is_safe || stop 'unsafe state path'
   if ! scaffolding_manifest_exists; then
-    all_destinations_absent && { printf '%s\n' 'DOCTOR ok uninstalled'; return 0; }
+    all_destinations_absent && {
+      printf 'DOCTOR ok %suninstalled\n' "$unit_prefix"
+      report_other_unit
+      return 0
+    }
     stop 'unmanaged destination exists'
   fi
   scaffolding_manifest_is_valid || stop "invalid manifest $SCAFFOLDING_MANIFEST"
   all_destinations_managed || stop 'broken or changed managed destination'
   [ -r "$SCAFFOLDING_MANIFEST" ] && [ -x "$SCAFFOLDING_STATE_DIR" ] || stop 'state permissions are unusable'
-  printf '%s\n' 'DOCTOR ok'
+  printf 'DOCTOR ok %s\n' "$unit_name"
+  report_other_unit
+}
+
+# Each unit is verified on its own. Naming the other one keeps a half-checked
+# HOME from reading as a full pass.
+report_other_unit() {
+  if [ "$SCAFFOLDING_TARGET_SET" = agents ]; then
+    [ -e "$SCAFFOLDING_STATE_DIR/manifest" ] || return 0
+    printf '%s\n' 'NOTE instruction unit is installed; verify it with doctor'
+  else
+    [ -e "$SCAFFOLDING_STATE_DIR/manifest.agents" ] || return 0
+    printf '%s\n' 'NOTE agent unit is installed; verify it with doctor --agents'
+  fi
 }
 
 restore_from_manifest() {
