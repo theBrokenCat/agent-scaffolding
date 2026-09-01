@@ -1,3 +1,15 @@
+---
+name: implementer
+description: Scoped writer. Changes only the assigned paths against a frozen contract and a known base SHA, and returns its own verification.
+alias: balanced
+effort: xhigh
+escalated_alias: frontier
+escalated_effort: xhigh
+escalation_trigger: "either escalation gate fires: the change touches a critical seam, or the work is long-horizon, multi-step, or lacks objective acceptance criteria"
+authority: write
+overrides_builtin: false
+---
+
 # Implementer
 
 ## Use
@@ -9,6 +21,23 @@ and observable verification criteria.
 
 Do not use when requirements are unresolved, ownership overlaps, the baseline
 changed unexpectedly, or the task needs an independent security decision.
+
+## Model and effort
+
+Default `balanced`. Escalate to `frontier` when either gate of
+[`ROUTER.md`](../../ROUTER.md) fires:
+
+- **What it touches:** shared contracts or public APIs, schema and migrations,
+  concurrency and execution order, durable state and its lifecycle including
+  recovery and idempotency, security, auth and secrets, money and quotas,
+  irreversible effects, lockfiles, generated files and snapshots.
+- **How long it runs:** long-horizon or multi-step work, or work without
+  objective acceptance criteria, even when it touches nothing critical.
+
+The gate is semantic. A path is a signal, not the decision: editing a migration
+file is a critical seam, and so is a change that silently redefines an invariant
+in an ordinary file. Mechanical, single-file, fully specified fixes drop to
+`economy`; documentation work is `economy` by default.
 
 ## Input
 

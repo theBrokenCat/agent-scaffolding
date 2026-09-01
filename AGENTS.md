@@ -96,6 +96,16 @@ repositorio los detalles de implementacion importantes.
   [`agents/README.md`](agents/README.md); los dominios viajan en el brief.
 - No permitas delegacion anidada. Los writers declaran paths disjuntos y usan
   worktree o aislamiento equivalente desde un SHA conocido.
+- El presupuesto de concurrencia es de 8 agentes simultaneos como maximo, con un
+  maximo de 3 writers y `readers <= 8 - writers`. Si el host expone menos, manda
+  el host.
+- El alias del subagente (`economy`, `balanced`, `frontier`, `critical`) fija su
+  modelo y su reasoning effort, no su autoridad. Escala a la curva Sol solo si se
+  cumple un gate de [`ROUTER.md`](ROUTER.md): seam critico, u horizonte largo sin
+  criterios de aceptacion objetivos.
+- Spawnea todo el lote independiente antes de la primera espera; espera con
+  bounds largos y no re-emitas esperas cortas cuando el estado no ha cambiado.
+  Agrupa hallazgos contra un snapshot congelado y corrige en un solo lote.
 - Cierra workers y recursos temporales al terminar sin borrar trabajo no
   integrado.
 
