@@ -7,9 +7,16 @@ scaffolding_source_sha() {
 # The instruction unit records symlinks (6 fields, version 2). The agent unit
 # records generated files and their checksum (7 fields, version 1), so drift in a
 # rendered definition is detectable without re-reading the host.
+scaffolding_is_agent_unit() {
+  case ${SCAFFOLDING_TARGET_SET:-instructions} in
+    agents-*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 scaffolding_manifest_version() {
   case ${SCAFFOLDING_TARGET_SET:-instructions} in
-    agents) printf '%s\n' 1 ;;
+    agents-*) printf '%s\n' 1 ;;
     *) printf '%s\n' 2 ;;
   esac
 }
@@ -41,7 +48,7 @@ scaffolding_manifest_is_valid() {
       *) exit 1 ;;
     esac
     [ "$6" = "$source" ] || exit 1
-    if [ "${SCAFFOLDING_TARGET_SET:-instructions}" = agents ]; then
+    if scaffolding_is_agent_unit; then
       printf '%s' "$7" | grep -Eq '^[0-9]+ [0-9]+$' || exit 1
     fi
   done
@@ -99,7 +106,7 @@ scaffolding_stage_previous() {
           readlink "$destination" > "$transaction/$previous_ref"
           ;;
       esac
-      if [ "${SCAFFOLDING_TARGET_SET:-instructions}" = agents ]; then
+      if scaffolding_is_agent_unit; then
         scaffolding_render_agent "$destination" > "$transaction/render/$name" || exit 1
         printf '%s\n' "entry|$name|$destination|$previous_type|$previous_ref|$source|$(cksum < "$transaction/render/$name")"
       else

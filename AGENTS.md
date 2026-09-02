@@ -106,6 +106,12 @@ repositorio los detalles de implementacion importantes.
 - Spawnea todo el lote independiente antes de la primera espera; espera con
   bounds largos y no re-emitas esperas cortas cuando el estado no ha cambiado.
   Agrupa hallazgos contra un snapshot congelado y corrige en un solo lote.
+- **Nunca spawnees con `fork_turns: "all"` cuando el alias importe.** El fork hace
+  que el subagente herede modelo y effort del padre y anule el alias, sin error ni
+  aviso; la herramienta ni siquiera admite override explicito al forkear. Si el
+  fork es imprescindible, declara que ese despacho corrio en el par del padre.
+- Si el modelo observado no coincide con el alias, es FALLO, no una variante
+  aceptable: esa ejecucion pertenece a otro alias y su coste y su calidad tambien.
 - Cierra workers y recursos temporales al terminar sin borrar trabajo no
   integrado.
 

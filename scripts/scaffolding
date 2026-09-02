@@ -7,7 +7,7 @@ script_dir=$(CDPATH= cd -- "$(dirname "$0")" && pwd -P)
 . "$script_dir/lib/manifest.sh"
 
 usage() {
-  printf '%s\n' 'usage: scaffolding <install|status|doctor|uninstall> [--agents] [--apply] [--migrate-existing] [--home PATH]' >&2
+  printf '%s\n' 'usage: scaffolding <install|status|doctor|uninstall> [--agents --host <codex|claude>] [--apply] [--migrate-existing] [--home PATH]' >&2
 }
 
 stop() {
@@ -19,8 +19,8 @@ stop() {
 # invalidates an installed agent manifest. That is loud on purpose, but the
 # recovery is not obvious, so name it.
 stop_invalid_manifest() {
-  if [ "$SCAFFOLDING_TARGET_SET" = agents ]; then
-    stop "invalid manifest $SCAFFOLDING_MANIFEST; if the set of roles changed, remove the generated definitions and this manifest by hand, then re-run install --agents --apply"
+  if scaffolding_is_agent_unit; then
+    stop "invalid manifest $SCAFFOLDING_MANIFEST; if the set of roles changed, remove the generated definitions and this manifest by hand, then re-run install --agents --host $agent_host --apply"
   fi
   stop "invalid manifest $SCAFFOLDING_MANIFEST"
 }
@@ -31,12 +31,19 @@ shift
 
 apply=false
 migrate=false
+agents_requested=false
+agent_host=
 SCAFFOLDING_TARGET_SET=instructions
 SCAFFOLDING_HOME_INPUT=${HOME-}
 while [ "$#" -gt 0 ]; do
   case $1 in
     --apply) apply=true ;;
-    --agents) SCAFFOLDING_TARGET_SET=agents ;;
+    --agents) agents_requested=true ;;
+    --host)
+      shift
+      [ "$#" -gt 0 ] || { usage; exit 1; }
+      agent_host=$1
+      ;;
     --migrate-existing) migrate=true ;;
     --home)
       shift
@@ -48,6 +55,16 @@ while [ "$#" -gt 0 ]; do
   shift
 done
 
+if [ "$agents_requested" = true ]; then
+  case $agent_host in
+    codex|claude) SCAFFOLDING_TARGET_SET=agents-$agent_host ;;
+    '') stop '--agents requires --host <codex|claude>; each host is installed and reverted on its own' ;;
+    *) stop "unsupported host $agent_host; only codex and claude expose subagent files" ;;
+  esac
+elif [ -n "$agent_host" ]; then
+  stop '--host is only meaningful with --agents'
+fi
+
 case $command in
   install) ;;
   status|doctor|uninstall)
@@ -58,9 +75,9 @@ esac
 
 scaffolding_init_paths || exit 1
 
-if [ "$SCAFFOLDING_TARGET_SET" = agents ]; then
-  unit_prefix='agents '
-  unit_name=agents
+if scaffolding_is_agent_unit; then
+  unit_prefix="agents $agent_host "
+  unit_name="agents $agent_host"
 else
   unit_prefix=''
   unit_name=instructions
@@ -82,7 +99,7 @@ sources_are_valid() {
       exit 1
     }
   done
-  if [ "$SCAFFOLDING_TARGET_SET" = agents ]; then
+  if scaffolding_is_agent_unit; then
     # A host must never receive the example map's code names as model ids.
     "$SCAFFOLDING_ROOT/scripts/gen-agents" --map-path --require-local-map >/dev/null || return 1
     return 0
@@ -108,7 +125,7 @@ all_destinations_supported() {
 all_destinations_managed() {
   scaffolding_target_parents_are_safe || return 1
   scaffolding_targets | while IFS='|' read -r name destination source; do
-    if [ "$SCAFFOLDING_TARGET_SET" = agents ]; then
+    if scaffolding_is_agent_unit; then
       [ -f "$destination" ] && [ ! -L "$destination" ] || exit 1
       recorded=$(scaffolding_manifest_field "$(scaffolding_manifest_entry "$name")" 7)
       [ "$(cksum < "$destination")" = "$recorded" ] || exit 1
@@ -191,7 +208,7 @@ apply_install() {
       symlink) [ "$(readlink "$destination")" = "$(cat "$transaction/$5")" ] || { failed=true; break; } ;;
     esac
     [ "$current_type" = absent ] || rm "$destination"
-    if [ "$SCAFFOLDING_TARGET_SET" = agents ]; then
+    if scaffolding_is_agent_unit; then
       if ! cp "$transaction/render/$name" "$destination"; then failed=true; break; fi
     else
       if ! ln -s "$source" "$destination"; then failed=true; break; fi
@@ -239,7 +256,7 @@ status() {
   fi
   scaffolding_manifest_is_valid || stop_invalid_manifest
   all_destinations_managed || { printf 'STATUS %smanaged destination changed\n' "$unit_prefix"; return 1; }
-  if [ "$SCAFFOLDING_TARGET_SET" = agents ] && ! all_agent_renders_are_current; then
+  if scaffolding_is_agent_unit && ! all_agent_renders_are_current; then
     printf 'STATUS %smanaged render-changed\n' "$unit_prefix"
     return 0
   fi
@@ -274,13 +291,15 @@ doctor() {
 # Each unit is verified on its own. Naming the other one keeps a half-checked
 # HOME from reading as a full pass.
 report_other_unit() {
-  if [ "$SCAFFOLDING_TARGET_SET" = agents ]; then
+  if scaffolding_is_agent_unit; then
     [ -e "$SCAFFOLDING_STATE_DIR/manifest" ] || return 0
     printf '%s\n' 'NOTE instruction unit is installed; verify it with doctor'
-  else
-    [ -e "$SCAFFOLDING_STATE_DIR/manifest.agents" ] || return 0
-    printf '%s\n' 'NOTE agent unit is installed; verify it with doctor --agents'
+    return 0
   fi
+  for other in codex claude; do
+    [ -e "$SCAFFOLDING_STATE_DIR/manifest.agents.$other" ] || continue
+    printf 'NOTE agent unit for %s is installed; verify it with doctor --agents --host %s\n' "$other" "$other"
+  done
 }
 
 restore_from_manifest() {

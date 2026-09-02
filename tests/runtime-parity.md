@@ -71,8 +71,11 @@ The control matters: the behaviour is the host's, not a defect in the generated
 files. There is no error and no warning — the routing is simply gone, and a run
 measured that way belongs to a different alias.
 
-**Spawn without forking turns when the alias must hold.** When a fork is
-genuinely needed, record that the dispatch ran at the parent's pair.
+This is now a hard rule of the contract, not an observation: see the fork
+prohibition in [`AGENTS.md`](../AGENTS.md) and
+[`policies/README.md`](../policies/README.md). Spawn without forking turns; when a
+fork is genuinely needed, record that the dispatch ran at the parent's pair and
+not at the alias.
 
 ## Built-in name collisions
 

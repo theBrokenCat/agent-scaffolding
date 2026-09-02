@@ -82,6 +82,13 @@ apunta a esta seccion.
 - **Spawnea todo el lote independiente antes de la primera espera.** Un worker
   lanzado despues de empezar a esperar serializa el lote y desperdicia el
   presupuesto de concurrencia.
+- **Nunca forkees los turnos del padre cuando el alias importe.** Un
+  `spawn_agent` con `fork_turns: "all"` hace que el subagente herede modelo y
+  effort de la sesion padre e ignore los del agente, sin error ni aviso, y la
+  herramienta no admite override explicito de modelo o effort al forkear. Spawnea
+  sin fork; si el fork es imprescindible, registra que ese despacho corrio en el
+  par del padre y no en el del alias.
+- Modelo observado distinto del alias es **FALLO**, no una variante aceptable.
 - `wait_agent` **no** es un wait-for-all atomico: despierta por evento o por
   timeout, y puede despertar sin que el conjunto esperado haya terminado.
 - Bucle correcto: espera con bounds **largos**, procesa los eventos recibidos,

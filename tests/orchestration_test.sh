@@ -65,6 +65,12 @@ require '## Orquestacion' agents/README.md
 require 'antes de la primera espera' agents/README.md
 require 'no** es un wait-for-all atomico' agents/README.md
 require 'snapshot congelado' agents/README.md
+require 'Nunca forkees los turnos del padre' agents/README.md
+require 'FALLO' agents/README.md
+for file in AGENTS.md policies/README.md; do
+  require 'fork_turns' "$file"
+done
+require 'subagente despachado con fork y routing por alias' policies/README.md
 require 'STOP-early' agents/README.md
 require 'Reset del contrato' agents/README.md
 require 'SLA de reviewer' agents/README.md
