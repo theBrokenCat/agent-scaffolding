@@ -47,16 +47,19 @@ resuelve el alias de cada rol contra el model map local y lo materializa por hos
 Es una unidad de instalacion aparte, con su propio manifiesto y su propia
 reversion:
 
+Cada host es una unidad propia, con su manifiesto y su reversion, para poder
+retirar el host cuyas definiciones no sirven sin tocar el que si funciona:
+
 ```sh
-scripts/gen-agents --host codex --role explorer   # ver el render
-scripts/scaffolding install --agents              # plan
-scripts/scaffolding install --agents --apply
-scripts/scaffolding status --agents
-scripts/scaffolding doctor --agents
-scripts/scaffolding uninstall --agents --apply
+scripts/gen-agents --host codex --role explorer            # ver el render
+scripts/scaffolding install --agents --host codex          # plan
+scripts/scaffolding install --agents --host codex --apply
+scripts/scaffolding status  --agents --host codex
+scripts/scaffolding doctor  --agents --host codex
+scripts/scaffolding uninstall --agents --host codex --apply
 ```
 
-El destino es contenido generado, no un symlink, asi que `status --agents`
+El destino es contenido generado, no un symlink, asi que `status --agents --host H`
 distingue dos derivas: `destination changed` cuando han editado el archivo del
 host y `render-changed` cuando ha cambiado el rol, el model map o el generador.
 
@@ -129,6 +132,10 @@ El alias del subagente (`economy`, `balanced`, `frontier`, `critical`) fija su
 modelo y su reasoning effort. Solo hay dos curvas por defecto, y se sube a la
 curva alta cuando se cumple uno de los dos gates: **que toca** (seam critico) o
 **cuanto dura** (horizonte largo o sin criterios de aceptacion objetivos).
+
+Nunca se spawnea con `fork_turns: "all"` cuando el alias importa: el fork hereda
+modelo y effort del padre y anula el alias sin aviso. Modelo observado distinto
+del alias es fallo, no variante.
 
 El presupuesto de concurrencia es de 8 agentes simultaneos, con 3 writers como
 maximo. El lote independiente se lanza entero antes de la primera espera, los

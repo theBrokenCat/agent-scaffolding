@@ -34,9 +34,10 @@ scaffolding_init_paths() {
       SCAFFOLDING_MANIFEST=$SCAFFOLDING_STATE_DIR/manifest
       SCAFFOLDING_BACKUP_NAME=backups
       ;;
-    agents)
-      SCAFFOLDING_MANIFEST=$SCAFFOLDING_STATE_DIR/manifest.agents
-      SCAFFOLDING_BACKUP_NAME=backups.agents
+    agents-codex|agents-claude)
+      scaffolding_agent_host=${SCAFFOLDING_TARGET_SET#agents-}
+      SCAFFOLDING_MANIFEST=$SCAFFOLDING_STATE_DIR/manifest.agents.$scaffolding_agent_host
+      SCAFFOLDING_BACKUP_NAME=backups.agents.$scaffolding_agent_host
       ;;
     *)
       printf '%s\n' 'STOP unknown target set' >&2
@@ -51,22 +52,23 @@ scaffolding_init_paths() {
 # their own manifest. `scaffolding_targets` is the single seam between them.
 scaffolding_targets() {
   case ${SCAFFOLDING_TARGET_SET:-instructions} in
-    agents) scaffolding_agent_targets ;;
+    agents-*) scaffolding_agent_targets "${SCAFFOLDING_TARGET_SET#agents-}" ;;
     *) scaffolding_instruction_targets ;;
   esac
 }
 
+# One host per unit. A host whose definitions are unusable must be revertible
+# without taking down a host whose definitions work.
 scaffolding_agent_targets() {
-  for scaffolding_host in codex claude; do
-    "$SCAFFOLDING_ROOT/scripts/gen-agents" --host "$scaffolding_host" --list |
-      while IFS='|' read -r role_name file_name role_file; do
-        [ -n "$role_name" ] || continue
-        printf '%s|%s|%s\n' \
-          "$scaffolding_host-$role_name" \
-          "$SCAFFOLDING_HOME/.$scaffolding_host/agents/$file_name" \
-          "$role_file"
-      done
-  done
+  scaffolding_host=$1
+  "$SCAFFOLDING_ROOT/scripts/gen-agents" --host "$scaffolding_host" --list |
+    while IFS='|' read -r role_name file_name role_file; do
+      [ -n "$role_name" ] || continue
+      printf '%s|%s|%s\n' \
+        "$scaffolding_host-$role_name" \
+        "$SCAFFOLDING_HOME/.$scaffolding_host/agents/$file_name" \
+        "$role_file"
+    done
 }
 
 # Renders one host definition from its canonical role. A missing local model map

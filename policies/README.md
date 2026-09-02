@@ -135,6 +135,13 @@ no existe un trigger real. Ningun gate concede escritura.
   el presupuesto completo, y solo mientras cada agente adicional tenga un scope
   real e independiente.
 - No hay delegacion anidada ni writers sin propiedad y aislamiento explicitos.
+- Prohibido spawnear con `fork_turns: "all"` cuando el alias importe, que es casi
+  siempre. El fork hereda modelo y effort del padre y anula el alias en silencio.
+  Red flag: *subagente despachado con fork y routing por alias*. Evidencia: un
+  agente personal que declaraba Luna, despachado con fork, corrio en Sol y nunca
+  habia corrido en Luna.
+- Verificacion de routing: si el modelo observado no coincide con el alias, es
+  FALLO. No lo aceptes como variante ni promedies su coste con el del alias.
 - Spawnea todo el lote independiente antes de la primera espera. Espera con
   bounds largos, procesa eventos, retira agentes terminales y vuelve a esperar;
   `wait_agent` despierta por evento o timeout y no es un wait-for-all atomico.
