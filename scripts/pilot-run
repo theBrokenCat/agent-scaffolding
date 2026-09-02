@@ -169,8 +169,21 @@ observed_model=-
 observed_effort=-
 dispatched=no
 child=
-if [ -n "$thread" ]; then
-  child=$(grep -l "\"parent_thread_id\":\"$thread\"" "$PILOT_SESSIONS_DIR"/*/*/*/*.jsonl 2>/dev/null | head -1)
+# The id in `thread.started` is not always the id the child records as its
+# parent. The rollout is the reliable side: find the parent rollout for this run
+# (newest whose cwd is the dispatch directory), take its own id, and join on that.
+parent_id=$thread
+if [ -n "$run_cwd" ]; then
+  for candidate in $(ls -t "$PILOT_SESSIONS_DIR"/*/*/*/*.jsonl 2>/dev/null | head -40); do
+    head -1 "$candidate" | grep -Fq "\"cwd\":\"$run_cwd\"" || continue
+    head -1 "$candidate" | grep -Fq '"thread_source":"subagent"' && continue
+    found=$(head -1 "$candidate" | awk 'match($0, /"id":"[^"]+"/) { print substr($0, RSTART + 6, RLENGTH - 7); exit }')
+    [ -n "$found" ] && parent_id=$found
+    break
+  done
+fi
+if [ -n "$parent_id" ]; then
+  child=$(grep -l "\"parent_thread_id\":\"$parent_id\"" "$PILOT_SESSIONS_DIR"/*/*/*/*.jsonl 2>/dev/null | head -1)
   if [ -n "$child" ]; then
     dispatched=yes
     observed_model=$(awk 'match($0, /"model":"[^"]+"/) { print substr($0, RSTART + 9, RLENGTH - 10); exit }' "$child")

@@ -52,12 +52,14 @@ mkdir -p "$PILOT_SESSIONS_DIR/2026/09/02"
 rm -f "$PILOT_SESSIONS_DIR/2026/09/02/rollout-child.jsonl"
 # The parent always runs at the host default. Measuring it would mark every row
 # off-arm, so the fixture makes parent and child differ on purpose.
-printf '{"payload":{"model":"host-default","effort":"xhigh","id":"fixture-thread-1"}}\n' \
-  > "$PILOT_SESSIONS_DIR/2026/09/02/rollout-parent.jsonl"
+# The id in `thread.started` is NOT always the id the child records as its
+# parent, so the fixture makes them differ and joins through the rollout's cwd.
+printf '{"payload":{"model":"host-default","effort":"xhigh","id":"rollout-id-1","cwd":"%s"}}\n' \
+  "$FAKE_CWD" > "$PILOT_SESSIONS_DIR/2026/09/02/rollout-parent.jsonl"
 if [ "${FAKE_NO_DISPATCH-}" != yes ]; then
   # The child carries the real cost. The parent's numbers below are deliberately
   # different and much smaller: measuring them understates the arm.
-  printf '{"payload":{"thread_source":"subagent","parent_thread_id":"fixture-thread-1","model":"%s","effort":"%s"}}\n' \
+  printf '{"payload":{"thread_source":"subagent","parent_thread_id":"rollout-id-1","model":"%s","effort":"%s"}}\n' \
     "$model" "$effort" > "$PILOT_SESSIONS_DIR/2026/09/02/rollout-child.jsonl"
   printf '{"payload":{"info":{"total_token_usage":{"input_tokens":9000,"cached_input_tokens":6000,"output_tokens":700,"reasoning_output_tokens":300}}}}\n' \
     >> "$PILOT_SESSIONS_DIR/2026/09/02/rollout-child.jsonl"
@@ -66,6 +68,9 @@ EOF
 chmod +x "$tmpdir/fake-exec"
 PILOT_EXEC=$tmpdir/fake-exec
 export PILOT_EXEC
+FAKE_CWD=$tmpdir/run
+mkdir -p "$FAKE_CWD"
+export FAKE_CWD
 
 # The header is the row contract; judgment columns must exist and stay empty.
 header=$("$harness" --header)
@@ -73,7 +78,7 @@ for column in tarea brazo routing_ok tokens_no_cacheados tokens_reasoning coste_
   printf '%s' "$header" | tr '\t' '\n' | grep -qx "$column" || fail "header is missing column $column"
 done
 
-row=$("$harness" --task T1 --block mecanicas --arm economy --prompt "$tmpdir/prompt.txt" --order 2 --results "$tmpdir/out.tsv")
+row=$("$harness" --task T1 --block mecanicas --arm economy --prompt "$tmpdir/prompt.txt" --order 2 --cwd "$FAKE_CWD" --results "$tmpdir/out.tsv")
 value() { printf '%s' "$row" | cut -f "$1"; }
 [ "$(value 1)" = T1 ] || fail 'task not recorded'
 [ "$(value 3)" = economy ] || fail 'arm not recorded'
@@ -81,6 +86,9 @@ value() { printf '%s' "$row" | cut -f "$1"; }
 [ "$(value 5)" = fixture-economy ] || fail 'expected model not resolved from the map'
 [ "$(value 7)" = fixture-economy ] || fail 'observed model not read from the subagent rollout'
 if [ "$(value 7)" = host-default ]; then fail 'the harness measured the parent thread, not the subagent'; fi
+# The join must survive the event id and the rollout id being different.
+grep -Fq '"id":"rollout-id-1"' "$PILOT_SESSIONS_DIR/2026/09/02/rollout-parent.jsonl" \
+  || fail 'the fixture no longer exercises the id mismatch'
 [ "$(value 9)" = yes ] || fail 'routing_ok should pass when observed matches the arm'
 # Cost is the subagent's, not the parent's. The parent reports 400/600/50/25;
 # reading it would understate the arm by an order of magnitude.
@@ -98,11 +106,11 @@ done
 
 # The results file accumulates rows under one header.
 [ "$(head -1 "$tmpdir/out.tsv")" = "$header" ] || fail 'results file lacks the header'
-"$harness" --task T2 --block mecanicas --arm balanced --prompt "$tmpdir/prompt.txt" --results "$tmpdir/out.tsv" >/dev/null
+"$harness" --task T2 --block mecanicas --arm balanced --prompt "$tmpdir/prompt.txt" --cwd "$FAKE_CWD" --results "$tmpdir/out.tsv" >/dev/null
 [ "$(wc -l < "$tmpdir/out.tsv")" -eq 3 ] || fail 'results file did not accumulate rows'
 
 # A run that drifted off its arm is marked, not silently averaged in.
-drift=$(FAKE_ROUTING=drift "$harness" --task T3 --block mecanicas --arm frontier --prompt "$tmpdir/prompt.txt" 2>"$tmpdir/warn.txt")
+drift=$(FAKE_ROUTING=drift "$harness" --task T3 --block mecanicas --arm frontier --prompt "$tmpdir/prompt.txt" --cwd "$FAKE_CWD" 2>"$tmpdir/warn.txt")
 [ "$(printf '%s' "$drift" | cut -f 9)" = NO ] || fail 'routing drift not marked'
 grep -q 'belongs to another arm' "$tmpdir/warn.txt" || fail 'routing drift not warned about'
 
@@ -125,7 +133,7 @@ fi
 # A dispatch that never spawned a subagent is a failed dispatch, not a row
 # measured at the parent's pair.
 nodisp=$(FAKE_NO_DISPATCH=yes "$harness" --task T8 --block mecanicas --arm economy \
-  --prompt "$tmpdir/prompt.txt" 2>"$tmpdir/nodisp.txt")
+  --prompt "$tmpdir/prompt.txt" --cwd "$FAKE_CWD" 2>"$tmpdir/nodisp.txt")
 [ "$(printf '%s' "$nodisp" | cut -f 9)" = NO-DISPATCH ] || fail 'a missing subagent was not reported'
 grep -q 'never dispatched a subagent' "$tmpdir/nodisp.txt" || fail 'no warning for a missing dispatch'
 
