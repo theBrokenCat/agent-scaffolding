@@ -131,15 +131,14 @@ with a host built-in when it appears.
 
 ## Model ids are not portable across hosts
 
-A model map holds one id per alias, and `gen-agents` writes that id into every
-host. That is wrong wherever two hosts do not share a model namespace, and it is
-what breaks Claude today: an OpenAI id in a Claude subagent definition is
-rejected outright.
+Fixed. The map now resolves an alias per host (`model_codex`, `model_claude`),
+and a host with no id for an alias stops the generator instead of borrowing
+another host's. The earlier failure — an OpenAI id rejected outright by Claude —
+came from one shared id per alias.
 
-Until the map resolves an alias per host, the Claude unit is installed but not
-usable, and its rows above are a fail. Do not read the effort degradation below
-as covering this: the effort was never reached, because the model was refused
-first.
+The Claude mapping mirrors the Codex curves: `economy` and `balanced` land on the
+same model, `frontier` and `critical` on another. See the degradations below for
+what that costs.
 
 ## Known degradations
 

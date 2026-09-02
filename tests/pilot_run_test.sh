@@ -13,16 +13,20 @@ mkdir -p "$tmpdir/cfg/agent-scaffolding" "$tmpdir/sessions"
 cat > "$tmpdir/cfg/agent-scaffolding/model-map.yaml" <<'EOF'
 aliases:
   - id: economy
-    model: fixture-economy
+    model_codex: fixture-economy
+    model_claude: fixture-economy-cl
     effort: high
   - id: balanced
-    model: fixture-balanced
+    model_codex: fixture-balanced
+    model_claude: fixture-balanced-cl
     effort: xhigh
   - id: frontier
-    model: fixture-frontier
+    model_codex: fixture-frontier
+    model_claude: fixture-frontier-cl
     effort: xhigh
   - id: critical
-    model: fixture-critical
+    model_codex: fixture-critical
+    model_claude: fixture-critical-cl
     effort: max
 EOF
 XDG_CONFIG_HOME=$tmpdir/cfg

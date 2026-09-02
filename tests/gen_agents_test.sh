@@ -14,25 +14,33 @@ fixture=$tmpdir/model-map.yaml
 cat > "$fixture" <<'EOF'
 aliases:
   - id: economy
-    model: fixture-economy
+    model_codex: fixture-economy
+    model_claude: fixture-economy-cl
     effort: high
   - id: balanced
-    model: fixture-balanced
+    model_codex: fixture-balanced
+    model_claude: fixture-balanced-cl
     effort: xhigh
   - id: frontier
-    model: fixture-frontier
+    model_codex: fixture-frontier
+    model_claude: fixture-frontier-cl
     effort: xhigh
   - id: critical
-    model: fixture-critical
+    model_codex: fixture-critical
+    model_claude: fixture-critical-cl
     effort: max
   - id: diagnostic
-    model: fixture-diagnostic
+    model_codex: fixture-diagnostic
+    model_claude: fixture-diagnostic-cl
     effort: high
 EOF
 
 # The map, not the script, decides the model and effort behind an alias.
-resolved=$("$gen" --resolve --model-map "$fixture")
+resolved=$("$gen" --resolve --host codex --model-map "$fixture")
 printf '%s\n' "$resolved" | grep -qx 'balanced|fixture-balanced|xhigh' || fail 'balanced alias not resolved from the map'
+resolved_claude=$("$gen" --resolve --host claude --model-map "$fixture")
+printf '%s\n' "$resolved_claude" | grep -qx 'balanced|fixture-balanced-cl|xhigh' \
+  || fail 'the same alias must resolve to a different id per host'
 printf '%s\n' "$resolved" | grep -qx 'critical|fixture-critical|max' || fail 'critical alias not resolved from the map'
 printf '%s\n' "$resolved" | grep -qx 'diagnostic|fixture-diagnostic|high' || fail 'diagnostic rung not resolved from the map'
 
@@ -99,7 +107,9 @@ check_state() {
   name=$1; model=$2; effort=$3
   grep -qx "model = \"$model\"" "$codex_out/$name.toml" || fail "codex $name is not on $model"
   grep -qx "model_reasoning_effort = \"$effort\"" "$codex_out/$name.toml" || fail "codex $name is not at $effort"
-  grep -qx "model: $model" "$claude_out/$name.md" || fail "claude $name is not on $model"
+  # The Claude file carries the Claude id for the same alias, never the Codex one.
+  grep -qx "model: $model-cl" "$claude_out/$name.md" || fail "claude $name is not on $model-cl"
+  if grep -qx "model: $model" "$claude_out/$name.md"; then fail "claude $name leaked the codex id"; fi
 }
 check_state explorer-economy fixture-economy high
 check_state explorer-balanced fixture-balanced xhigh
@@ -137,7 +147,7 @@ for role_file in "$root"/agents/roles/*.md; do
   name=$(role_field "$role_file" name)
   alias=$(role_field "$role_file" alias)
   effort=$(role_field "$role_file" effort)
-  alias_effort=$("$gen" --resolve --model-map "$example_map" | awk -F'|' -v a="$alias" '$1 == a { print $3 }')
+  alias_effort=$("$gen" --resolve --host codex --model-map "$example_map" | awk -F'|' -v a="$alias" '$1 == a { print $3 }')
   [ -n "$alias_effort" ] || fail "role $name uses alias $alias, which the example map does not define"
   if [ "$effort" != "$alias_effort" ] && [ -z "$(role_field "$role_file" effort_override_reason)" ]; then
     fail "role $name overrides the $alias effort without effort_override_reason"
@@ -146,6 +156,17 @@ for role_file in "$root"/agents/roles/*.md; do
     diagnostic) fail "role $name must not default to the diagnostic rung" ;;
   esac
 done
+
+# A host with no id for an alias stops: nothing borrows another host's id.
+partial=$tmpdir/partial-map.yaml
+sed '/model_claude/d' "$fixture" > "$partial"
+"$gen" --host codex --role explorer-economy --model-map "$partial" >/dev/null \
+  || fail 'a map without claude ids must still generate for codex'
+if "$gen" --host claude --role explorer-economy --model-map "$partial" >/dev/null 2>&1; then
+  fail 'a missing per-host id was silently filled from another host'
+fi
+"$gen" --host claude --role explorer-economy --model-map "$partial" 2>&1 | grep -q 'model_claude' \
+  || fail 'the stop does not name the missing per-host key'
 
 # Unsupported inputs stop instead of guessing.
 if "$gen" --host gemini --role explorer >/dev/null 2>&1; then fail 'unsupported host accepted'; fi

@@ -64,7 +64,9 @@ sobre la misma curva; esa excepcion se declara en su ficha de
 
 El mapeo concreto no se versiona: vive en el model map local
 (`~/.config/agent-scaffolding/model-map.yaml`) y se materializa por host con
-`scripts/gen-agents`. [`settings/schemas/model-map.example.yaml`](settings/schemas/model-map.example.yaml)
+`scripts/gen-agents`. El alias es lo portable; el id de modelo **no lo es**, asi
+que el mapa resuelve un id por host y un host sin id para un alias detiene el
+generador en vez de tomar prestado el de otro. [`settings/schemas/model-map.example.yaml`](settings/schemas/model-map.example.yaml)
 documenta la forma del archivo con nombres en clave, no la seleccion real.
 
 Solo hay dos curvas por defecto:

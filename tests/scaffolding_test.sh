@@ -100,16 +100,20 @@ mkdir -p "$agent_home" "$tmpdir/cfg/agent-scaffolding" "$tmpdir/no-config"
 cat > "$tmpdir/cfg/agent-scaffolding/model-map.yaml" <<'EOF'
 aliases:
   - id: economy
-    model: test-economy
+    model_codex: test-economy
+    model_claude: test-economy-cl
     effort: high
   - id: balanced
-    model: test-balanced
+    model_codex: test-balanced
+    model_claude: test-balanced-cl
     effort: xhigh
   - id: frontier
-    model: test-frontier
+    model_codex: test-frontier
+    model_claude: test-frontier-cl
     effort: xhigh
   - id: critical
-    model: test-critical
+    model_codex: test-critical
+    model_claude: test-critical-cl
     effort: max
 EOF
 
@@ -156,7 +160,10 @@ run doctor --agents --host codex --home "$agent_home" | grep -q 'DOCTOR ok agent
 # The other host is a separate unit with a separate manifest.
 run status --agents --host claude --home "$agent_home" | grep -q 'STATUS agents claude uninstalled' || fail 'claude unit is not independent'
 run install --agents --host claude --apply --home "$agent_home" >/dev/null
-grep -qx 'model: test-frontier' "$agent_home/.claude/agents/quality-reviewer-frontier.md" || fail 'quality-reviewer was not resolved through the local map'
+grep -qx 'model: test-frontier-cl' "$agent_home/.claude/agents/quality-reviewer-frontier.md" || fail 'quality-reviewer was not resolved through the claude side of the local map'
+if grep -qx 'model: test-frontier' "$agent_home/.claude/agents/quality-reviewer-frontier.md"; then
+  fail 'the claude definition carries the codex model id'
+fi
 [ -f "$agent_home/.local/state/agent-scaffolding/manifest.agents.codex" ] || fail 'missing codex manifest'
 [ -f "$agent_home/.local/state/agent-scaffolding/manifest.agents.claude" ] || fail 'missing claude manifest'
 

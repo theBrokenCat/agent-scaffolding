@@ -27,7 +27,7 @@ usage:
   gen-agents --host <codex|claude> --out DIR   [--model-map PATH] [--require-local-map]
   gen-agents --host <codex|claude> --role NAME [--model-map PATH] [--require-local-map]
   gen-agents --host <codex|claude> --list
-  gen-agents --resolve   [--model-map PATH]
+  gen-agents --resolve --host <codex|claude> [--model-map PATH]
   gen-agents --map-path  [--model-map PATH]
 EOF
 }
@@ -75,7 +75,7 @@ done
 [ -d "$roles_dir" ] || stop "missing roles directory $roles_dir"
 
 case $action in
-  render_all|render_one|list)
+  render_all|render_one|list|resolve)
     case $host in
       codex|claude) ;;
       '') stop '--host is required' ;;
@@ -130,9 +130,14 @@ map_lookup() {
   ' "$map_file"
 }
 
+# Model ids are not portable across hosts, so the map resolves an alias per host.
+# A missing entry stops: writing another host's id into a definition is exactly
+# the failure this indirection exists to prevent.
 alias_model() {
-  value=$(map_lookup "$1" model)
-  [ -n "$value" ] || stop "alias $1 has no model in $map_file"
+  value=$(map_lookup "$1" "model_$host")
+  if [ -z "$value" ]; then
+    stop "alias $1 has no model_$host in $map_file; each host needs its own model id"
+  fi
   printf '%s\n' "$value"
 }
 
@@ -339,7 +344,7 @@ case $action in
     ;;
   resolve)
     for id in economy balanced frontier critical diagnostic; do
-      model=$(map_lookup "$id" model)
+      model=$(map_lookup "$id" "model_$host")
       effort=$(map_lookup "$id" effort)
       [ -n "$model" ] || continue
       printf '%s|%s|%s\n' "$id" "$model" "$effort"
