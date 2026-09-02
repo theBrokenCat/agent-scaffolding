@@ -137,10 +137,12 @@ se promedia con las demas. `NO-DISPATCH` significa que el padre hizo el trabajo
 en vez de delegar, que es un fallo del despacho y no una fila medida en el par
 del padre.
 
-El modelo se lee del rollout **del subagente**, no del hilo padre de
-`codex exec`. El padre corre siempre en el default del host, asi que medirlo
-marcaria todas las filas fuera de brazo y vaciaria el experimento en silencio. La
-union es `parent_thread_id`.
+El modelo **y el coste** se leen del rollout del subagente, no del hilo padre de
+`codex exec`. El padre corre siempre en el default del host, asi que medir su
+modelo marcaria todas las filas fuera de brazo; y su consumo es solo la
+orquestacion —despachar y resumir— asi que medirlo subestima el brazo en un orden
+de magnitud. En el bloque A el padre reportaba ~23-43k tokens no cacheados frente
+a los ~65-84k reales del subagente. La union es `parent_thread_id`.
 
 ## Registro
 

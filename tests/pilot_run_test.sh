@@ -55,8 +55,12 @@ rm -f "$PILOT_SESSIONS_DIR/2026/09/02/rollout-child.jsonl"
 printf '{"payload":{"model":"host-default","effort":"xhigh","id":"fixture-thread-1"}}\n' \
   > "$PILOT_SESSIONS_DIR/2026/09/02/rollout-parent.jsonl"
 if [ "${FAKE_NO_DISPATCH-}" != yes ]; then
+  # The child carries the real cost. The parent's numbers below are deliberately
+  # different and much smaller: measuring them understates the arm.
   printf '{"payload":{"thread_source":"subagent","parent_thread_id":"fixture-thread-1","model":"%s","effort":"%s"}}\n' \
     "$model" "$effort" > "$PILOT_SESSIONS_DIR/2026/09/02/rollout-child.jsonl"
+  printf '{"payload":{"info":{"total_token_usage":{"input_tokens":9000,"cached_input_tokens":6000,"output_tokens":700,"reasoning_output_tokens":300}}}}\n' \
+    >> "$PILOT_SESSIONS_DIR/2026/09/02/rollout-child.jsonl"
 fi
 EOF
 chmod +x "$tmpdir/fake-exec"
@@ -78,9 +82,13 @@ value() { printf '%s' "$row" | cut -f "$1"; }
 [ "$(value 7)" = fixture-economy ] || fail 'observed model not read from the subagent rollout'
 if [ "$(value 7)" = host-default ]; then fail 'the harness measured the parent thread, not the subagent'; fi
 [ "$(value 9)" = yes ] || fail 'routing_ok should pass when observed matches the arm'
-[ "$(value 10)" = 400 ] || fail 'cached tokens not recorded'
-[ "$(value 11)" = 600 ] || fail 'uncached tokens must be input minus cached'
-[ "$(value 13)" = 25 ] || fail 'reasoning tokens not recorded'
+# Cost is the subagent's, not the parent's. The parent reports 400/600/50/25;
+# reading it would understate the arm by an order of magnitude.
+[ "$(value 10)" = 6000 ] || fail 'cached tokens were not read from the subagent'
+[ "$(value 11)" = 3000 ] || fail 'uncached tokens must be the subagent input minus cached'
+[ "$(value 12)" = 700 ] || fail 'output tokens were not read from the subagent'
+[ "$(value 13)" = 300 ] || fail 'reasoning tokens were not read from the subagent'
+if [ "$(value 10)" = 400 ]; then fail 'the harness measured the parent cost, not the arm'; fi
 [ "$(value 15)" = 1 ] || fail 'tool failures not counted'
 
 # Judgment columns are never invented by the harness.
