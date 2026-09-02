@@ -87,15 +87,18 @@ plan sustituye su supuesto de instalacion por proyecto.
       por despacho real, incluido `quality-reviewer-critical` en sol / max.
 - [x] Prohibir el fork de turnos cuando el alias importe y separar la unidad de
       agentes por host.
-- [ ] Ejecutar el piloto A/B y registrar sus mediciones. **Detenido en la puerta
-      de spec review**: los briefs derivados del mensaje de commit no permiten
+- [x] Cerrar el registro del piloto A/B como **abortado/inconcluso por corpus
+      inválido**: los briefs derivados del mensaje de commit no permiten
       derivar la suite canonica, asi que la aceptacion mediria acierto de
       contratos ocultos y no capacidad. Ver el registro del piloto.
 - [x] Sanear el arnes de medicion: artefacto por intento, union padre/hijo por
       `agent_role`, par esperado del estado y no del alias, coste del subagente
       con precios congelados, y agregador que excluye lo que no debe promediarse.
 - [x] Pre-registrar corpus, briefs con SHA-256 y orden; 14 worktrees limpios con
-      RED verificado en base.
+      RED verificado en base. Esto describe el corpus previsto, no 14
+      ejecuciones validas.
+- [ ] Preparar un piloto v0.3 prospectivo con corpus valido, como trabajo
+      separado; no forma parte del cierre de v0.2.
 - [ ] Revisar `frontier`/`critical` en Claude si se levanta el limite de gasto de
       Fable 5.1, hoy el unico techo que impide usarlo.
 

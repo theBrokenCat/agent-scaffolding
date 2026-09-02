@@ -1,8 +1,9 @@
-# Piloto v0.2: routing de modelos y orquestacion
+# Piloto v0.2: routing de modelos y orquestacion (cierre)
 
 Diseno del piloto que debe validar —o refutar— el routing de la fase 2. Se
 registra **antes** de ejecutarlo: los criterios de abajo estan pre-registrados y
-no se reinterpretan despues de ver los numeros.
+no se reinterpretan despues de ver los numeros. El cierre historico no es un
+piloto final de 14 filas: es un piloto inconcluso/abortado por corpus inválido.
 
 ## Objetivos
 
@@ -183,10 +184,23 @@ Lo que no esta resuelto es el **corpus**.
 ### La calibracion no son datos del piloto
 
 Una primera pasada sobre PenthOX se ejecuto con `?? node_modules` en la baseline,
-con el bloque C subespecificado, con cuatro defectos sucesivos del arnes y sin
-reviewer ciego. Sus numeros quedan como `calibration-invalid` y no se mezclan con
-el experimento. Sirvieron para lo que sirve una calibracion: encontrar los fallos
-del instrumento antes de gastar el presupuesto.
+con el bloque C subespecificado y sin reviewer ciego. Sus numeros quedan como
+`calibration-invalid` y no se mezclan con el experimento. Sirvieron para lo que
+sirve una calibracion: encontrar los fallos del instrumento antes de gastar el
+presupuesto.
+
+La evidencia de esa calibracion identifica exactamente cinco defectos historicos
+del arnes:
+
+1. Se usaba el hilo padre en vez del hilo hijo.
+2. Se media el coste de orquestacion y del hilo padre en vez del coste del hilo
+   hijo.
+3. La union dependia de un ID de `thread.started` que podia diferir de
+   `payload.id`.
+4. La baseline quedaba sucia por dependencias instaladas dentro del worktree.
+5. Se truncaba la parte entera de costes de al menos `$1`.
+
+Las correcciones auxiliares del arnes no aumentan este recuento.
 
 ### El corpus no admite briefs ciegos con suite oculta
 
@@ -210,9 +224,47 @@ revision; sin el, D1 sigue bloqueado por el mismo motivo.
 
 ### Consecuencia
 
-`C1` es la unica tarea del corpus ejecutable como A/B valido, y solo despues de
-declarar su contrato publico y sus puntos de entrada. `A`, `B` y `D` quedan fuera
-por corpus, no por presupuesto ni por capacidad.
+`C1` era la unica tarea del corpus elegible como A/B valido, y solo despues de
+declarar su contrato publico y sus puntos de entrada. Fue la unica tarea
+ejecutada en la ultima fase: `balanced` y `frontier` rutearon correctamente,
+pero ambos fueron no aceptados.
+
+### Resultado observado de la ultima fase
+
+La tabla de resultados conserva unicamente las dos filas candidatas de `C1`:
+
+| Tarea | Brazo | Routing | Aceptado | Cached | Uncached | Output | Reasoning | Reloj (s) | Coste impl. | Coste review(s) | Total |
+| --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| C1 | balanced | yes | no | 2868992 | 134947 | 12611 | 7073 | 402 | 0.0995 | 2.1228 | 2.2223 |
+| C1 | frontier | yes | no | 2465536 | 141855 | 16713 | 8659 | 507 | 1.8879 | 2.6619 | 4.5498 |
+
+Hubo tres reviews ciegas: una `pass` falsa con `Blocking=0` e `Important=0`, y
+dos `changes-requested`, ambas con `Blocking=1` e `Important=1`. El defecto
+reproducible fue un barrido sin prueba de orfandad que libera reservas con un
+despacho vivo; tambien existe en el commit de referencia `279d571`.
+
+El overhead registrado de especificacion y orquestacion fue `$0.9770`; el total
+API-equivalente historico fue `$7.7491` (aprox. `$7.75`). Estas cifras son solo
+calibracion de `C1`, no un resultado de A/B.
+
+### Intentos excluidos por spec gate
+
+Estos intentos no se ejecutaron, no son filas candidatas y no se promedian:
+
+| Tarea | Estado | Motivo |
+| --- | --- | --- |
+| A1 | `NOT_RUN_SPEC_GATE` | Corpus invalido: brief no permite derivar la suite canonica. |
+| A2 | `NOT_RUN_SPEC_GATE` | Corpus invalido: brief no permite derivar la suite canonica. |
+| A3 | `NOT_RUN_SPEC_GATE` | Corpus invalido: brief no permite derivar la suite canonica. |
+| B1 | `NOT_RUN_SPEC_GATE` | Corpus invalido: brief no permite derivar la suite canonica. |
+| B2 | `NOT_RUN_SPEC_GATE` | Corpus invalido: brief no permite derivar la suite canonica. |
+| D1 | `NOT_RUN_SPEC_GATE` | Corpus invalido: brief no permite derivar la suite canonica. |
+
+### Estado final
+
+v0.2 queda **abortado/inconcluso por corpus inválido**. A, B y D no fueron
+medidos; no existe veredicto A/B/C/D. Los resultados son solo de calibracion y
+se necesita un piloto v0.3 prospectivo separado, con corpus valido.
 
 Un piloto sobre las cuatro preguntas originales necesita tareas cuyo criterio sea
 derivable del enunciado: contrato publico explicito en el issue, o suites que

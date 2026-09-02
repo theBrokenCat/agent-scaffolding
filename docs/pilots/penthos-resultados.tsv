@@ -7,3 +7,12 @@ coste_overhead_usd	0.9770
 
 # gasto total registrado (todos los artefactos)
 coste_total_usd	7.7491
+
+# intentos excluidos por spec gate (no son filas candidatas ni se promedian)
+# tarea	estado
+# A1	NOT_RUN_SPEC_GATE
+# A2	NOT_RUN_SPEC_GATE
+# A3	NOT_RUN_SPEC_GATE
+# B1	NOT_RUN_SPEC_GATE
+# B2	NOT_RUN_SPEC_GATE
+# D1	NOT_RUN_SPEC_GATE
