@@ -38,7 +38,8 @@ not a test of the escalated state, because the definition wins over the override
 | Codex | `implementer` | luna / xhigh | `gpt-5.6-luna` / `xhigh` | pass |
 | Codex | `spec-reviewer` | sol / high | `gpt-5.6-sol` / `high` | pass |
 | Codex | `quality-reviewer` | sol / xhigh | `gpt-5.6-sol` / `xhigh` | pass |
-| Claude | all four | (see below) | `model_not_found`, HTTP 404 | **fail** |
+| Claude | model per state | mapped id | the state's mapped model | pass |
+| Claude | effort per state | — | no field on this host | **degradation** |
 | Codex | nine materialized states | see below | every state on its own pair | pass |
 
 ## Run of 2026-09-02
@@ -51,16 +52,20 @@ Codex `codex-cli 0.151.0`, Claude Code, against the local model map.
 report. The deliberate override of the built-in `explorer` took effect: the
 dispatched agent ran on the `economy` pair and returned the role's envelope.
 
-**Claude fails.** All four definitions register in a fresh session, but none
-starts:
+**Claude passes on model, degrades on effort.** The earlier failure
+(`[claude-code:unrecognized_model] {"model":"gpt-5.6-luna", ...}`, HTTP 404) came
+from one shared model id per alias; with the map resolving per host it is gone.
 
-```text
-[claude-code:unrecognized_model] {"model":"gpt-5.6-luna","query_source":"agent:custom:explorer"}
-```
+Model routing was verified from a session whose own model differs from the
+state's, so the subagent's model is separable in the usage record:
 
-A dispatch only completed after passing an explicit model override. See the
-portability section below: this is a fail, not the effort degradation that was
-predicted.
+- Parent session on `claude-opus-5`; dispatched `explorer-economy` (mapped to
+  `claude-sonnet-5`). The run reports two models, `claude-opus-5` for the parent
+  and **`claude-sonnet-5`** for the subagent. The definition decided the model.
+- `quality-reviewer-critical` (mapped to `claude-opus-5`) dispatched without
+  overrides and completed with no model error.
+
+Effort is **not** verified and cannot be: see the degradations.
 
 ### All nine states verified
 
@@ -144,12 +149,23 @@ what that costs.
 
 Record these as degradations, never as passes:
 
-- A host that pins the model but exposes no reasoning-effort field materializes
-  effort only as an instruction. Effort parity is then unverifiable on that host;
-  say so and do not claim the alias held. Claude Code is such a host: its agent
-  frontmatter carries `model` but no reasoning-effort field, so even once the
-  model id is portable, effort there stays unverifiable and must be recorded as a
-  degradation rather than a pass.
+- **Effort is an instruction, not a field, on Claude.** Its agent frontmatter
+  carries `model` and no reasoning-effort field, so the effort half of every
+  alias travels as prose in the definition and cannot be observed. Half of each
+  Claude row is therefore unverifiable by construction. Record it; never call it
+  parity.
+- **`critical` is not a real rung on Claude.** With no effort field, `frontier`
+  and `critical` resolve to the same model (`claude-opus-5`), and so do `economy`
+  and `balanced` (`claude-sonnet-5`). Four aliases collapse to two effective
+  settings. An escalation that changes nothing observable is not an escalation:
+  on Claude, treat `quality-reviewer-critical` as `frontier` with a stricter
+  brief, not as a stronger run.
+- **Fable 5.1 is positioned above Opus but is unusable on this account.** The
+  model picker cache in this installation describes it as "Most capable for your
+  hardest and longest-running tasks" — which is exactly the long-horizon gate —
+  but a dispatch returns `You've hit your monthly spend limit`, not an unknown
+  model. So the ceiling is a billing limit, not a capability one. `frontier` and
+  `critical` stay on `claude-opus-5`; revisit if that limit is lifted.
 - A host with no subagent definition format at all is out of scope for this
   check. Gemini has no `agents/` unit and `scripts/gen-agents` refuses it rather
   than writing a file the host will ignore.
