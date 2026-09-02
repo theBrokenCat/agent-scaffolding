@@ -15,6 +15,16 @@ stop() {
   exit 1
 }
 
+# The manifest lists one entry per target, so changing the set of canonical roles
+# invalidates an installed agent manifest. That is loud on purpose, but the
+# recovery is not obvious, so name it.
+stop_invalid_manifest() {
+  if [ "$SCAFFOLDING_TARGET_SET" = agents ]; then
+    stop "invalid manifest $SCAFFOLDING_MANIFEST; if the set of roles changed, remove the generated definitions and this manifest by hand, then re-run install --agents --apply"
+  fi
+  stop "invalid manifest $SCAFFOLDING_MANIFEST"
+}
+
 command=${1-}
 [ -n "$command" ] || { usage; exit 1; }
 shift
@@ -124,7 +134,7 @@ preflight_install() {
   sources_are_valid || return 1
   scaffolding_state_path_is_safe || return 1
   if scaffolding_manifest_exists; then
-    scaffolding_manifest_is_valid || return 1
+    scaffolding_manifest_is_valid || stop_invalid_manifest
     all_destinations_managed || return 1
     return 0
   fi
@@ -227,7 +237,7 @@ status() {
     printf 'STATUS %suninstalled\n' "$unit_prefix"
     return 1
   fi
-  scaffolding_manifest_is_valid || stop "invalid manifest $SCAFFOLDING_MANIFEST"
+  scaffolding_manifest_is_valid || stop_invalid_manifest
   all_destinations_managed || { printf 'STATUS %smanaged destination changed\n' "$unit_prefix"; return 1; }
   if [ "$SCAFFOLDING_TARGET_SET" = agents ] && ! all_agent_renders_are_current; then
     printf 'STATUS %smanaged render-changed\n' "$unit_prefix"
@@ -254,7 +264,7 @@ doctor() {
     }
     stop 'unmanaged destination exists'
   fi
-  scaffolding_manifest_is_valid || stop "invalid manifest $SCAFFOLDING_MANIFEST"
+  scaffolding_manifest_is_valid || stop_invalid_manifest
   all_destinations_managed || stop 'broken or changed managed destination'
   [ -r "$SCAFFOLDING_MANIFEST" ] && [ -x "$SCAFFOLDING_STATE_DIR" ] || stop 'state permissions are unusable'
   printf 'DOCTOR ok %s\n' "$unit_name"
@@ -289,7 +299,7 @@ restore_from_manifest() {
 
 uninstall() {
   scaffolding_manifest_exists || stop 'no manifest; refusing to remove unmanaged destinations'
-  scaffolding_manifest_is_valid || stop "invalid manifest $SCAFFOLDING_MANIFEST"
+  scaffolding_manifest_is_valid || stop_invalid_manifest
   all_destinations_managed || stop 'managed destination changed; refusing to remove it'
   if [ "$apply" = false ]; then
     scaffolding_targets | while IFS='|' read -r name destination source; do

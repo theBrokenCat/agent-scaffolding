@@ -68,6 +68,11 @@ y queda fuera de esta unidad.
 Un archivo instalado no prueba que el host ejecute en ese modelo y ese effort:
 eso se comprueba con [`tests/runtime-parity.md`](tests/runtime-parity.md).
 
+El manifiesto guarda una entrada por destino, asi que **anadir o quitar un rol
+canonico invalida una unidad ya instalada**. Falla en voz alta y explica la
+recuperacion manual; no hay migracion automatica, porque el contrato fija cuatro
+roles genericos y cambiar ese conjunto es una decision, no una rutina.
+
 Valida el contrato, el instalador y el registro con:
 
 ```sh

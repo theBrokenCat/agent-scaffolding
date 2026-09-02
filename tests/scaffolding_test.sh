@@ -169,6 +169,16 @@ grep -qx 'name = "explorer"' "$agent_migrate/.codex/agents/explorer.toml" || fai
 run uninstall --agents --apply --home "$agent_migrate" >/dev/null
 [ "$(cat "$agent_migrate/.codex/agents/explorer.toml")" = 'keep my own explorer' ] || fail 'previous agent definition not restored'
 
+# Changing the set of canonical roles invalidates an installed agent manifest.
+# That must fail loudly and say how to recover, not fail silently.
+agent_stale=$tmpdir/agent-stale
+mkdir -p "$agent_stale"
+run install --agents --apply --home "$agent_stale" >/dev/null
+grep -v 'claude-quality-reviewer' "$agent_stale/.local/state/agent-scaffolding/manifest.agents" > "$agent_stale/manifest.new"
+mv "$agent_stale/manifest.new" "$agent_stale/.local/state/agent-scaffolding/manifest.agents"
+run install --agents --apply --home "$agent_stale" 2>&1 | grep -q 're-run install --agents --apply' \
+  || fail 'a stale agent manifest does not explain the recovery'
+
 unset XDG_CONFIG_HOME
 
 printf '%s\n' 'ok - scaffolding installer'
