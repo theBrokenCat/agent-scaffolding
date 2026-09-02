@@ -40,7 +40,7 @@ not a test of the escalated state, because the definition wins over the override
 | Codex | `quality-reviewer` | sol / xhigh | `gpt-5.6-sol` / `xhigh` | pass |
 | Claude | model per state | mapped id | the state's mapped model | pass |
 | Claude | effort per state | — | no field on this host | **degradation** |
-| Codex | nine materialized states | see below | every state on its own pair | pass |
+| Codex | eleven materialized states | see below | every state on its own pair | pass |
 
 ## Run of 2026-09-02
 
@@ -67,7 +67,7 @@ state's, so the subagent's model is separable in the usage record:
 
 Effort is **not** verified and cannot be: see the degradations.
 
-### All nine states verified
+### All eleven states verified
 
 After materializing one file per (role, state), every state was dispatched by
 name with `fork_turns: "none"` and **no** model or effort override — the routing
@@ -78,6 +78,7 @@ comes from the definition, which is the only thing the host honours.
 | `explorer` (bare, overrides the built-in) | luna / high | `gpt-5.6-luna` / `high` | pass |
 | `explorer-economy` | luna / high | `gpt-5.6-luna` / `high` | pass |
 | `explorer-balanced` | luna / xhigh | `gpt-5.6-luna` / `xhigh` | pass |
+| `implementer-economy` | luna / high | `gpt-5.6-luna` / `high` | pass |
 | `implementer-balanced` | luna / xhigh | `gpt-5.6-luna` / `xhigh` | pass |
 | `implementer-frontier` | sol / xhigh | `gpt-5.6-sol` / `xhigh` | pass |
 | `spec-reviewer-frontier-high` | sol / high | `gpt-5.6-sol` / `high` | pass |
@@ -85,7 +86,9 @@ comes from the definition, which is the only thing the host honours.
 | `quality-reviewer-frontier` | sol / xhigh | `gpt-5.6-sol` / `xhigh` | pass |
 | `quality-reviewer-critical` | sol / max | `gpt-5.6-sol` / `max` | pass |
 
-`quality-reviewer-critical` is the row that matters most: `max` is the pair the
+`implementer-economy` was materialized later, when the pilot needed the tier the
+contract already assigned to mechanical work; it was verified the same way, on a
+real dispatch. `quality-reviewer-critical` is the row that matters most: `max` is the pair the
 contract only ever asks for by escalation, and until the states were separate
 files there was no way to reach it. Each base state also reported the correct
 escalated name to dispatch, so the ladder is navigable from inside the definition.

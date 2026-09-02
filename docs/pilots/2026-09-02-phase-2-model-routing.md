@@ -174,15 +174,47 @@ observado no coincida con el esperado se descarta: pertenece a otro brazo.
 
 ## Estado
 
-Diseno registrado y arnes implementado. Ejecucion pendiente: no hay todavia
-ninguna medicion, y ninguna cifra de la tabla de objetivos esta demostrada.
+Los bloqueantes de routing que impedian lanzar estan resueltos y verificados por
+despacho real: la escalada se despacha por `agent_type` (once estados), el alias
+se resuelve por host, y el fork de turnos esta prohibido porque anula el alias.
 
-Bloqueantes conocidos antes de lanzar:
+Lo que no esta resuelto es el **corpus**.
 
-- La escalada de alias no es despachable (la definicion del agente gana al
-  override de `spawn_agent`). Un piloto que quiera medir estados escalados no
-  puede ejecutarlos todavia.
-- Claude rechaza el id de modelo. Mientras no se resuelva el alias por host, el
-  piloto es solo-Codex y debe declararlo.
-- Nunca spawnear con `fork_turns: "all"`: el fork anula el alias y toda fila asi
-  pertenece a otro brazo.
+### La calibracion no son datos del piloto
+
+Una primera pasada sobre PenthOX se ejecuto con `?? node_modules` en la baseline,
+con el bloque C subespecificado, con cuatro defectos sucesivos del arnes y sin
+reviewer ciego. Sus numeros quedan como `calibration-invalid` y no se mezclan con
+el experimento. Sirvieron para lo que sirve una calibracion: encontrar los fallos
+del instrumento antes de gastar el presupuesto.
+
+### El corpus no admite briefs ciegos con suite oculta
+
+El spec review previo bloqueo cinco de los siete briefs, y el motivo es
+estructural, no de redaccion:
+
+> Distintas implementaciones razonables podrian compilar y cumplir literalmente
+> cada objetivo mientras fallan la suite oculta; continuar mediria capacidad de
+> adivinar contratos, no capacidad de implementar el brief.
+
+La suite canonica de estas tareas asserta **contenido** —que checks concretos, que
+severidades, que exposiciones cuentan como sensibles, la tabla entera de estados y
+transiciones— y no solo forma. Especificarlo en el brief es transcribir el diseno
+del commit, y entonces ambos brazos aceptan y el bloque no discrimina; no
+especificarlo mide una moneda al aire. La calibracion mostro los dos extremos:
+8/8 aceptados con briefs apretados, y una decision por `void` frente a `number`
+con un brief flojo.
+
+Un control lo confirmo: con el contrato publico anadido, C1 pasa esa parte de la
+revision; sin el, D1 sigue bloqueado por el mismo motivo.
+
+### Consecuencia
+
+`C1` es la unica tarea del corpus ejecutable como A/B valido, y solo despues de
+declarar su contrato publico y sus puntos de entrada. `A`, `B` y `D` quedan fuera
+por corpus, no por presupuesto ni por capacidad.
+
+Un piloto sobre las cuatro preguntas originales necesita tareas cuyo criterio sea
+derivable del enunciado: contrato publico explicito en el issue, o suites que
+verifiquen una propiedad —idempotencia, un invariante, un limite— en vez de un
+catalogo de contenidos.
