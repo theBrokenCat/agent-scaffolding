@@ -28,6 +28,8 @@ jobs:
         run: sh tests/gen_agents_test.sh
       - name: orchestration_test
         run: sh tests/orchestration_test.sh
+      - name: pilot_run_test
+        run: sh tests/pilot_run_test.sh
       - name: protect_repo_test
         run: sh tests/protect_repo_test.sh
 

@@ -84,6 +84,7 @@ sh tests/scaffolding_test.sh
 sh tests/registry_test.sh
 sh tests/gen_agents_test.sh
 sh tests/orchestration_test.sh
+sh tests/pilot_run_test.sh
 sh tests/protect_repo_test.sh
 ```
 

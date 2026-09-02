@@ -1,0 +1,173 @@
+#!/bin/sh
+
+# Measurement harness for the paired A/B pilot in docs/pilots/.
+#
+# It records one row per execution. It fills only what a machine can observe:
+# tokens, wall clock, tool failures, and the model and effort the run actually
+# used. Judgment columns are left empty on purpose, for the blind reviewer to
+# fill; a harness that guessed them would corrupt exactly the data the pilot
+# exists to collect.
+
+set -eu
+
+script_dir=$(CDPATH= cd -- "$(dirname "$0")" && pwd -P)
+PILOT_ROOT=${PILOT_ROOT:-$(CDPATH= cd -- "$script_dir/.." && pwd -P)}
+PILOT_SESSIONS_DIR=${PILOT_SESSIONS_DIR:-$HOME/.codex/sessions}
+
+COLUMNS='tarea	bloque	brazo	orden	modelo_esperado	effort_esperado	modelo_observado	effort_observado	routing_ok	tokens_cacheados	tokens_no_cacheados	tokens_salida	tokens_reasoning	reloj_seg	fallos_herramienta	aceptado_1er_intento	blocking_encontrados	important_encontrados	blocking_escapados	important_escapados	correcciones	lotes_correccion	creditos	timeouts_espera	coste_hasta_aceptado'
+
+usage() {
+  cat >&2 <<'EOF'
+usage:
+  pilot-run --header
+  pilot-run --order --tasks FILE [--seed N]
+  pilot-run --task ID --block B --arm A --prompt FILE [--order N] [--results FILE]
+
+Arms are model-map aliases (economy, balanced, frontier, critical, diagnostic).
+Judgment columns stay empty for the blind reviewer.
+EOF
+}
+
+stop() {
+  printf '%s\n' "STOP $*" >&2
+  exit 1
+}
+
+action=
+task=; block=; arm=; prompt=; order=; results=; tasks=; seed=
+while [ "$#" -gt 0 ]; do
+  case $1 in
+    --header) action=header ;;
+    --order)
+      case ${2-} in
+        ''|--*) action=order ;;
+        *) shift; order=$1 ;;
+      esac
+      ;;
+    --tasks) shift; [ "$#" -gt 0 ] || { usage; exit 1; }; tasks=$1 ;;
+    --seed) shift; [ "$#" -gt 0 ] || { usage; exit 1; }; seed=$1 ;;
+    --task) shift; [ "$#" -gt 0 ] || { usage; exit 1; }; task=$1; action=${action:-run} ;;
+    --block) shift; [ "$#" -gt 0 ] || { usage; exit 1; }; block=$1 ;;
+    --arm) shift; [ "$#" -gt 0 ] || { usage; exit 1; }; arm=$1 ;;
+    --prompt) shift; [ "$#" -gt 0 ] || { usage; exit 1; }; prompt=$1 ;;
+    --results) shift; [ "$#" -gt 0 ] || { usage; exit 1; }; results=$1 ;;
+    *) usage; exit 1 ;;
+  esac
+  shift
+done
+
+[ -n "$action" ] || { usage; exit 1; }
+
+if [ "$action" = header ]; then
+  printf '%s\n' "$COLUMNS"
+  exit 0
+fi
+
+# Arm order is randomised per task so operator learning does not always land on
+# the same arm. Pass --seed to reproduce an assignment.
+if [ "$action" = order ]; then
+  [ -n "$tasks" ] || stop '--order requires --tasks FILE'
+  [ -f "$tasks" ] || stop "task list not found: $tasks"
+  awk -v seed="${seed:-0}" '
+    BEGIN { srand(seed + 0 == 0 ? systime() : seed) }
+    /^[[:space:]]*$/ || /^[[:space:]]*#/ { next }
+    {
+      n = split($0, field, /\t/)
+      id = field[1]; blk = field[2]; arms = field[3]
+      if (arms == "") { print "STOP task " id " has no arms column" > "/dev/stderr"; bad = 1; next }
+      count = split(arms, arm, /,/)
+      for (i = 1; i <= count; i++) key[i] = rand()
+      for (i = 1; i <= count; i++)
+        for (j = i + 1; j <= count; j++)
+          if (key[j] < key[i]) {
+            t = key[i]; key[i] = key[j]; key[j] = t
+            t = arm[i]; arm[i] = arm[j]; arm[j] = t
+          }
+      for (i = 1; i <= count; i++) printf "%s\t%s\t%s\t%d\n", id, blk, arm[i], i
+    }
+    END { exit bad }
+  ' "$tasks"
+  exit 0
+fi
+
+[ -n "$task" ] || stop '--task is required'
+[ -n "$block" ] || stop '--block is required'
+[ -n "$arm" ] || stop '--arm is required'
+[ -n "$prompt" ] || stop '--prompt is required'
+[ -f "$prompt" ] || stop "prompt file not found: $prompt"
+
+resolved=$("$PILOT_ROOT/scripts/gen-agents" --resolve --require-local-map | awk -F'|' -v a="$arm" '$1 == a { print $2 "|" $3 }')
+[ -n "$resolved" ] || stop "arm $arm is not an alias in the local model map"
+expected_model=${resolved%|*}
+expected_effort=${resolved#*|}
+
+work=$(mktemp -d "${TMPDIR:-/tmp}/pilot-run.XXXXXX")
+trap 'rm -rf "$work"' EXIT HUP INT TERM
+
+started=$(date +%s)
+# PILOT_EXEC exists so the harness itself can be tested without spending credits.
+if [ -n "${PILOT_EXEC-}" ]; then
+  # shellcheck disable=SC2086
+  $PILOT_EXEC "$expected_model" "$expected_effort" < "$prompt" > "$work/events.jsonl" 2>"$work/exec.err" || :
+else
+  codex exec --json --skip-git-repo-check \
+    -c model="$expected_model" -c model_reasoning_effort="$expected_effort" \
+    - < "$prompt" > "$work/events.jsonl" 2>"$work/exec.err" || :
+fi
+elapsed=$(( $(date +%s) - started ))
+
+field() {
+  awk -v key="$1" '
+    { while (match($0, "\"" key "\":[0-9]+")) {
+        value = substr($0, RSTART + length(key) + 3, RLENGTH - length(key) - 3)
+        $0 = substr($0, RSTART + RLENGTH)
+      }
+    }
+    END { print value + 0 }
+  ' "$work/events.jsonl"
+}
+
+thread=$(awk 'match($0, /"thread_id":"[^"]+"/) { print substr($0, RSTART + 13, RLENGTH - 14); exit }' "$work/events.jsonl")
+cached=$(field cached_input_tokens)
+input=$(field input_tokens)
+output=$(field output_tokens)
+reasoning=$(field reasoning_output_tokens)
+uncached=$(( input - cached ))
+[ "$uncached" -ge 0 ] || uncached=0
+tool_failures=$(grep -c '"type":"error"' "$work/events.jsonl" || :)
+
+# The routing is read from the session rollout, never from the model's own report.
+observed_model=-
+observed_effort=-
+if [ -n "$thread" ]; then
+  rollout=$(find "$PILOT_SESSIONS_DIR" -name "*$thread*.jsonl" 2>/dev/null | head -1)
+  if [ -n "$rollout" ]; then
+    observed_model=$(awk 'match($0, /"model":"[^"]+"/) { print substr($0, RSTART + 9, RLENGTH - 10); exit }' "$rollout")
+    observed_effort=$(awk 'match($0, /"effort":"[^"]+"/) { print substr($0, RSTART + 10, RLENGTH - 11); exit }' "$rollout")
+    [ -n "$observed_model" ] || observed_model=-
+    [ -n "$observed_effort" ] || observed_effort=-
+  fi
+fi
+
+# A row whose observed pair differs from its arm belongs to another arm. It is
+# marked, never silently averaged in.
+if [ "$observed_model" = "$expected_model" ] && [ "$observed_effort" = "$expected_effort" ]; then
+  routing_ok=yes
+elif [ "$observed_model" = - ]; then
+  routing_ok=unknown
+else
+  routing_ok=NO
+fi
+
+row=$(printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t\t\t\t\t\t\t\t\t\t' \
+  "$task" "$block" "$arm" "${order:--}" \
+  "$expected_model" "$expected_effort" "$observed_model" "$observed_effort" "$routing_ok" \
+  "$cached" "$uncached" "$output" "$reasoning" "$elapsed" "$tool_failures")
+
+if [ -n "$results" ]; then
+  [ -f "$results" ] || printf '%s\n' "$COLUMNS" > "$results"
+  printf '%s\n' "$row" >> "$results"
+fi
+printf '%s\n' "$row"
+
+[ "$routing_ok" = yes ] || printf '%s\n' "WARN routing_ok=$routing_ok for $task/$arm: this row belongs to another arm" >&2

@@ -50,13 +50,29 @@ Terra no compite: entra unicamente cuando un fallo de Luna necesita diagnostico.
 | Tareas mecanicas | 10-20 | si `economy` basta donde el trabajo esta totalmente especificado |
 | Exploraciones multiarchivo | 10 | el escalon `economy` -> `balanced` del `explorer` |
 | Implementaciones con contrato congelado | 10 | el default de `implementer` |
-| Horizonte largo | 1 | donde mas te juegas: el gate de "cuanto dura" |
+| Horizonte largo | 3 (minimo 1) | donde mas te juegas: el gate de "cuanto dura" |
 
-El bloque de horizonte largo tiene n = 1 y **no** produce una media: produce una
-observacion cualitativa. Se registra como tal. La evidencia externa que motiva el
-gate —modelos sub-frontier que en runs de 100+ tareas caen a 40,7 % de aciertos
-frente a 63,7 %, quemando 2,65x tokens— predice que ahi es donde un brazo barato
-se rompe; una sola observacion puede ser consistente con eso, no probarlo.
+### El bloque de horizonte largo es asimetrico
+
+No produce una media y no se convierte en porcentaje: informa el juicio. Pero su
+evidencia **no pesa igual en las dos direcciones**, y esa asimetria se
+pre-registra como regla de decision:
+
+- **Un solo fallo de un brazo sub-frontier en horizonte largo CONFIRMA el gate.**
+  Basta uno. Ese brazo queda descartado para horizonte largo y no se le da otra
+  oportunidad dentro del piloto.
+- **Un exito, o incluso tres, NO refutan el gate.** Ausencia de fallo con n = 3 es
+  ausencia de evidencia, no evidencia de ausencia: el modo de fallo que motiva el
+  gate aparece en runs largos y es intermitente.
+
+Es decir: el bloque solo puede mover la decision en un sentido. Si sale limpio,
+el gate sigue en pie por la evidencia previa —modelos sub-frontier que en runs de
+100+ tareas caen a 40,7 % de aciertos frente a 63,7 %, quemando 2,65x tokens— y
+`frontier` sigue siendo el default de horizonte largo.
+
+Sube a n = 3 si el coste lo permite; con n = 1 la regla es la misma, solo que la
+probabilidad de observar el fallo baja. Nunca reportes este bloque como "X % de
+exito".
 
 ## Que se mide en cada ejecucion
 
@@ -89,6 +105,30 @@ Un brazo pasa solo si cumple todos:
 Los criterios 1 y 2 son eliminatorios: un brazo mas barato que deja escapar mas
 defectos no es mas barato, solo mueve el coste a otro sitio.
 
+## Arnes de medicion
+
+`scripts/pilot-run` produce las filas. Medir 31-41 ejecuciones a mano corrompe
+los datos, asi que el arnes rellena todo lo que una maquina puede observar
+—tokens cacheados y no cacheados, salida, reasoning, reloj, fallos de
+herramienta— y lee el **modelo y effort realmente usados** del rollout de sesion,
+nunca del informe del propio modelo.
+
+Las columnas de juicio (aceptacion, Blocking/Important encontrados y escapados,
+correcciones, lotes, creditos, coste hasta aceptado) las deja **vacias a
+proposito**: las rellena el reviewer ciego. Un arnes que las adivinara corromperia
+justo el dato que el piloto existe para recoger.
+
+```sh
+scripts/pilot-run --header                                   # contrato de fila
+scripts/pilot-run --order --tasks tasks.tsv --seed 7          # orden aleatorio reproducible
+scripts/pilot-run --task T1 --block mecanicas --arm balanced \
+  --prompt t1.txt --order 2 --results resultados.tsv
+```
+
+Toda fila lleva `routing_ok`. Si el par observado no coincide con el del brazo,
+la fila se marca `NO` y el arnes avisa: esa ejecucion pertenece a otro brazo y no
+se promedia con las demas.
+
 ## Registro
 
 Una fila por ejecucion, sin transcripciones ni secretos:
@@ -107,8 +147,9 @@ observado no coincida con el esperado se descarta: pertenece a otro brazo.
 
 ## Amenazas a la validez
 
-- **n = 1 en horizonte largo.** Es el bloque mas informativo y el menos
-  concluyente. No se convierte en porcentaje.
+- **n pequeno en horizonte largo.** Es el bloque mas informativo y el menos
+  concluyente. No se convierte en porcentaje, y su evidencia solo mueve la
+  decision en un sentido (ver la regla asimetrica arriba).
 - **Blinding parcial.** El operador no puede ir ciego; solo el reviewer. Los
   bloques con intervencion del operador son los mas sospechosos.
 - **Emparejamiento y aprendizaje.** Repetir la misma tarea en varios brazos
@@ -118,5 +159,15 @@ observado no coincida con el esperado se descarta: pertenece a otro brazo.
 
 ## Estado
 
-Diseno registrado. Ejecucion pendiente: no hay todavia ninguna medicion, y
-ninguna cifra de la tabla de objetivos esta demostrada.
+Diseno registrado y arnes implementado. Ejecucion pendiente: no hay todavia
+ninguna medicion, y ninguna cifra de la tabla de objetivos esta demostrada.
+
+Bloqueantes conocidos antes de lanzar:
+
+- La escalada de alias no es despachable (la definicion del agente gana al
+  override de `spawn_agent`). Un piloto que quiera medir estados escalados no
+  puede ejecutarlos todavia.
+- Claude rechaza el id de modelo. Mientras no se resuelva el alias por host, el
+  piloto es solo-Codex y debe declararlo.
+- Nunca spawnear con `fork_turns: "all"`: el fork anula el alias y toda fila asi
+  pertenece a otro brazo.
