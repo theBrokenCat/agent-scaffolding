@@ -123,11 +123,15 @@ case $max_seconds in ''|*[!0-9]*) stop '--max-seconds must be a positive integer
 target=$(artifact_path)
 [ ! -e "$target" ] || stop "artifact already exists, refusing to overwrite: $target"
 
-expected=$("$PILOT_ROOT/scripts/gen-agents" --resolve --host codex --require-local-map |
-  awk -F'|' -v a="$arm" '$1 == a { print $2 "|" $3 }')
-[ -n "$expected" ] || stop "arm $arm is not an alias in the local model map"
-expected_model=${expected%|*}
-expected_effort=${expected#*|}
+# The expected pair belongs to the dispatched STATE, not to its alias. A state may
+# pin a different effort on the same curve — `spec-reviewer-frontier-high` is the
+# `frontier` alias at `high` — so comparing against the alias reports a routing
+# failure on a run that was correct.
+rendered=$("$PILOT_ROOT/scripts/gen-agents" --host codex --role "$agent_type" --require-local-map) \
+  || stop "unknown agent state: $agent_type"
+expected_model=$(printf '%s\n' "$rendered" | awk -F'"' '/^model = /{print $2; exit}')
+expected_effort=$(printf '%s\n' "$rendered" | awk -F'"' '/^model_reasoning_effort = /{print $2; exit}')
+[ -n "$expected_model" ] && [ -n "$expected_effort" ] || stop "could not resolve the pair for $agent_type"
 
 # The hash records what the implementer actually sees. Both arms of a task get a
 # byte-identical brief; only the dispatch wrapper names a different agent_type, so
@@ -193,19 +197,31 @@ if [ -n "$run_cwd" ]; then
   done
 fi
 
+# A parent can spawn more than one subagent, and its own rollout also records the
+# spawn arguments, so matching on the parent id alone picks the wrong thread. The
+# child is the rollout whose session metadata says it is a subagent of this parent
+# AND names this exact agent_role.
 child=
 child_id=-
 if [ -n "$parent_id" ]; then
-  child=$(grep -l "\"parent_thread_id\":\"$parent_id\"" "$PILOT_SESSIONS_DIR"/*/*/*/*.jsonl 2>/dev/null | head -1)
-  [ -n "$child" ] && child_id=$(head -1 "$child" | awk 'match($0, /"id":"[^"]+"/) { print substr($0, RSTART + 6, RLENGTH - 7); exit }')
+  for candidate in $(grep -l "\"parent_thread_id\":\"$parent_id\"" "$PILOT_SESSIONS_DIR"/*/*/*/*.jsonl 2>/dev/null); do
+    head -1 "$candidate" | grep -Fq '"thread_source":"subagent"' || continue
+    head -1 "$candidate" | grep -Fq "\"agent_role\":\"$agent_type\"" || continue
+    child=$candidate
+    child_id=$(head -1 "$candidate" | awk 'match($0, /"id":"[^"]+"/) { print substr($0, RSTART + 6, RLENGTH - 7); exit }')
+    break
+  done
 fi
 
 observed_model=-
 observed_effort=-
 cached=0; input=0; output=0; reasoning=0; cost=0
 if [ -n "$child" ]; then
-  observed_model=$(awk 'match($0, /"model":"[^"]+"/) { print substr($0, RSTART + 9, RLENGTH - 10); exit }' "$child")
-  observed_effort=$(awk 'match($0, /"effort":"[^"]+"/) { print substr($0, RSTART + 10, RLENGTH - 11); exit }' "$child")
+  # Only `turn_context` carries the pair the turn actually ran on. Other records
+  # mention a model for unrelated reasons (provenance, collaboration settings),
+  # and the first match in the file is not the one that was used.
+  observed_model=$(awk '/"type":"turn_context"/ && match($0, /"model":"[^"]+"/) { print substr($0, RSTART + 9, RLENGTH - 10); exit }' "$child")
+  observed_effort=$(awk '/"type":"turn_context"/ && match($0, /"effort":"[^"]+"/) { print substr($0, RSTART + 10, RLENGTH - 11); exit }' "$child")
   [ -n "$observed_model" ] || observed_model=-
   [ -n "$observed_effort" ] || observed_effort=-
 

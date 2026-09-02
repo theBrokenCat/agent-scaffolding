@@ -53,11 +53,20 @@ JSON
 rm -f "$PILOT_SESSIONS_DIR/2026/09/02/rollout-child.jsonl"
 printf '{"payload":{"id":"real-parent-id","cwd":"%s","model":"host-default","effort":"xhigh"}}\n' \
   "$FAKE_CWD" > "$PILOT_SESSIONS_DIR/2026/09/02/rollout-parent.jsonl"
+rm -f "$PILOT_SESSIONS_DIR/2026/09/02/rollout-sibling.jsonl"
 if [ "${FAKE_NO_DISPATCH-}" != yes ]; then
+  # A sibling subagent of the SAME parent, different role and different pair.
+  # Matching on the parent id alone picks whichever file comes first.
   {
-    printf '{"payload":{"thread_source":"subagent","parent_thread_id":"real-parent-id","id":"real-child-id","model":"%s","effort":"%s"}}\n' "$model" "$effort"
-    printf '{"payload":{"info":{"last_token_usage":{"input_tokens":300000,"cached_input_tokens":100000,"output_tokens":1000}}}}\n'
-    printf '{"payload":{"info":{"total_token_usage":{"input_tokens":300000,"cached_input_tokens":100000,"output_tokens":1000,"reasoning_output_tokens":400}}}}\n'
+    printf '{"payload":{"thread_source":"subagent","parent_thread_id":"real-parent-id","id":"sibling-id","source":{"subagent":{"thread_spawn":{"agent_role":"explorer-economy"}}}}}\n' 
+    printf '{"type":"turn_context","payload":{"model":"sibling-model","effort":"low"}}\n' 
+  } > "$PILOT_SESSIONS_DIR/2026/09/02/rollout-sibling.jsonl"
+  {
+    printf '{"payload":{"thread_source":"subagent","parent_thread_id":"real-parent-id","id":"real-child-id","source":{"subagent":{"thread_spawn":{"agent_role":"%s"}}}}}\n' "$AGENT_TYPE" 
+    printf '{"type":"session_meta","payload":{"base_instructions":{"provenance":{"model":"provenance-model"}}}}\n' 
+    printf '{"type":"turn_context","payload":{"model":"%s","effort":"%s"}}\n' "$model" "$effort" 
+    printf '{"payload":{"info":{"last_token_usage":{"input_tokens":300000,"cached_input_tokens":100000,"output_tokens":1000}}}}\n' 
+    printf '{"payload":{"info":{"total_token_usage":{"input_tokens":300000,"cached_input_tokens":100000,"output_tokens":1000,"reasoning_output_tokens":400}}}}\n' 
   } > "$PILOT_SESSIONS_DIR/2026/09/02/rollout-child.jsonl"
 fi
 EOF
@@ -66,6 +75,7 @@ PILOT_EXEC=$tmpdir/fake-exec; export PILOT_EXEC
 FAKE_CWD=$tmpdir/run; export FAKE_CWD
 
 run_dispatch() {
+  AGENT_TYPE="implementer-$2"; export AGENT_TYPE
   "$harness" dispatch --task "$1" --block b --arm "$2" --agent-type "implementer-$2" \
     --prompt "$tmpdir/prompt.txt" --attempts "$tmpdir/att" --kind "${3:-implementation}" \
     --attempt "${4:-1}" --cwd "$FAKE_CWD" --base-sha deadbeef >/dev/null 2>"$tmpdir/warn.txt"
@@ -87,7 +97,11 @@ run_dispatch T1 economy implementation 2
   || fail 'the join did not use the parent rollout id'
 [ "$(field "$(art T1 economy)" child_thread_id)" = real-child-id ] || fail 'the child was not identified'
 
-# 3. Model, effort and usage come from the child, never the parent.
+# 3. Model, effort and usage come from the child, never the parent — and from
+#    the right child: a parent can spawn several, and the pair comes from the turn
+#    that ran, not from the first model named anywhere in the file.
+[ "$(field "$(art T1 economy)" model)" != sibling-model ] || fail 'a sibling subagent was measured' 
+[ "$(field "$(art T1 economy)" model)" != provenance-model ] || fail 'a provenance model was measured' 
 [ "$(field "$(art T1 economy)" model)" = luna-test ] || fail 'model was not read from the child'
 if [ "$(field "$(art T1 economy)" model)" = host-default ]; then fail 'the parent model was measured'; fi
 [ "$(field "$(art T1 economy)" tokens_cached)" = 100000 ] || fail 'cached tokens were not the child ones'
