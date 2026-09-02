@@ -81,13 +81,15 @@ plan sustituye su supuesto de instalacion por proyecto.
 - [x] Registrar el diseno del piloto A/B con criterios pre-registrados.
 - [x] Ejecutar la paridad en runtime por host (`tests/runtime-parity.md`).
       Codex pasa en los cuatro roles; Claude falla por id de modelo no portable.
-- [ ] Resolver el alias por host en el model map, para que Claude deje de recibir
-      un id de modelo de otro proveedor.
+- [x] Resolver el alias por host en el model map y verificar Claude por despacho
+      real: el modelo lo fija la definicion; el effort sigue sin ser observable.
 - [x] Materializar un archivo por estado escalado y verificar los nueve estados
       por despacho real, incluido `quality-reviewer-critical` en sol / max.
 - [x] Prohibir el fork de turnos cuando el alias importe y separar la unidad de
       agentes por host.
 - [ ] Ejecutar el piloto A/B y registrar sus mediciones.
+- [ ] Revisar `frontier`/`critical` en Claude si se levanta el limite de gasto de
+      Fable 5.1, hoy el unico techo que impide usarlo.
 
 Los objetivos de la fase (agentes 19 -> 8-11, reloj 38 h -> 14-22 h, coste
 -40/65 %) son stretch registrados, no resultados: ninguna cifra esta medida
