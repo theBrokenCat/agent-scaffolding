@@ -157,12 +157,6 @@ field() {
 }
 
 thread=$(awk 'match($0, /"thread_id":"[^"]+"/) { print substr($0, RSTART + 13, RLENGTH - 14); exit }' "$work/events.jsonl")
-cached=$(field cached_input_tokens)
-input=$(field input_tokens)
-output=$(field output_tokens)
-reasoning=$(field reasoning_output_tokens)
-uncached=$(( input - cached ))
-[ "$uncached" -ge 0 ] || uncached=0
 tool_failures=$(grep -c '"type":"error"' "$work/events.jsonl" || :)
 
 # The routing is read from the session rollout, never from the model's own report.
@@ -174,8 +168,22 @@ tool_failures=$(grep -c '"type":"error"' "$work/events.jsonl" || :)
 observed_model=-
 observed_effort=-
 dispatched=no
-if [ -n "$thread" ]; then
-  child=$(grep -l "\"parent_thread_id\":\"$thread\"" "$PILOT_SESSIONS_DIR"/*/*/*/*.jsonl 2>/dev/null | head -1)
+child=
+# The id in `thread.started` is not always the id the child records as its
+# parent. The rollout is the reliable side: find the parent rollout for this run
+# (newest whose cwd is the dispatch directory), take its own id, and join on that.
+parent_id=$thread
+if [ -n "$run_cwd" ]; then
+  for candidate in $(ls -t "$PILOT_SESSIONS_DIR"/*/*/*/*.jsonl 2>/dev/null | head -40); do
+    head -1 "$candidate" | grep -Fq "\"cwd\":\"$run_cwd\"" || continue
+    head -1 "$candidate" | grep -Fq '"thread_source":"subagent"' && continue
+    found=$(head -1 "$candidate" | awk 'match($0, /"id":"[^"]+"/) { print substr($0, RSTART + 6, RLENGTH - 7); exit }')
+    [ -n "$found" ] && parent_id=$found
+    break
+  done
+fi
+if [ -n "$parent_id" ]; then
+  child=$(grep -l "\"parent_thread_id\":\"$parent_id\"" "$PILOT_SESSIONS_DIR"/*/*/*/*.jsonl 2>/dev/null | head -1)
   if [ -n "$child" ]; then
     dispatched=yes
     observed_model=$(awk 'match($0, /"model":"[^"]+"/) { print substr($0, RSTART + 9, RLENGTH - 10); exit }' "$child")
@@ -184,6 +192,44 @@ if [ -n "$thread" ]; then
     [ -n "$observed_effort" ] || observed_effort=-
   fi
 fi
+
+# The parent's usage is orchestration overhead, not the arm's cost: the parent
+# dispatches and summarises while the subagent does the work. Measuring the parent
+# understates the arm by an order of magnitude, and cost-to-accepted is the metric
+# that decides the pilot.
+child_usage() {
+  [ -n "$child" ] || return 1
+  awk -v key="$1" '
+    {
+      line = $0
+      while (match(line, "\"total_token_usage\":\\{[^}]*\\}")) {
+        block = substr(line, RSTART, RLENGTH)
+        if (match(block, "\"" key "\":[0-9]+")) {
+          pair = substr(block, RSTART, RLENGTH)
+          match(pair, "[0-9]+$")
+          value = substr(pair, RSTART, RLENGTH)
+        }
+        line = substr(line, RSTART + RLENGTH)
+      }
+    }
+    END { if (value == "") exit 1; print value }
+  ' "$child"
+}
+
+if cached=$(child_usage cached_input_tokens) &&
+  input=$(child_usage input_tokens) &&
+  output=$(child_usage output_tokens) &&
+  reasoning=$(child_usage reasoning_output_tokens); then
+  cost_source=subagent
+else
+  cost_source=parent
+  cached=$(field cached_input_tokens)
+  input=$(field input_tokens)
+  output=$(field output_tokens)
+  reasoning=$(field reasoning_output_tokens)
+fi
+uncached=$(( input - cached ))
+[ "$uncached" -ge 0 ] || uncached=0
 
 # A row whose observed pair differs from its arm belongs to another arm. It is
 # marked, never silently averaged in.
@@ -216,6 +262,11 @@ if [ "$killed" = yes ]; then
   printf '%s\n' "WARN $task/$arm hit the ${max_seconds}s hard cap and was killed" >&2
 elif [ "$routing_ok" = NO-DISPATCH ]; then
   printf '%s\n' "WARN $task/$arm never dispatched a subagent; the parent did the work" >&2
+
 elif [ "$routing_ok" != yes ]; then
   printf '%s\n' "WARN routing_ok=$routing_ok for $task/$arm: this row belongs to another arm" >&2
+fi
+
+if [ "$cost_source" = parent ] && [ "$dispatched" = yes ]; then
+  printf '%s\n' "WARN $task/$arm cost came from the parent: the subagent reported no usage" >&2
 fi
