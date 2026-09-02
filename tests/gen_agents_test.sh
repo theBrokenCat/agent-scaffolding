@@ -36,9 +36,14 @@ printf '%s\n' "$resolved" | grep -qx 'balanced|fixture-balanced|xhigh' || fail '
 printf '%s\n' "$resolved" | grep -qx 'critical|fixture-critical|max' || fail 'critical alias not resolved from the map'
 printf '%s\n' "$resolved" | grep -qx 'diagnostic|fixture-diagnostic|high' || fail 'diagnostic rung not resolved from the map'
 
-# The example map holds code names, so it can never be installed into a host.
-"$gen" --map-path | grep -q 'model-map.example.yaml' || fail 'example map is not the last resort'
-if "$gen" --host codex --role explorer --require-local-map >/dev/null 2>&1; then
+# The example map holds code names, so it can never be installed into a host. This
+# is the last-resort behaviour, so it must be checked from a HOME with no local
+# map: on a configured machine a real map exists and would mask the assertion.
+noconfig=$tmpdir/noconfig
+mkdir -p "$noconfig"
+( HOME=$noconfig XDG_CONFIG_HOME= "$gen" --map-path ) | grep -q 'model-map.example.yaml' \
+  || fail 'example map is not the last resort'
+if ( HOME=$noconfig XDG_CONFIG_HOME= "$gen" --host codex --role explorer --require-local-map ) >/dev/null 2>&1; then
   fail 'example map accepted under --require-local-map'
 fi
 

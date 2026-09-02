@@ -79,7 +79,10 @@ plan sustituye su supuesto de instalacion por proyecto.
 - [x] Materializar los roles por host y instalarlos como unidad separada.
 - [x] Cubrir con tests los invariantes del contrato y el generador.
 - [x] Registrar el diseno del piloto A/B con criterios pre-registrados.
-- [ ] Ejecutar la paridad en runtime por host (`tests/runtime-parity.md`).
+- [x] Ejecutar la paridad en runtime por host (`tests/runtime-parity.md`).
+      Codex pasa en los cuatro roles; Claude falla por id de modelo no portable.
+- [ ] Resolver el alias por host en el model map, para que Claude deje de recibir
+      un id de modelo de otro proveedor.
 - [ ] Ejecutar el piloto A/B y registrar sus mediciones.
 
 Los objetivos de la fase (agentes 19 -> 8-11, reloj 38 h -> 14-22 h, coste

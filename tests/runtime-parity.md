@@ -28,16 +28,51 @@ the host reports, not what the definition requests:
 4. Repeat once for an escalated dispatch, to confirm the escalated alias resolves
    to a different pair and not to the same one.
 
-| Host | Role | Expected model/effort | Observed | Escalated expected | Escalated observed | Verdict |
-|---|---|---|---|---|---|---|
-| Codex | `explorer` | | | | | |
-| Codex | `implementer` | | | | | |
-| Codex | `spec-reviewer` | | | | | |
-| Codex | `quality-reviewer` | | | | | |
-| Claude | `explorer` | | | | | |
-| Claude | `implementer` | | | | | |
-| Claude | `spec-reviewer` | | | | | |
-| Claude | `quality-reviewer` | | | | | |
+| Host | Role | Expected model/effort | Observed | Verdict |
+|---|---|---|---|---|
+| Codex | `explorer` | luna / high | `gpt-5.6-luna` / `high` | pass |
+| Codex | `implementer` | luna / xhigh | `gpt-5.6-luna` / `xhigh` | pass |
+| Codex | `spec-reviewer` | sol / high | `gpt-5.6-sol` / `high` | pass |
+| Codex | `quality-reviewer` | sol / xhigh | `gpt-5.6-sol` / `xhigh` | pass |
+| Claude | all four | (see below) | `model_not_found`, HTTP 404 | **fail** |
+
+## Run of 2026-09-02
+
+Codex `codex-cli 0.151.0`, Claude Code, against the local model map.
+
+**Codex passes.** Effective values were read from the session rollout
+(`~/.codex/sessions/**/rollout-*.jsonl`, fields `payload.model` and
+`payload.effort`), not from the installed file and not from the subagent's own
+report. The deliberate override of the built-in `explorer` took effect: the
+dispatched agent ran on the `economy` pair and returned the role's envelope.
+
+**Claude fails.** All four definitions register in a fresh session, but none
+starts:
+
+```text
+[claude-code:unrecognized_model] {"model":"gpt-5.6-luna","query_source":"agent:custom:explorer"}
+```
+
+A dispatch only completed after passing an explicit model override. See the
+portability section below: this is a fail, not the effort degradation that was
+predicted.
+
+### Hazard: a forked spawn silently discards the alias
+
+`spawn_agent` with `fork_turns: "all"` makes the subagent inherit the parent
+session's model and effort and ignore the agent definition's. Observed twice:
+
+- `explorer` spawned with `fork_turns: "all"` ran at `gpt-5.6-sol` / `xhigh`
+  instead of `gpt-5.6-luna` / `high`.
+- Control with a pre-existing personal agent declaring `gpt-5.6-luna` / `max`
+  also ran at `gpt-5.6-sol` / `xhigh`.
+
+The control matters: the behaviour is the host's, not a defect in the generated
+files. There is no error and no warning — the routing is simply gone, and a run
+measured that way belongs to a different alias.
+
+**Spawn without forking turns when the alias must hold.** When a fork is
+genuinely needed, record that the dispatch ran at the parent's pair.
 
 ## Built-in name collisions
 
@@ -51,13 +86,28 @@ reports the alias model, and that its returned shape is the role's compact
 envelope rather than the built-in's output. Record any other name that collides
 with a host built-in when it appears.
 
+## Model ids are not portable across hosts
+
+A model map holds one id per alias, and `gen-agents` writes that id into every
+host. That is wrong wherever two hosts do not share a model namespace, and it is
+what breaks Claude today: an OpenAI id in a Claude subagent definition is
+rejected outright.
+
+Until the map resolves an alias per host, the Claude unit is installed but not
+usable, and its rows above are a fail. Do not read the effort degradation below
+as covering this: the effort was never reached, because the model was refused
+first.
+
 ## Known degradations
 
 Record these as degradations, never as passes:
 
 - A host that pins the model but exposes no reasoning-effort field materializes
   effort only as an instruction. Effort parity is then unverifiable on that host;
-  say so and do not claim the alias held.
+  say so and do not claim the alias held. Claude Code is such a host: its agent
+  frontmatter carries `model` but no reasoning-effort field, so even once the
+  model id is portable, effort there stays unverifiable and must be recorded as a
+  degradation rather than a pass.
 - A host with no subagent definition format at all is out of scope for this
   check. Gemini has no `agents/` unit and `scripts/gen-agents` refuses it rather
   than writing a file the host will ignore.
