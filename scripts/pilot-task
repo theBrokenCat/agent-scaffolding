@@ -15,7 +15,8 @@ usage:
   pilot-task brief   --repo DIR --sha SHA --work DIR [--tests LIST]
   pilot-task judge   --repo DIR --sha SHA --work DIR [--tests LIST]
 
-`prepare` checks out <sha>^ into a fresh worktree and links dependencies.
+`prepare` checks out <sha>^ into a fresh worktree and links dependencies beside
+it, never inside, so the agent starts from a clean baseline.
 `brief` writes the task statement: intent and scope, never the diff.
 `judge` copies the commit's canonical tests over the tree and runs them.
 EOF
@@ -61,7 +62,18 @@ case $action in
     [ ! -e "$work" ] || stop "work directory already exists: $work"
     git -C "$repo" worktree add --detach "$work" "$sha^" >/dev/null 2>&1 \
       || stop "could not create the worktree for $sha^"
-    [ -d "$repo/node_modules" ] && ln -s "$repo/node_modules" "$work/node_modules"
+    # Dependencies are shared, not installed per task, and they are linked into the
+    # PARENT of the worktree rather than into it. Node resolves them by walking up,
+    # and the worktree stays pristine.
+    #
+    # This is not cosmetic. A correct implementer stops before writing when the
+    # baseline is dirty, so an unexplained `?? node_modules` does not measure
+    # capability: it measures the harness, and it does so asymmetrically, because
+    # the arm that honours the contract is the one that stops.
+    if [ -d "$repo/node_modules" ]; then
+      parent=$(dirname "$work")
+      [ -e "$parent/node_modules" ] || ln -s "$repo/node_modules" "$parent/node_modules"
+    fi
     printf 'PREPARED %s at %s\n' "$work" "$(git -C "$work" rev-parse --short HEAD)"
     ;;
 
