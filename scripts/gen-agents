@@ -2,7 +2,17 @@
 
 # Materialize the canonical roles in agents/roles/ as host-specific subagent
 # definitions. The role files are the single source of truth; this script only
-# resolves each role's alias through a model map and renders it per host.
+# resolves each role's aliases through a model map and renders them per host.
+#
+# There are still exactly FOUR canonical roles. This generator emits one file per
+# (role, state) pair — base and escalated — from those same four definitions. A
+# generated file is a materialized state, not a new role: nothing here creates a
+# fifth role, and the generic-role rule of the contract is unchanged.
+#
+# The states must be separate files because the host resolves routing from the
+# named agent: when `agent_type` names a custom agent, the definition's model and
+# effort win over any override passed at spawn time. Escalation therefore has to
+# be a different `agent_type`, never an override.
 
 set -eu
 
@@ -177,9 +187,42 @@ host_filename() {
   esac
 }
 
+# Emits `state|name|alias|effort` for every state of one role. A role whose two
+# states share an alias is disambiguated by effort, so the two files never
+# collapse into one name.
+role_states() {
+  role_file=$1
+  base_name=$(role_field "$role_file" name)
+  base_alias=$(role_field "$role_file" alias)
+  base_effort=$(role_field "$role_file" effort)
+  escalated_alias=$(role_field "$role_file" escalated_alias)
+  escalated_effort=$(role_field "$role_file" escalated_effort)
+  [ -n "$base_name" ] || stop "role ${role_file##*/} is missing name"
+
+  if [ "$base_alias" = "$escalated_alias" ]; then
+    printf 'base|%s|%s|%s\n' "$base_name-$base_alias-$base_effort" "$base_alias" "$base_effort"
+    printf 'escalated|%s|%s|%s\n' "$base_name-$escalated_alias-$escalated_effort" "$escalated_alias" "$escalated_effort"
+  else
+    printf 'base|%s|%s|%s\n' "$base_name-$base_alias" "$base_alias" "$base_effort"
+    printf 'escalated|%s|%s|%s\n' "$base_name-$escalated_alias" "$escalated_alias" "$escalated_effort"
+  fi
+
+  # A role that deliberately overrides a host built-in also keeps its bare name,
+  # pinned to the base state. Without it the built-in would come back and resolve
+  # at the host default, which is a silent routing loss.
+  if [ "$(role_field "$role_file" overrides_builtin)" = true ]; then
+    printf 'base|%s|%s|%s\n' "$base_name" "$base_alias" "$base_effort"
+  fi
+}
+
 load_role() {
   role_file=$1
-  role_name=$(role_field "$role_file" name)
+  state=$2
+  state_name=$3
+  state_alias=$4
+  state_effort=$5
+
+  role_of=$(role_field "$role_file" name)
   role_description=$(role_field "$role_file" description)
   role_alias=$(role_field "$role_file" alias)
   role_effort=$(role_field "$role_file" effort)
@@ -188,14 +231,23 @@ load_role() {
   role_trigger=$(role_field "$role_file" escalation_trigger)
   role_authority=$(role_field "$role_file" authority)
 
-  for required in role_name role_description role_alias role_effort \
+  for required in role_of role_description role_alias role_effort \
     role_escalated_alias role_escalated_effort role_trigger role_authority; do
     eval "value=\$$required"
     [ -n "$value" ] || stop "role ${role_file##*/} is missing ${required#role_}"
   done
 
-  role_model=$(alias_model "$role_alias")
+  role_name=$state_name
+  role_model=$(alias_model "$state_alias")
+  role_state_alias=$state_alias
+  role_state_effort=$state_effort
+  role_state=$state
+
+  # The name of the sibling state, which is how escalation is actually dispatched.
+  role_escalated_name=$(role_states "$role_file" | awk -F'|' '$1 == "escalated" { print $2; exit }')
+  role_base_name=$(role_states "$role_file" | awk -F'|' '$1 == "base" { print $2; exit }')
   role_escalated_model=$(alias_model "$role_escalated_alias")
+
   case $role_authority in
     read-only|write) ;;
     *) stop "role ${role_file##*/} has unsupported authority $role_authority" ;;
@@ -203,8 +255,10 @@ load_role() {
 }
 
 role_instructions() {
-  printf '%s\n' "Act as the \`$role_name\` role of the agent-scaffolding contract, for the bounded"
-  printf '%s\n' "task the lead assigns. Follow agents/roles/$role_name.md and the launch brief."
+  printf '%s\n' "Act as the \`$role_of\` role of the agent-scaffolding contract, for the bounded"
+  printf '%s\n' "task the lead assigns. Follow agents/roles/$role_of.md and the launch brief."
+  printf '%s\n' "This file is one materialized state of that role, not a role of its own: the"
+  printf '%s\n' "contract has exactly four generic roles."
   printf '\n'
   if [ "$role_authority" = read-only ]; then
     printf '%s\n' 'Authority: read-only. Do not write files, run mutating commands, publish to Git,'
@@ -215,9 +269,17 @@ role_instructions() {
     printf '%s\n' 'assigns them to you, and never delegate further.'
   fi
   printf '\n'
-  printf '%s\n' "Routing: this definition is the \`$role_alias\` alias ($role_model, reasoning effort $role_effort)."
-  printf '%s\n' "The lead re-dispatches at \`$role_escalated_alias\` ($role_escalated_model, effort $role_escalated_effort) when"
-  printf '%s\n' "$role_trigger."
+  printf '%s\n' "Routing: this state is the \`$role_state_alias\` alias ($role_model, reasoning effort $role_state_effort)."
+  if [ "$role_state" = base ]; then
+    printf '%s\n' "Escalation: the lead escalates by dispatching \`$role_escalated_name\` when"
+    printf '%s\n' "$role_trigger."
+    printf '%s\n' 'Escalation is dispatched by name. Never escalate by passing a model or effort'
+    printf '%s\n' 'override at spawn time: this definition wins over any such override, so the'
+    printf '%s\n' 'dispatch would silently run at this state instead of the escalated one.'
+  else
+    printf '%s\n' "This is the escalated state of \`$role_of\`; its base state is \`$role_base_name\`."
+    printf '%s\n' 'It is reached by dispatching this name, never by overriding model or effort.'
+  fi
   printf '%s\n' 'Never change your own model or effort, and never silently continue past that line.'
   printf '\n'
   printf '%s\n' 'Return exactly this compact envelope and nothing else:'
@@ -228,12 +290,21 @@ role_instructions() {
   printf '%s\n' 'required evidence is missing, when scope would grow, or when your budget is spent.'
 }
 
+state_description() {
+  if [ "$role_state" = base ]; then
+    printf '%s (state: %s, %s)' "$role_description" "$role_state_alias" "$role_state_effort"
+  else
+    printf 'Escalated state of the %s role. %s (state: %s, %s)' \
+      "$role_of" "$role_description" "$role_state_alias" "$role_state_effort"
+  fi
+}
+
 render_codex() {
-  printf '%s\n' "# Generated by scripts/gen-agents from agents/roles/$role_name.md. Do not edit by hand."
+  printf '%s\n' "# Generated by scripts/gen-agents from agents/roles/$role_of.md. Do not edit by hand."
   printf 'name = "%s"\n' "$(toml_escape "$role_name")"
-  printf 'description = "%s"\n' "$(toml_escape "$role_description")"
+  printf 'description = "%s"\n' "$(toml_escape "$(state_description)")"
   printf 'model = "%s"\n' "$(toml_escape "$role_model")"
-  printf 'model_reasoning_effort = "%s"\n' "$(toml_escape "$role_effort")"
+  printf 'model_reasoning_effort = "%s"\n' "$(toml_escape "$role_state_effort")"
   printf 'developer_instructions = """\n'
   role_instructions | sed 's/"""/\\"\\"\\"/g'
   printf '"""\n'
@@ -242,20 +313,20 @@ render_codex() {
 render_claude() {
   printf '%s\n' '---'
   printf 'name: %s\n' "$role_name"
-  printf 'description: %s\n' "$role_description"
+  printf 'description: %s\n' "$(state_description)"
   printf 'model: %s\n' "$role_model"
   if [ "$role_authority" = read-only ]; then
     printf 'tools: Read, Grep, Glob\n'
   fi
   printf '%s\n' '---'
   printf '\n'
-  printf '%s\n' "<!-- Generated by scripts/gen-agents from agents/roles/$role_name.md. Do not edit by hand. -->"
+  printf '%s\n' "<!-- Generated by scripts/gen-agents from agents/roles/$role_of.md. Do not edit by hand. -->"
   printf '\n'
   role_instructions
 }
 
 render_role() {
-  load_role "$1"
+  load_role "$1" "$2" "$3" "$4" "$5"
   case $host in
     codex) render_codex ;;
     claude) render_claude ;;
@@ -276,26 +347,34 @@ case $action in
     ;;
   list)
     role_files | while read -r role_file; do
-      name=$(role_field "$role_file" name)
-      [ -n "$name" ] || stop "role ${role_file##*/} is missing name"
-      printf '%s|%s|%s\n' "$name" "$(host_filename "$name")" "$role_file"
+      role_states "$role_file" | while IFS='|' read -r state name alias effort; do
+        [ -n "$name" ] || continue
+        printf '%s|%s|%s\n' "$name" "$(host_filename "$name")" "$role_file"
+      done
     done
     ;;
   render_one)
     found=false
     for role_file in $(role_files); do
-      [ "$(role_field "$role_file" name)" = "$role" ] || continue
+      match=$(role_states "$role_file" | awk -F'|' -v want="$role" '$2 == want { print; exit }')
+      [ -n "$match" ] || continue
       found=true
-      render_role "$role_file"
+      old_ifs=$IFS; IFS='|'; set -- $match; IFS=$old_ifs
+      render_role "$role_file" "$1" "$2" "$3" "$4"
+      break
     done
-    [ "$found" = true ] || stop "unknown role $role"
+    [ "$found" = true ] || stop "unknown role state $role"
     ;;
   render_all)
     [ -d "$out" ] || stop "output directory does not exist: $out"
     for role_file in $(role_files); do
-      name=$(role_field "$role_file" name)
-      render_role "$role_file" > "$out/$(host_filename "$name")"
-      printf '%s\n' "WROTE $out/$(host_filename "$name")"
+      role_states "$role_file" > "$out/.states.$$"
+      while IFS='|' read -r state name alias effort; do
+        [ -n "$name" ] || continue
+        render_role "$role_file" "$state" "$name" "$alias" "$effort" > "$out/$(host_filename "$name")"
+        printf '%s\n' "WROTE $out/$(host_filename "$name")"
+      done < "$out/.states.$$"
+      rm -f "$out/.states.$$"
     done
     ;;
 esac

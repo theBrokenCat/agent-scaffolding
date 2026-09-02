@@ -54,48 +54,75 @@ XDG_CONFIG_HOME=$tmpdir/xdg "$gen" --map-path | grep -q "$tmpdir/xdg" || fail 'X
 XDG_CONFIG_HOME=$tmpdir/xdg "$gen" --host codex --role explorer --require-local-map >/dev/null \
   || fail 'local map rejected under --require-local-map'
 
-# Every canonical role materializes for both hosts.
+# Four canonical roles materialize as one file per (role, state) pair. The states
+# are separate files because the host resolves routing from the named agent.
 codex_out=$tmpdir/codex
 claude_out=$tmpdir/claude
 mkdir -p "$codex_out" "$claude_out"
 "$gen" --host codex --out "$codex_out" --model-map "$fixture" >/dev/null
 "$gen" --host claude --out "$claude_out" --model-map "$fixture" >/dev/null
-for name in explorer implementer spec-reviewer quality-reviewer; do
-  [ -f "$codex_out/$name.toml" ] || fail "missing codex definition for $name"
-  [ -f "$claude_out/$name.md" ] || fail "missing claude definition for $name"
+states='explorer-economy explorer-balanced implementer-balanced implementer-frontier
+spec-reviewer-frontier-high spec-reviewer-frontier-xhigh quality-reviewer-frontier quality-reviewer-critical'
+for name in $states; do
+  [ -f "$codex_out/$name.toml" ] || fail "missing codex definition for state $name"
+  [ -f "$claude_out/$name.md" ] || fail "missing claude definition for state $name"
+done
+[ "$(ls "$codex_out" | wc -l | tr -d ' ')" -eq 9 ] || fail 'unexpected number of generated codex files'
+
+# The bare `explorer` name survives, pinned to the base state, so the host
+# built-in cannot come back and resolve at the host default.
+[ -f "$codex_out/explorer.toml" ] || fail 'bare explorer name was dropped'
+grep -qx 'model = "fixture-economy"' "$codex_out/explorer.toml" || fail 'bare explorer is not pinned to the base state'
+for name in implementer spec-reviewer quality-reviewer; do
+  [ ! -f "$codex_out/$name.toml" ] || fail "$name must not emit a bare name: it overrides no built-in"
 done
 
-# Alias assignment per role is the contract's, and both hosts must agree on it.
-check_pair() {
-  name=$1
-  model=$2
-  effort=$3
+# A generated file is a state, not a fifth role.
+grep -q 'not a role of its own' "$codex_out/explorer-balanced.toml" || fail 'state file does not disclaim being a role'
+grep -q 'exactly four generic roles' "$codex_out/explorer-balanced.toml" || fail 'state file does not state the role count'
+
+# Escalation is dispatched by name, and each base state names its escalated file.
+grep -q 'escalates by dispatching `explorer-balanced`' "$codex_out/explorer-economy.toml" \
+  || fail 'base state does not name its escalated state'
+grep -q 'escalates by dispatching `quality-reviewer-critical`' "$codex_out/quality-reviewer-frontier.toml" \
+  || fail 'quality-reviewer base does not name the critical state'
+grep -q 'Never escalate by passing a model or effort' "$codex_out/explorer-economy.toml" \
+  || fail 'base state does not forbid escalation by override'
+grep -q 'never by overriding model or effort' "$codex_out/quality-reviewer-critical.toml" \
+  || fail 'escalated state does not forbid override dispatch'
+grep -q 'its base state is `quality-reviewer-frontier`' "$codex_out/quality-reviewer-critical.toml" \
+  || fail 'escalated state does not name its base'
+
+# Every state resolves its own pair, including the one the contract only ever
+# reaches by escalation.
+check_state() {
+  name=$1; model=$2; effort=$3
   grep -qx "model = \"$model\"" "$codex_out/$name.toml" || fail "codex $name is not on $model"
-  grep -qx "model_reasoning_effort = \"$effort\"" "$codex_out/$name.toml" || fail "codex $name is not at effort $effort"
+  grep -qx "model_reasoning_effort = \"$effort\"" "$codex_out/$name.toml" || fail "codex $name is not at $effort"
   grep -qx "model: $model" "$claude_out/$name.md" || fail "claude $name is not on $model"
-  grep -q "reasoning effort $effort" "$claude_out/$name.md" || fail "claude $name does not state effort $effort"
 }
-check_pair explorer fixture-economy high
-check_pair implementer fixture-balanced xhigh
-check_pair spec-reviewer fixture-frontier high
-check_pair quality-reviewer fixture-frontier xhigh
-if grep -qx 'model_reasoning_effort = "max"' "$codex_out/quality-reviewer.toml"; then
-  fail 'quality-reviewer must default to frontier, not critical'
-fi
+check_state explorer-economy fixture-economy high
+check_state explorer-balanced fixture-balanced xhigh
+check_state implementer-balanced fixture-balanced xhigh
+check_state implementer-frontier fixture-frontier xhigh
+check_state spec-reviewer-frontier-high fixture-frontier high
+check_state spec-reviewer-frontier-xhigh fixture-frontier xhigh
+check_state quality-reviewer-frontier fixture-frontier xhigh
+check_state quality-reviewer-critical fixture-critical max
 
 # Read-only roles are materialized read-only; the writer is not.
-for name in explorer spec-reviewer quality-reviewer; do
+for name in explorer-economy explorer-balanced spec-reviewer-frontier-high quality-reviewer-critical; do
   grep -qx 'tools: Read, Grep, Glob' "$claude_out/$name.md" || fail "claude $name is not restricted to read-only tools"
   grep -q 'Authority: read-only' "$codex_out/$name.toml" || fail "codex $name does not declare read-only authority"
 done
-if grep -q '^tools:' "$claude_out/implementer.md"; then fail 'implementer must not be tool-restricted'; fi
-grep -q 'Authority: write' "$codex_out/implementer.toml" || fail 'codex implementer does not declare write authority'
+for name in implementer-balanced implementer-frontier; do
+  if grep -q '^tools:' "$claude_out/$name.md"; then fail "$name must not be tool-restricted"; fi
+  grep -q 'Authority: write' "$codex_out/$name.toml" || fail "codex $name does not declare write authority"
+done
 
 # The escalation trigger travels with the definition, not just with the contract.
-grep -q 'either escalation gate fires' "$codex_out/implementer.toml" || fail 'implementer escalation trigger not materialized'
-grep -q 're-dispatches at `frontier`' "$codex_out/implementer.toml" || fail 'implementer escalation target not materialized'
-grep -q 're-dispatches at `critical`' "$claude_out/quality-reviewer.md" || fail 'quality-reviewer escalation target not materialized'
-grep -q 'Never change your own model or effort' "$claude_out/explorer.md" || fail 'self-escalation is not forbidden in the definition'
+grep -q 'either escalation gate fires' "$codex_out/implementer-balanced.toml" || fail 'implementer escalation trigger not materialized'
+grep -q 'Never change your own model or effort' "$claude_out/explorer-economy.md" || fail 'self-escalation is not forbidden in the definition'
 
 # The canonical roles stay consistent with the alias table: a role may only run at
 # an effort other than its alias default when it says why.
@@ -123,6 +150,7 @@ done
 # Unsupported inputs stop instead of guessing.
 if "$gen" --host gemini --role explorer >/dev/null 2>&1; then fail 'unsupported host accepted'; fi
 if "$gen" --host codex --role security >/dev/null 2>&1; then fail 'unknown role accepted'; fi
+if "$gen" --host codex --role quality-reviewer >/dev/null 2>&1; then fail 'a bare role name with no built-in to override was accepted'; fi
 if "$gen" --host codex --out "$tmpdir/absent" >/dev/null 2>&1; then fail 'missing output directory accepted'; fi
 
 printf '%s\n' 'ok - gen-agents'

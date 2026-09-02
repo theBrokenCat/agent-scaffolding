@@ -71,6 +71,11 @@ for file in AGENTS.md policies/README.md; do
   require 'fork_turns' "$file"
 done
 require 'subagente despachado con fork y routing por alias' policies/README.md
+require 'La escalada se despacha por nombre, no por override' agents/README.md
+require 'Los roles canonicos son **cuatro**' agents/README.md
+require 'archivo generado es un estado materializado, no un rol nuevo' agents/README.md
+require 'la definicion del archivo gana al' AGENTS.md
+require 'escalada intentada por override en vez de por agent_type' policies/README.md
 require 'STOP-early' agents/README.md
 require 'Reset del contrato' agents/README.md
 require 'SLA de reviewer' agents/README.md

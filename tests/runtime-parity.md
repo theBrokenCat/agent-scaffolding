@@ -17,8 +17,11 @@ the only evidence that lets a run claim its routing held.
 
 ## Procedure per host
 
-For each of the four roles, dispatch one throwaway bounded task and record what
-the host reports, not what the definition requests:
+Dispatch one throwaway bounded task per materialized state — both the base and
+the escalated state of each of the four roles — and record what the host reports,
+not what the definition requests. Escalated states are dispatched **by name**
+(`<role>-<state>`); a dispatch that passes a model or effort override instead is
+not a test of the escalated state, because the definition wins over the override.
 
 1. Dispatch the role by name from a session where the global contract is active.
 2. Read the host's own report of the subagent's model and reasoning effort —

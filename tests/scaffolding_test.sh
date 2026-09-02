@@ -139,12 +139,16 @@ if run install --agents --host codex --home "$agent_home" | grep -q '/.claude/';
 fi
 assert_absent "$agent_home/.codex/agents/explorer.toml"
 run install --agents --host codex --apply --home "$agent_home" >/dev/null
-for name in explorer implementer spec-reviewer quality-reviewer; do
+# One file per (role, state), plus the bare `explorer` that overrides a built-in.
+for name in explorer explorer-economy explorer-balanced implementer-balanced \
+  implementer-frontier spec-reviewer-frontier-high spec-reviewer-frontier-xhigh \
+  quality-reviewer-frontier quality-reviewer-critical; do
   [ -f "$agent_home/.codex/agents/$name.toml" ] || fail "missing generated codex agent: $name"
   [ ! -L "$agent_home/.codex/agents/$name.toml" ] || fail "codex agent must be a generated file, not a link: $name"
 done
-assert_absent "$agent_home/.claude/agents/explorer.md"
-grep -qx 'model = "test-balanced"' "$agent_home/.codex/agents/implementer.toml" || fail 'implementer was not resolved through the local map'
+assert_absent "$agent_home/.claude/agents/explorer-economy.md"
+grep -qx 'model = "test-balanced"' "$agent_home/.codex/agents/implementer-balanced.toml" || fail 'implementer was not resolved through the local map'
+grep -qx 'model_reasoning_effort = "max"' "$agent_home/.codex/agents/quality-reviewer-critical.toml" || fail 'critical state was not materialized'
 run install --agents --host codex --apply --home "$agent_home" | grep -q 'NOOP install' || fail 'agent install not idempotent'
 run status --agents --host codex --home "$agent_home" | grep -q 'STATUS agents codex managed current' || fail 'bad agent status'
 run doctor --agents --host codex --home "$agent_home" | grep -q 'DOCTOR ok agents codex' || fail 'doctor failed a healthy agent unit'
@@ -152,14 +156,14 @@ run doctor --agents --host codex --home "$agent_home" | grep -q 'DOCTOR ok agent
 # The other host is a separate unit with a separate manifest.
 run status --agents --host claude --home "$agent_home" | grep -q 'STATUS agents claude uninstalled' || fail 'claude unit is not independent'
 run install --agents --host claude --apply --home "$agent_home" >/dev/null
-grep -qx 'model: test-frontier' "$agent_home/.claude/agents/quality-reviewer.md" || fail 'quality-reviewer was not resolved through the local map'
+grep -qx 'model: test-frontier' "$agent_home/.claude/agents/quality-reviewer-frontier.md" || fail 'quality-reviewer was not resolved through the local map'
 [ -f "$agent_home/.local/state/agent-scaffolding/manifest.agents.codex" ] || fail 'missing codex manifest'
 [ -f "$agent_home/.local/state/agent-scaffolding/manifest.agents.claude" ] || fail 'missing claude manifest'
 
 # Reverting one host leaves the other installed. This is the case the runtime
 # parity run produced: one host usable, the other returning 404.
 run uninstall --agents --host claude --apply --home "$agent_home" >/dev/null
-assert_absent "$agent_home/.claude/agents/explorer.md"
+assert_absent "$agent_home/.claude/agents/explorer-economy.md"
 run status --agents --host codex --home "$agent_home" | grep -q 'STATUS agents codex managed current' || fail 'reverting claude disturbed codex'
 
 # An edited definition is drift in the destination; a changed map is drift in the
@@ -180,7 +184,7 @@ run install --apply --home "$agent_home" >/dev/null
 assert_link_to "$agent_home/.codex/AGENTS.md" "$repo_root/AGENTS.md"
 run doctor --home "$agent_home" | grep -q 'NOTE agent unit for codex is installed' || fail 'doctor did not name the other unit'
 run uninstall --agents --host codex --apply --home "$agent_home" >/dev/null
-assert_absent "$agent_home/.codex/agents/explorer.toml"
+assert_absent "$agent_home/.codex/agents/explorer-economy.toml"
 assert_link_to "$agent_home/.codex/AGENTS.md" "$repo_root/AGENTS.md"
 run doctor --home "$agent_home" | grep -q 'DOCTOR ok instructions' || fail 'instruction unit disturbed by the agent unit'
 
@@ -200,7 +204,7 @@ run uninstall --agents --host codex --apply --home "$agent_migrate" >/dev/null
 agent_stale=$tmpdir/agent-stale
 mkdir -p "$agent_stale"
 run install --agents --host codex --apply --home "$agent_stale" >/dev/null
-grep -v 'codex-quality-reviewer' "$agent_stale/.local/state/agent-scaffolding/manifest.agents.codex" > "$agent_stale/manifest.new"
+grep -v 'codex-quality-reviewer-critical' "$agent_stale/.local/state/agent-scaffolding/manifest.agents.codex" > "$agent_stale/manifest.new"
 mv "$agent_stale/manifest.new" "$agent_stale/.local/state/agent-scaffolding/manifest.agents.codex"
 run install --agents --host codex --apply --home "$agent_stale" 2>&1 | grep -q 're-run install --agents --host codex --apply' \
   || fail 'a stale agent manifest does not explain the recovery'

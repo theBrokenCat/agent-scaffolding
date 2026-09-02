@@ -36,13 +36,26 @@ symlinks —incluidos los rotos— y ausencias anteriores.
 
 ## Definiciones de subagente por host
 
-Los roles canonicos viven en [`agents/roles/`](agents/roles/). `scripts/gen-agents`
-resuelve el alias de cada rol contra el model map local y lo materializa por host:
+Los roles canonicos viven en [`agents/roles/`](agents/roles/) y **siguen siendo
+cuatro**. `scripts/gen-agents` resuelve sus alias contra el model map local y
+materializa **un archivo por par (rol, estado)** —base y escalado— por host:
 
 ```text
-~/.codex/agents/<rol>.toml
-~/.claude/agents/<rol>.md
+~/.codex/agents/<rol>-<estado>.toml
+~/.claude/agents/<rol>-<estado>.md
 ```
+
+Un archivo generado es un estado materializado, no un rol nuevo. Los estados son
+`explorer-economy` / `explorer-balanced`, `implementer-balanced` /
+`implementer-frontier`, `spec-reviewer-frontier-high` /
+`spec-reviewer-frontier-xhigh` y `quality-reviewer-frontier` /
+`quality-reviewer-critical`; `explorer` conserva ademas su nombre desnudo para
+seguir sobrescribiendo el built-in del host.
+
+Son archivos separados porque el host resuelve el routing por el agente nombrado:
+con `agent_type`, la definicion gana a cualquier override de `model` o
+`reasoning_effort`. Por eso escalar es despachar otro nombre, nunca pasar un
+override.
 
 Es una unidad de instalacion aparte, con su propio manifiesto y su propia
 reversion:
@@ -51,7 +64,7 @@ Cada host es una unidad propia, con su manifiesto y su reversion, para poder
 retirar el host cuyas definiciones no sirven sin tocar el que si funciona:
 
 ```sh
-scripts/gen-agents --host codex --role explorer            # ver el render
+scripts/gen-agents --host codex --role explorer-economy    # ver el render
 scripts/scaffolding install --agents --host codex          # plan
 scripts/scaffolding install --agents --host codex --apply
 scripts/scaffolding status  --agents --host codex
