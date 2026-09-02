@@ -39,7 +39,7 @@ not a test of the escalated state, because the definition wins over the override
 | Codex | `spec-reviewer` | sol / high | `gpt-5.6-sol` / `high` | pass |
 | Codex | `quality-reviewer` | sol / xhigh | `gpt-5.6-sol` / `xhigh` | pass |
 | Claude | all four | (see below) | `model_not_found`, HTTP 404 | **fail** |
-| Codex | four escalated states | see below | ran at the base pair | **not verified** |
+| Codex | nine materialized states | see below | every state on its own pair | pass |
 
 ## Run of 2026-09-02
 
@@ -62,37 +62,40 @@ A dispatch only completed after passing an explicit model override. See the
 portability section below: this is a fail, not the effort degradation that was
 predicted.
 
-### Escalated states: not verified
+### All nine states verified
 
-The four base states above are only half the design. Each role also declares an
-escalated alias, and those states were dispatched with `spawn_agent`'s explicit
-`model` and `reasoning_effort` arguments, `fork_turns: "none"`, arguments
-confirmed present in the parent rollout:
+After materializing one file per (role, state), every state was dispatched by
+name with `fork_turns: "none"` and **no** model or effort override — the routing
+comes from the definition, which is the only thing the host honours.
 
-| Escalated state | Requested | Observed | Verdict |
+| State | Expected | Observed | Verdict |
 | --- | --- | --- | --- |
-| `explorer` economy -> balanced | luna / xhigh | luna / high | **not verified** |
-| `implementer` balanced -> frontier | sol / xhigh | luna / xhigh | **not verified** |
-| `spec-reviewer` high -> xhigh | sol / xhigh | sol / high | **not verified** |
-| `quality-reviewer` frontier -> critical | sol / max | sol / xhigh | **not verified** |
+| `explorer` (bare, overrides the built-in) | luna / high | `gpt-5.6-luna` / `high` | pass |
+| `explorer-economy` | luna / high | `gpt-5.6-luna` / `high` | pass |
+| `explorer-balanced` | luna / xhigh | `gpt-5.6-luna` / `xhigh` | pass |
+| `implementer-balanced` | luna / xhigh | `gpt-5.6-luna` / `xhigh` | pass |
+| `implementer-frontier` | sol / xhigh | `gpt-5.6-sol` / `xhigh` | pass |
+| `spec-reviewer-frontier-high` | sol / high | `gpt-5.6-sol` / `high` | pass |
+| `spec-reviewer-frontier-xhigh` | sol / xhigh | `gpt-5.6-sol` / `xhigh` | pass |
+| `quality-reviewer-frontier` | sol / xhigh | `gpt-5.6-sol` / `xhigh` | pass |
+| `quality-reviewer-critical` | sol / max | `gpt-5.6-sol` / `max` | pass |
 
-Every one ran at its **base** pair. A control with the same overrides and no
-`agent_type` applied them correctly, so the rule is the host's: when `agent_type`
-names a custom agent, the definition's model and effort win over the spawn
-override. The escalation ladder therefore has no working dispatch path today.
+`quality-reviewer-critical` is the row that matters most: `max` is the pair the
+contract only ever asks for by escalation, and until the states were separate
+files there was no way to reach it. Each base state also reported the correct
+escalated name to dispatch, so the ladder is navigable from inside the definition.
 
-Do not read the base rows as covering these. A role verified at `economy` says
-nothing about whether it can reach `balanced`.
+### Superseded: escalation by override
 
-| Rung | Observed | Verdict |
-| --- | --- | --- |
-| `critical` pair reachable at all | `gpt-5.6-sol` / `max` | pass, via a spawn with no `agent_type` |
-| `diagnostic` rung, manual dispatch | `gpt-5.6-terra` / `high` | pass; Terra is available on the account |
+Before the states were separate files, the four escalated states were dispatched
+by passing `model` and `reasoning_effort` to `spawn_agent` with `agent_type` set.
+All four ran at their **base** pair; a control with the same overrides and no
+`agent_type` applied them correctly. That is the host rule the contract now
+encodes as a hard prohibition: the definition wins over the override, so
+escalation is dispatched by name.
 
-`critical` is reachable but **not** reachable as an escalation of
-`quality-reviewer`, which is the only way the contract ever asks for it. The
-diagnostic rung is defined as a manual dispatch, so a spawn without `agent_type`
-is its legitimate path and that row is a genuine pass.
+Kept here because it is the failure a future run will re-create by habit: an
+escalation that silently returns the base pair looks like a working dispatch.
 
 ### Hazard: a forked spawn silently discards the alias
 
