@@ -166,13 +166,20 @@ uncached=$(( input - cached ))
 tool_failures=$(grep -c '"type":"error"' "$work/events.jsonl" || :)
 
 # The routing is read from the session rollout, never from the model's own report.
+#
+# `thread.started` is the PARENT thread of `codex exec`, which always runs at the
+# host default. Reading it would mark every row as off-arm and discard the whole
+# experiment. The dispatched agent is the child: its rollout carries
+# `parent_thread_id`, and that is the join.
 observed_model=-
 observed_effort=-
+dispatched=no
 if [ -n "$thread" ]; then
-  rollout=$(find "$PILOT_SESSIONS_DIR" -name "*$thread*.jsonl" 2>/dev/null | head -1)
-  if [ -n "$rollout" ]; then
-    observed_model=$(awk 'match($0, /"model":"[^"]+"/) { print substr($0, RSTART + 9, RLENGTH - 10); exit }' "$rollout")
-    observed_effort=$(awk 'match($0, /"effort":"[^"]+"/) { print substr($0, RSTART + 10, RLENGTH - 11); exit }' "$rollout")
+  child=$(grep -l "\"parent_thread_id\":\"$thread\"" "$PILOT_SESSIONS_DIR"/*/*/*/*.jsonl 2>/dev/null | head -1)
+  if [ -n "$child" ]; then
+    dispatched=yes
+    observed_model=$(awk 'match($0, /"model":"[^"]+"/) { print substr($0, RSTART + 9, RLENGTH - 10); exit }' "$child")
+    observed_effort=$(awk 'match($0, /"effort":"[^"]+"/) { print substr($0, RSTART + 10, RLENGTH - 11); exit }' "$child")
     [ -n "$observed_model" ] || observed_model=-
     [ -n "$observed_effort" ] || observed_effort=-
   fi
@@ -182,6 +189,10 @@ fi
 # marked, never silently averaged in.
 if [ "$killed" = yes ]; then
   routing_ok=KILLED
+elif [ "$dispatched" = no ]; then
+  # No child thread: the parent did the work itself instead of delegating. That is
+  # a failed dispatch, not a row measured at the parent's pair.
+  routing_ok=NO-DISPATCH
 elif [ "$observed_model" = "$expected_model" ] && [ "$observed_effort" = "$expected_effort" ]; then
   routing_ok=yes
 elif [ "$observed_model" = - ]; then
@@ -203,6 +214,8 @@ printf '%s\n' "$row"
 
 if [ "$killed" = yes ]; then
   printf '%s\n' "WARN $task/$arm hit the ${max_seconds}s hard cap and was killed" >&2
+elif [ "$routing_ok" = NO-DISPATCH ]; then
+  printf '%s\n' "WARN $task/$arm never dispatched a subagent; the parent did the work" >&2
 elif [ "$routing_ok" != yes ]; then
   printf '%s\n' "WARN routing_ok=$routing_ok for $task/$arm: this row belongs to another arm" >&2
 fi

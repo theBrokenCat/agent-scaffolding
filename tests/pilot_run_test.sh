@@ -48,8 +48,16 @@ cat <<JSON
 {"type":"item.completed","item":{"type":"error","message":"tool blew up"}}
 {"type":"turn.completed","usage":{"input_tokens":1000,"cached_input_tokens":400,"output_tokens":50,"reasoning_output_tokens":25}}
 JSON
-printf '{"payload":{"model":"%s","effort":"%s"}}\n' "$model" "$effort" \
-  > "$PILOT_SESSIONS_DIR/rollout-fixture-thread-1.jsonl"
+mkdir -p "$PILOT_SESSIONS_DIR/2026/09/02"
+rm -f "$PILOT_SESSIONS_DIR/2026/09/02/rollout-child.jsonl"
+# The parent always runs at the host default. Measuring it would mark every row
+# off-arm, so the fixture makes parent and child differ on purpose.
+printf '{"payload":{"model":"host-default","effort":"xhigh","id":"fixture-thread-1"}}\n' \
+  > "$PILOT_SESSIONS_DIR/2026/09/02/rollout-parent.jsonl"
+if [ "${FAKE_NO_DISPATCH-}" != yes ]; then
+  printf '{"payload":{"thread_source":"subagent","parent_thread_id":"fixture-thread-1","model":"%s","effort":"%s"}}\n' \
+    "$model" "$effort" > "$PILOT_SESSIONS_DIR/2026/09/02/rollout-child.jsonl"
+fi
 EOF
 chmod +x "$tmpdir/fake-exec"
 PILOT_EXEC=$tmpdir/fake-exec
@@ -67,7 +75,8 @@ value() { printf '%s' "$row" | cut -f "$1"; }
 [ "$(value 3)" = economy ] || fail 'arm not recorded'
 [ "$(value 4)" = 2 ] || fail 'order not recorded'
 [ "$(value 5)" = fixture-economy ] || fail 'expected model not resolved from the map'
-[ "$(value 7)" = fixture-economy ] || fail 'observed model not read from the rollout'
+[ "$(value 7)" = fixture-economy ] || fail 'observed model not read from the subagent rollout'
+if [ "$(value 7)" = host-default ]; then fail 'the harness measured the parent thread, not the subagent'; fi
 [ "$(value 9)" = yes ] || fail 'routing_ok should pass when observed matches the arm'
 [ "$(value 10)" = 400 ] || fail 'cached tokens not recorded'
 [ "$(value 11)" = 600 ] || fail 'uncached tokens must be input minus cached'
@@ -104,6 +113,13 @@ grep -q 'hard cap' "$tmpdir/cap.txt" || fail 'the hard cap did not warn'
 if "$harness" --task TA --block mecanicas --arm economy --prompt "$tmpdir/prompt.txt" --max-seconds 0 >/dev/null 2>&1; then
   fail 'a zero budget was accepted'
 fi
+
+# A dispatch that never spawned a subagent is a failed dispatch, not a row
+# measured at the parent's pair.
+nodisp=$(FAKE_NO_DISPATCH=yes "$harness" --task T8 --block mecanicas --arm economy \
+  --prompt "$tmpdir/prompt.txt" 2>"$tmpdir/nodisp.txt")
+[ "$(printf '%s' "$nodisp" | cut -f 9)" = NO-DISPATCH ] || fail 'a missing subagent was not reported'
+grep -q 'never dispatched a subagent' "$tmpdir/nodisp.txt" || fail 'no warning for a missing dispatch'
 
 # Arm order is randomised per task and covers every arm exactly once.
 printf 'T1\tmecanicas\teconomy,balanced\nT2\tlargo\teconomy,balanced,frontier\n' > "$tmpdir/tasks.tsv"

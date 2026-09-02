@@ -133,7 +133,14 @@ presupuesto; deja una fila que dice que se paso.
 
 Toda fila lleva `routing_ok`. Si el par observado no coincide con el del brazo,
 la fila se marca `NO` y el arnes avisa: esa ejecucion pertenece a otro brazo y no
-se promedia con las demas.
+se promedia con las demas. `NO-DISPATCH` significa que el padre hizo el trabajo
+en vez de delegar, que es un fallo del despacho y no una fila medida en el par
+del padre.
+
+El modelo se lee del rollout **del subagente**, no del hilo padre de
+`codex exec`. El padre corre siempre en el default del host, asi que medirlo
+marcaria todas las filas fuera de brazo y vaciaria el experimento en silencio. La
+union es `parent_thread_id`.
 
 ## Registro
 
