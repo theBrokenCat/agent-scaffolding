@@ -74,6 +74,9 @@ done
 [ -n "$action" ] || { usage; exit 1; }
 [ -d "$roles_dir" ] || stop "missing roles directory $roles_dir"
 
+scaffolding_states_tmp=$(mktemp "${TMPDIR:-/tmp}/gen-agents-states.XXXXXX")
+trap 'rm -f "$scaffolding_states_tmp"' EXIT HUP INT TERM
+
 case $action in
   render_all|render_one|list|resolve)
     case $host in
@@ -202,15 +205,37 @@ role_states() {
   base_effort=$(role_field "$role_file" effort)
   escalated_alias=$(role_field "$role_file" escalated_alias)
   escalated_effort=$(role_field "$role_file" escalated_effort)
+  additional=$(role_field "$role_file" additional_states)
   [ -n "$base_name" ] || stop "role ${role_file##*/} is missing name"
 
-  if [ "$base_alias" = "$escalated_alias" ]; then
-    printf 'base|%s|%s|%s\n' "$base_name-$base_alias-$base_effort" "$base_alias" "$base_effort"
-    printf 'escalated|%s|%s|%s\n' "$base_name-$escalated_alias-$escalated_effort" "$escalated_alias" "$escalated_effort"
-  else
-    printf 'base|%s|%s|%s\n' "$base_name-$base_alias" "$base_alias" "$base_effort"
-    printf 'escalated|%s|%s|%s\n' "$base_name-$escalated_alias" "$escalated_alias" "$escalated_effort"
-  fi
+  # kind|alias|effort for every state this role can run at. `additional_states`
+  # holds rungs that are neither the base nor the escalated one, such as the
+  # cheap tier the contract assigns to fully specified mechanical work.
+  {
+    printf 'base|%s|%s\n' "$base_alias" "$base_effort"
+    printf 'escalated|%s|%s\n' "$escalated_alias" "$escalated_effort"
+    if [ -n "$additional" ]; then
+      printf '%s\n' "$additional" | tr ',' '\n' | while read -r pair; do
+        pair=$(printf '%s' "$pair" | tr -d ' ')
+        [ -n "$pair" ] || continue
+        case $pair in
+          *:*) printf 'additional|%s|%s\n' "${pair%%:*}" "${pair#*:}" ;;
+          *) stop "role ${role_file##*/} has a malformed additional_states entry: $pair" ;;
+        esac
+      done
+    fi
+  } > "$scaffolding_states_tmp"
+
+  # An alias used by more than one state is disambiguated by effort, so two
+  # states never collapse onto one name.
+  while IFS='|' read -r kind alias effort; do
+    [ -n "$alias" ] || continue
+    if [ "$(awk -F'|' -v a="$alias" '$2 == a' "$scaffolding_states_tmp" | grep -c .)" -gt 1 ]; then
+      printf '%s|%s|%s|%s\n' "$kind" "$base_name-$alias-$effort" "$alias" "$effort"
+    else
+      printf '%s|%s|%s|%s\n' "$kind" "$base_name-$alias" "$alias" "$effort"
+    fi
+  done < "$scaffolding_states_tmp"
 
   # A role that deliberately overrides a host built-in also keeps its bare name,
   # pinned to the base state. Without it the built-in would come back and resolve
@@ -275,7 +300,12 @@ role_instructions() {
   fi
   printf '\n'
   printf '%s\n' "Routing: this state is the \`$role_state_alias\` alias ($role_model, reasoning effort $role_state_effort)."
-  if [ "$role_state" = base ]; then
+  if [ "$role_state" = additional ]; then
+    printf '%s\n' "This is a lower rung of \`$role_of\`, for work the brief specifies completely."
+    printf '%s\n' "The role's default state is \`$role_base_name\`; its escalated state is \`$role_escalated_name\`."
+    printf '%s\n' 'Move up by dispatching that name. Never by overriding model or effort: this'
+    printf '%s\n' 'definition wins over any such override, so the dispatch would silently run here.'
+  elif [ "$role_state" = base ]; then
     printf '%s\n' "Escalation: the lead escalates by dispatching \`$role_escalated_name\` when"
     printf '%s\n' "$role_trigger."
     printf '%s\n' 'Escalation is dispatched by name. Never escalate by passing a model or effort'
@@ -296,12 +326,19 @@ role_instructions() {
 }
 
 state_description() {
-  if [ "$role_state" = base ]; then
-    printf '%s (state: %s, %s)' "$role_description" "$role_state_alias" "$role_state_effort"
-  else
-    printf 'Escalated state of the %s role. %s (state: %s, %s)' \
-      "$role_of" "$role_description" "$role_state_alias" "$role_state_effort"
-  fi
+  case $role_state in
+    base)
+      printf '%s (state: %s, %s)' "$role_description" "$role_state_alias" "$role_state_effort"
+      ;;
+    additional)
+      printf 'Lower rung of the %s role, for fully specified work. %s (state: %s, %s)' \
+        "$role_of" "$role_description" "$role_state_alias" "$role_state_effort"
+      ;;
+    *)
+      printf 'Escalated state of the %s role. %s (state: %s, %s)' \
+        "$role_of" "$role_description" "$role_state_alias" "$role_state_effort"
+      ;;
+  esac
 }
 
 render_codex() {

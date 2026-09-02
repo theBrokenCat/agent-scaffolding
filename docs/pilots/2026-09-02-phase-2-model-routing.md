@@ -122,8 +122,14 @@ justo el dato que el piloto existe para recoger.
 scripts/pilot-run --header                                   # contrato de fila
 scripts/pilot-run --order --tasks tasks.tsv --seed 7          # orden aleatorio reproducible
 scripts/pilot-run --task T1 --block mecanicas --arm balanced \
-  --prompt t1.txt --order 2 --results resultados.tsv
+  --prompt t1.txt --order 2 --results resultados.tsv \
+  --cwd /ruta/al/worktree --max-seconds 1800
 ```
+
+`--max-seconds` es un **tope duro de presupuesto por despacho**: `codex exec` no
+ofrece limite de turnos ni de tokens, asi que el arnes mata el proceso al
+expirar y marca la fila `KILLED`. Un agente descarrilado no se come el
+presupuesto; deja una fila que dice que se paso.
 
 Toda fila lleva `routing_ok`. Si el par observado no coincide con el del brazo,
 la fila se marca `NO` y el arnes avisa: esa ejecucion pertenece a otro brazo y no

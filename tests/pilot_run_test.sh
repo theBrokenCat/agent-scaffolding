@@ -89,6 +89,22 @@ drift=$(FAKE_ROUTING=drift "$harness" --task T3 --block mecanicas --arm frontier
 [ "$(printf '%s' "$drift" | cut -f 9)" = NO ] || fail 'routing drift not marked'
 grep -q 'belongs to another arm' "$tmpdir/warn.txt" || fail 'routing drift not warned about'
 
+# The hard cap kills a dispatch that overruns and marks the row instead of
+# letting it spend. codex exec has no cap of its own.
+cat > "$tmpdir/slow-exec" <<'EOF'
+#!/bin/sh
+sleep 120
+EOF
+chmod +x "$tmpdir/slow-exec"
+capped=$(PILOT_EXEC=$tmpdir/slow-exec "$harness" --task T9 --block mecanicas --arm economy \
+  --prompt "$tmpdir/prompt.txt" --max-seconds 5 2>"$tmpdir/cap.txt")
+[ "$(printf '%s' "$capped" | cut -f 9)" = KILLED ] || fail 'an overrunning dispatch was not marked KILLED'
+grep -q 'hard cap' "$tmpdir/cap.txt" || fail 'the hard cap did not warn'
+[ "$(printf '%s' "$capped" | cut -f 14)" -lt 60 ] || fail 'the dispatch was not actually killed'
+if "$harness" --task TA --block mecanicas --arm economy --prompt "$tmpdir/prompt.txt" --max-seconds 0 >/dev/null 2>&1; then
+  fail 'a zero budget was accepted'
+fi
+
 # Arm order is randomised per task and covers every arm exactly once.
 printf 'T1\tmecanicas\teconomy,balanced\nT2\tlargo\teconomy,balanced,frontier\n' > "$tmpdir/tasks.tsv"
 order=$("$harness" --order --tasks "$tmpdir/tasks.tsv" --seed 7)

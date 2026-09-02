@@ -144,9 +144,9 @@ fi
 assert_absent "$agent_home/.codex/agents/explorer.toml"
 run install --agents --host codex --apply --home "$agent_home" >/dev/null
 # One file per (role, state), plus the bare `explorer` that overrides a built-in.
-for name in explorer explorer-economy explorer-balanced implementer-balanced \
-  implementer-frontier spec-reviewer-frontier-high spec-reviewer-frontier-xhigh \
-  quality-reviewer-frontier quality-reviewer-critical; do
+for name in explorer explorer-economy explorer-balanced implementer-economy \
+  implementer-balanced implementer-frontier spec-reviewer-frontier-high \
+  spec-reviewer-frontier-xhigh quality-reviewer-frontier quality-reviewer-critical; do
   [ -f "$agent_home/.codex/agents/$name.toml" ] || fail "missing generated codex agent: $name"
   [ ! -L "$agent_home/.codex/agents/$name.toml" ] || fail "codex agent must be a generated file, not a link: $name"
 done

@@ -69,13 +69,14 @@ claude_out=$tmpdir/claude
 mkdir -p "$codex_out" "$claude_out"
 "$gen" --host codex --out "$codex_out" --model-map "$fixture" >/dev/null
 "$gen" --host claude --out "$claude_out" --model-map "$fixture" >/dev/null
-states='explorer-economy explorer-balanced implementer-balanced implementer-frontier
-spec-reviewer-frontier-high spec-reviewer-frontier-xhigh quality-reviewer-frontier quality-reviewer-critical'
+states='explorer-economy explorer-balanced implementer-economy implementer-balanced
+implementer-frontier spec-reviewer-frontier-high spec-reviewer-frontier-xhigh
+quality-reviewer-frontier quality-reviewer-critical'
 for name in $states; do
   [ -f "$codex_out/$name.toml" ] || fail "missing codex definition for state $name"
   [ -f "$claude_out/$name.md" ] || fail "missing claude definition for state $name"
 done
-[ "$(ls "$codex_out" | wc -l | tr -d ' ')" -eq 9 ] || fail 'unexpected number of generated codex files'
+[ "$(ls "$codex_out" | wc -l | tr -d ' ')" -eq 10 ] || fail 'unexpected number of generated codex files'
 
 # The bare `explorer` name survives, pinned to the base state, so the host
 # built-in cannot come back and resolve at the host default.
@@ -113,6 +114,7 @@ check_state() {
 }
 check_state explorer-economy fixture-economy high
 check_state explorer-balanced fixture-balanced xhigh
+check_state implementer-economy fixture-economy high
 check_state implementer-balanced fixture-balanced xhigh
 check_state implementer-frontier fixture-frontier xhigh
 check_state spec-reviewer-frontier-high fixture-frontier high
@@ -125,7 +127,7 @@ for name in explorer-economy explorer-balanced spec-reviewer-frontier-high quali
   grep -qx 'tools: Read, Grep, Glob' "$claude_out/$name.md" || fail "claude $name is not restricted to read-only tools"
   grep -q 'Authority: read-only' "$codex_out/$name.toml" || fail "codex $name does not declare read-only authority"
 done
-for name in implementer-balanced implementer-frontier; do
+for name in implementer-economy implementer-balanced implementer-frontier; do
   if grep -q '^tools:' "$claude_out/$name.md"; then fail "$name must not be tool-restricted"; fi
   grep -q 'Authority: write' "$codex_out/$name.toml" || fail "codex $name does not declare write authority"
 done
@@ -156,6 +158,18 @@ for role_file in "$root"/agents/roles/*.md; do
     diagnostic) fail "role $name must not default to the diagnostic rung" ;;
   esac
 done
+
+# The cheap rung the contract assigns to mechanical work is a real state.
+grep -q 'not a role of its own' "$codex_out/implementer-economy.toml" || fail 'implementer-economy is not a materialized state'
+grep -q 'Lower rung of the implementer role' "$codex_out/implementer-economy.toml" \
+  || fail 'implementer-economy is not described as a lower rung'
+grep -q "default state is \`implementer-balanced\`" "$codex_out/implementer-economy.toml" \
+  || fail 'implementer-economy does not name the default state'
+grep -q "escalated state is \`implementer-frontier\`" "$codex_out/implementer-economy.toml" \
+  || fail 'implementer-economy does not name the escalated state'
+if grep -q 'Escalated state of the implementer' "$codex_out/implementer-economy.toml"; then
+  fail 'a lower rung must not describe itself as escalated'
+fi
 
 # A host with no id for an alias stops: nothing borrows another host's id.
 partial=$tmpdir/partial-map.yaml

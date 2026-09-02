@@ -5,6 +5,7 @@ alias: balanced
 effort: xhigh
 escalated_alias: frontier
 escalated_effort: xhigh
+additional_states: economy:high
 escalation_trigger: "either escalation gate fires: the change touches a critical seam, or the work is long-horizon, multi-step, or lacks objective acceptance criteria"
 authority: write
 overrides_builtin: false
@@ -37,7 +38,9 @@ Default `balanced`. Escalate to `frontier` when either gate of
 The gate is semantic. A path is a signal, not the decision: editing a migration
 file is a critical seam, and so is a change that silently redefines an invariant
 in an ordinary file. Mechanical, single-file, fully specified fixes drop to
-`economy`; documentation work is `economy` by default.
+`economy`, which is materialized as `implementer-economy`; documentation work is
+`economy` by default. That rung is a real dispatchable state, not an aspiration:
+work the contract assigns to the cheap tier has to be reachable in it.
 
 ## Input
 
