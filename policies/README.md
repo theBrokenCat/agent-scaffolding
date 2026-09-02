@@ -140,6 +140,10 @@ no existe un trigger real. Ningun gate concede escritura.
   Red flag: *subagente despachado con fork y routing por alias*. Evidencia: un
   agente personal que declaraba Luna, despachado con fork, corrio en Sol y nunca
   habia corrido en Luna.
+- Prohibido escalar por override. Con `agent_type`, la definicion del archivo gana
+  a `model` y `reasoning_effort` de `spawn_agent`: el override se acepta y se
+  ignora. La escalada se despacha por nombre, con la variante materializada del
+  rol. Red flag: *escalada intentada por override en vez de por agent_type*.
 - Verificacion de routing: si el modelo observado no coincide con el alias, es
   FALLO. No lo aceptes como variante ni promedies su coste con el del alias.
 - Spawnea todo el lote independiente antes de la primera espera. Espera con

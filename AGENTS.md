@@ -110,6 +110,11 @@ repositorio los detalles de implementacion importantes.
   que el subagente herede modelo y effort del padre y anule el alias, sin error ni
   aviso; la herramienta ni siquiera admite override explicito al forkear. Si el
   fork es imprescindible, declara que ese despacho corrio en el par del padre.
+- **Cuando `agent_type` nombra un agente custom, la definicion del archivo gana al
+  override de `spawn_agent`.** La escalada NUNCA se hace pasando `model` o
+  `reasoning_effort`; se hace despachando la variante materializada del rol
+  (`<rol>-<estado>`). Un override enviado con `agent_type` se acepta sin error y
+  se ignora.
 - Si el modelo observado no coincide con el alias, es FALLO, no una variante
   aceptable: esa ejecucion pertenece a otro alias y su coste y su calidad tambien.
 - Cierra workers y recursos temporales al terminar sin borrar trabajo no

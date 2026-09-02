@@ -29,6 +29,16 @@ sobre `explorer` o `implementer`.
 
 ## Modelo y effort
 
+Los roles canonicos son **cuatro**. `scripts/gen-agents` materializa un archivo
+por par (rol, estado) —base y escalado— a partir de esas mismas cuatro fichas: un
+archivo generado es un estado materializado, no un rol nuevo, y la regla de roles
+genericos no cambia. Los estados son `explorer-economy` / `explorer-balanced`,
+`implementer-balanced` / `implementer-frontier`, `spec-reviewer-frontier-high` /
+`spec-reviewer-frontier-xhigh` y `quality-reviewer-frontier` /
+`quality-reviewer-critical`. `explorer` conserva ademas su nombre desnudo para
+seguir sobrescribiendo el built-in del host; sin el, el built-in vuelve y resuelve
+en el default del host.
+
 El alias fija modelo y reasoning effort del subagente. La tabla de curvas y los
 dos gates de escalada a Sol —**que toca** (seam critico) y **cuanto dura**
 (horizonte largo o sin criterios de aceptacion objetivos)— viven en
@@ -88,6 +98,11 @@ apunta a esta seccion.
   herramienta no admite override explicito de modelo o effort al forkear. Spawnea
   sin fork; si el fork es imprescindible, registra que ese despacho corrio en el
   par del padre y no en el del alias.
+- **La escalada se despacha por nombre, no por override.** Cuando `agent_type`
+  nombra un agente custom, la definicion del archivo gana a `model` y
+  `reasoning_effort` de `spawn_agent`: el override se acepta sin error y se
+  ignora. Por eso cada rol se materializa en dos archivos, uno por estado, y
+  escalar significa despachar `<rol>-<estado escalado>`.
 - Modelo observado distinto del alias es **FALLO**, no una variante aceptable.
 - `wait_agent` **no** es un wait-for-all atomico: despierta por evento o por
   timeout, y puede despertar sin que el conjunto esperado haya terminado.
