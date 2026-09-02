@@ -83,6 +83,10 @@ plan sustituye su supuesto de instalacion por proyecto.
       Codex pasa en los cuatro roles; Claude falla por id de modelo no portable.
 - [ ] Resolver el alias por host en el model map, para que Claude deje de recibir
       un id de modelo de otro proveedor.
+- [ ] Materializar un archivo por estado escalado: hoy la definicion del agente
+      gana al override de `spawn_agent`, asi que la escalada no es despachable.
+- [x] Prohibir el fork de turnos cuando el alias importe y separar la unidad de
+      agentes por host.
 - [ ] Ejecutar el piloto A/B y registrar sus mediciones.
 
 Los objetivos de la fase (agentes 19 -> 8-11, reloj 38 h -> 14-22 h, coste
