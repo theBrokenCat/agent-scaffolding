@@ -86,7 +86,7 @@ json_escape() {
 # estimate, so a block can be refused before it is launched.
 if [ "$command" = spent ]; then
   total=$(cat "$attempts"/*.json 2>/dev/null |
-    awk 'match($0, /"cost_usd":[0-9.]+/) { v = substr($0, RSTART + 12, RLENGTH - 12); sum += v } END { printf "%.4f\n", sum + 0 }')
+    awk 'match($0, /"cost_usd":[0-9.]+/) { v = substr($0, RSTART + 11, RLENGTH - 11); sum += v } END { printf "%.4f\n", sum + 0 }')
   printf '%s\n' "$total"
   exit 0
 fi

@@ -157,6 +157,16 @@ printf '%s' "$out" | grep -q 'T5.*infraestructura' || fail 'a NO-DISPATCH row wa
 printf '%s' "$out" | awk -F'\t' '$1 == "T2" && NF > 10' | grep -q . && fail 'an unjudged row was counted as a result'
 printf '%s' "$out" | grep -q 'coste_overhead_usd' || fail 'shared overhead is not reported separately'
 
+# A cost of one dollar or more must survive parsing. An off-by-one that drops the
+# integer part leaves cheap rows looking right and silently divides the expensive
+# ones by ten or more — which is the opposite of what a cost comparison needs.
+big=$tmpdir/att/BIG__economy__implementation__1.json
+sed -e 's/"cost_usd":[0-9.]*/"cost_usd":12.3456/' -e 's/"task": "T1"/"task": "BIG"/' "$(art T1 economy)" > "$big"
+"$report" "$tmpdir/att" | grep -q '12.3456' || fail 'a cost above one dollar was truncated by the report'
+spent_big=$("$harness" spent --attempts "$tmpdir/att")
+awk -v v="$spent_big" 'BEGIN { exit !(v > 12) }' || fail 'a cost above one dollar was truncated by the ledger'
+rm -f "$big"
+
 # 8. The recorded spend is what enforces the global ceiling, not an estimate.
 spent=$("$harness" spent --attempts "$tmpdir/att")
 awk -v v="$spent" 'BEGIN { exit !(v > 0) }' || fail 'spend is not accumulated across artifacts'

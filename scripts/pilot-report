@@ -61,9 +61,9 @@ for f in "$attempts"/*__implementation__*.json; do
   # overhead and are reported separately, never folded into an arm.
   cost_impl=$(value "$f" cost_usd)
   cost_corr=$(cat "$attempts/${task}__${arm}__correction__"*.json 2>/dev/null |
-    awk 'match($0, /"cost_usd":[0-9.]+/) { sum += substr($0, RSTART + 12, RLENGTH - 12) } END { printf "%.4f", sum + 0 }')
+    awk 'match($0, /"cost_usd":[0-9.]+/) { sum += substr($0, RSTART + 11, RLENGTH - 11) } END { printf "%.4f", sum + 0 }')
   cost_rev=$(cat "$attempts/${task}__${arm}__review__"*.json 2>/dev/null |
-    awk 'match($0, /"cost_usd":[0-9.]+/) { sum += substr($0, RSTART + 12, RLENGTH - 12) } END { printf "%.4f", sum + 0 }')
+    awk 'match($0, /"cost_usd":[0-9.]+/) { sum += substr($0, RSTART + 11, RLENGTH - 11) } END { printf "%.4f", sum + 0 }')
   total=$(awk -v a="$cost_impl" -v b="$cost_corr" -v c="$cost_rev" 'BEGIN { printf "%.4f", a + b + c }')
 
   printf '%s\t' "$task" "$(value "$f" base_sha)" "$(value "$f" block)" "$arm" \
@@ -83,9 +83,10 @@ fi
 
 printf '\n# overhead compartido (spec review y orquestacion del lead)\n'
 shared=$(cat "$attempts"/*__spec-review__*.json "$attempts"/*__orchestration__*.json 2>/dev/null |
-  awk 'match($0, /"cost_usd":[0-9.]+/) { sum += substr($0, RSTART + 12, RLENGTH - 12) } END { printf "%.4f", sum + 0 }')
+  grep -h 'cost_usd' |
+  awk 'match($0, /"cost_usd":[0-9.]+/) { sum += substr($0, RSTART + 11, RLENGTH - 11) } END { printf "%.4f", sum + 0 }')
 printf 'coste_overhead_usd\t%s\n' "$shared"
 
 printf '\n# gasto total registrado (todos los artefactos)\n'
 cat "$attempts"/*.json 2>/dev/null |
-  awk 'match($0, /"cost_usd":[0-9.]+/) { sum += substr($0, RSTART + 12, RLENGTH - 12) } END { printf "coste_total_usd\t%.4f\n", sum + 0 }'
+  awk 'match($0, /"cost_usd":[0-9.]+/) { sum += substr($0, RSTART + 11, RLENGTH - 11) } END { printf "coste_total_usd\t%.4f\n", sum + 0 }'

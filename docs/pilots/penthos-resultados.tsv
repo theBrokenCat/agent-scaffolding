@@ -1,0 +1,9 @@
+tarea	base_sha	bloque	brazo	agent_type	orden	prompt_sha256	modelo	effort	routing_ok	aceptado	blocking	important	correcciones	cached	uncached	output	reasoning	reloj_s	coste_impl	coste_review	coste_correcciones	coste_total	fallo
+C1	1ec8266	gate	balanced	implementer-balanced	2	169fc3c5bc50006f27660d1cc94817556c1ff94ec2722d5aff8af85c985f5437	gpt-5.6-luna	xhigh	yes	no	1	1	0	2868992	134947	12611	7073	402	0.0995	2.1228	0.0000	2.2223	barrido sin prueba de orfandad: libera reservas con despacho vivo; defecto compartido con el commit de referencia 279d571
+C1	1ec8266	gate	frontier	implementer-frontier	1	169fc3c5bc50006f27660d1cc94817556c1ff94ec2722d5aff8af85c985f5437	gpt-5.6-sol	xhigh	yes	no	1	1	0	2465536	141855	16713	8659	507	1.8879	2.6619	0.0000	4.5498	barrido sin prueba de orfandad: libera reservas con despacho vivo; defecto compartido con el commit de referencia 279d571
+
+# overhead compartido (spec review y orquestacion del lead)
+coste_overhead_usd	0.9770
+
+# gasto total registrado (todos los artefactos)
+coste_total_usd	7.7491

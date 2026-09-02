@@ -1,10 +1,5 @@
 #!/bin/sh
 
-# A consumer that closes the pipe early (head, cut) is normal use, not an error.
-# Without this, every `--list | head` prints a wall of write-error noise that
-# hides real failures.
-trap '' PIPE
-
 # Materialize the canonical roles in agents/roles/ as host-specific subagent
 # definitions. The role files are the single source of truth; this script only
 # resolves each role's aliases through a model map and renders them per host.
