@@ -46,8 +46,8 @@ materializa **un archivo por par (rol, estado)** —base y escalado— por host:
 ```
 
 Un archivo generado es un estado materializado, no un rol nuevo. Los estados son
-`explorer-economy` / `explorer-balanced`, `implementer-balanced` /
-`implementer-frontier`, `spec-reviewer-frontier-high` /
+`explorer-economy` / `explorer-balanced`, `implementer-economy` /
+`implementer-balanced` / `implementer-frontier`, `spec-reviewer-frontier-high` /
 `spec-reviewer-frontier-xhigh` y `quality-reviewer-frontier` /
 `quality-reviewer-critical`; `explorer` conserva ademas su nombre desnudo para
 seguir sobrescribiendo el built-in del host.

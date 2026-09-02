@@ -33,9 +33,12 @@ Los roles canonicos son **cuatro**. `scripts/gen-agents` materializa un archivo
 por par (rol, estado) —base y escalado— a partir de esas mismas cuatro fichas: un
 archivo generado es un estado materializado, no un rol nuevo, y la regla de roles
 genericos no cambia. Los estados son `explorer-economy` / `explorer-balanced`,
-`implementer-balanced` / `implementer-frontier`, `spec-reviewer-frontier-high` /
-`spec-reviewer-frontier-xhigh` y `quality-reviewer-frontier` /
-`quality-reviewer-critical`. `explorer` conserva ademas su nombre desnudo para
+`implementer-economy` / `implementer-balanced` / `implementer-frontier`,
+`spec-reviewer-frontier-high` / `spec-reviewer-frontier-xhigh` y
+`quality-reviewer-frontier` / `quality-reviewer-critical`. Un rol puede declarar
+peldanos adicionales en `additional_states`: `implementer-economy` es el tier que
+el contrato ya asignaba al trabajo mecanico totalmente especificado, y sin
+materializarlo no era despachable. `explorer` conserva ademas su nombre desnudo para
 seguir sobrescribiendo el built-in del host; sin el, el built-in vuelve y resuelve
 en el default del host.
 

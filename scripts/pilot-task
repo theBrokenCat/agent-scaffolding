@@ -1,0 +1,123 @@
+#!/bin/sh
+
+# Prepares one pilot task and judges it. A task is a real commit: the agent works
+# from the commit's parent and never sees the commit's diff, and acceptance is
+# the commit's own tests, which must fail before the work and pass after it.
+
+set -eu
+
+script_dir=$(CDPATH= cd -- "$(dirname "$0")" && pwd -P)
+
+usage() {
+  cat >&2 <<'EOF'
+usage:
+  pilot-task prepare --repo DIR --sha SHA --work DIR
+  pilot-task brief   --repo DIR --sha SHA --work DIR [--tests LIST]
+  pilot-task judge   --repo DIR --sha SHA --work DIR [--tests LIST]
+
+`prepare` checks out <sha>^ into a fresh worktree and links dependencies.
+`brief` writes the task statement: intent and scope, never the diff.
+`judge` copies the commit's canonical tests over the tree and runs them.
+EOF
+}
+
+stop() {
+  printf '%s\n' "STOP $*" >&2
+  exit 1
+}
+
+action=${1-}
+[ -n "$action" ] || { usage; exit 1; }
+shift
+
+repo=; sha=; work=; tests=
+while [ "$#" -gt 0 ]; do
+  case $1 in
+    --repo) shift; repo=${1-} ;;
+    --sha) shift; sha=${1-} ;;
+    --work) shift; work=${1-} ;;
+    --tests) shift; tests=${1-} ;;
+    *) usage; exit 1 ;;
+  esac
+  [ "$#" -gt 0 ] || { usage; exit 1; }
+  shift
+done
+
+[ -n "$repo" ] && [ -n "$sha" ] && [ -n "$work" ] || { usage; exit 1; }
+[ -d "$repo/.git" ] || stop "not a git repository: $repo"
+git -C "$repo" cat-file -e "$sha^{commit}" 2>/dev/null || stop "unknown commit: $sha"
+
+# The canonical tests are the ones the real commit added or changed under tests/.
+canonical_tests() {
+  if [ -n "$tests" ]; then
+    printf '%s\n' "$tests" | tr ',' '\n' | sed '/^$/d'
+    return 0
+  fi
+  git -C "$repo" show --stat --format='' "$sha" | awk '{print $1}' | grep '^tests/' || :
+}
+
+case $action in
+  prepare)
+    [ ! -e "$work" ] || stop "work directory already exists: $work"
+    git -C "$repo" worktree add --detach "$work" "$sha^" >/dev/null 2>&1 \
+      || stop "could not create the worktree for $sha^"
+    [ -d "$repo/node_modules" ] && ln -s "$repo/node_modules" "$work/node_modules"
+    printf 'PREPARED %s at %s\n' "$work" "$(git -C "$work" rev-parse --short HEAD)"
+    ;;
+
+  brief)
+    [ -d "$work" ] || stop "work directory does not exist: $work"
+    subject=$(git -C "$repo" show -s --format='%s' "$sha")
+    body=$(git -C "$repo" show -s --format='%b' "$sha")
+    # Source paths only. The test files are the grading key and stay out of the
+    # brief, as does the diff.
+    scope=$(git -C "$repo" show --name-only --format='' "$sha" | grep -v '^tests/' | grep -v '^$' || :)
+    cat <<EOF
+Objetivo: $subject
+
+$body
+
+Trabajas sobre un worktree ya preparado en el SHA base. Implementa el cambio que
+el objetivo describe.
+
+Paths en scope (los unicos que puedes tocar):
+$scope
+
+Fuera de scope: cualquier archivo bajo tests/. No escribas ni modifiques tests:
+la aceptacion se mide con una suite independiente que no puedes ver.
+
+Verificacion que puedes usar mientras trabajas: \`npx tsc --noEmit\` y ejecutar
+tests existentes con \`node --import tsx --test <archivo>\`.
+
+Termina cuando el cambio este completo y sea coherente con el codigo que lo
+rodea. No amplies el scope, no refactorices lo no relacionado y no delegues.
+EOF
+    ;;
+
+  judge)
+    [ -d "$work" ] || stop "work directory does not exist: $work"
+    list=$(canonical_tests)
+    [ -n "$list" ] || stop "commit $sha has no test files to judge with"
+    for file in $list; do
+      git -C "$repo" show "$sha:$file" > "$work/$file" 2>/dev/null \
+        || stop "could not extract canonical test $file"
+    done
+    failures=0
+    for file in $list; do
+      if ( cd "$work" && node --import tsx --test "$file" >/dev/null 2>&1 ); then
+        printf 'PASS %s\n' "$file"
+      else
+        printf 'FAIL %s\n' "$file"
+        failures=$((failures + 1))
+      fi
+    done
+    if [ "$failures" -eq 0 ]; then
+      printf 'ACCEPTED\n'
+    else
+      printf 'REJECTED %s failing test file(s)\n' "$failures"
+      exit 1
+    fi
+    ;;
+
+  *) usage; exit 1 ;;
+esac
