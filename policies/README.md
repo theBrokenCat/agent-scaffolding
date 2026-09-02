@@ -116,24 +116,52 @@ siendo fuente de verdad para implementacion activa.
 
 Activa gate de seguridad para autenticacion, autorizacion, permisos, secretos,
 exposicion, dependencias, input no confiable o peticion explicita. Usa el skill
-especializado correspondiente, redacta secretos y valida hallazgos antes de
-afirmarlos. Las acciones intrusivas requieren aprobacion.
+especializado correspondiente con `domain: security` en el brief, redacta
+secretos y valida hallazgos antes de afirmarlos. No existe un rol `security`:
+este gate mas la skill cubren la especialidad, y un `quality-reviewer` que
+encuentre algo relevante abre el gate en lugar de decidirlo. Las acciones
+intrusivas requieren aprobacion.
 
 Para produccion exige estado observado, alcance, autorizacion para actuar,
 rollback verificable y comprobacion posterior. Produccion no activa seguridad si
 no existe un trigger real. Ningun gate concede escritura.
 
-## Equipos y loops
+## Equipos, orquestacion y loops
 
-- Equipo maximo: lead y tres workers; `standard` permite solo uno.
+- Presupuesto de concurrencia: **8 agentes simultaneos como maximo**, de los
+  cuales **como maximo 3 writers**; `readers <= 8 - writers`. El techo real es el
+  del host; si expone menos, manda el host.
+- `fast` no delega. `standard` permite un solo worker acotado. `deep` puede usar
+  el presupuesto completo, y solo mientras cada agente adicional tenga un scope
+  real e independiente.
 - No hay delegacion anidada ni writers sin propiedad y aislamiento explicitos.
+- Spawnea todo el lote independiente antes de la primera espera. Espera con
+  bounds largos, procesa eventos, retira agentes terminales y vuelve a esperar;
+  `wait_agent` despierta por evento o timeout y no es un wait-for-all atomico.
+  Un despertar sin cambio de estado no autoriza razonamiento nuevo ni una ronda
+  de esperas mas cortas.
+- Los hallazgos se agrupan contra un snapshot congelado y se corrigen en **un
+  lote** al owner de esos paths. Ningun agente nuevo por microhallazgo, y ningun
+  gate amplio re-ejecutado despues de cada microfix.
+- Correcciones en paralelo solo si son causalmente independientes y con paths
+  disjuntos. Si un hallazgo `Blocking` invalida el snapshot, congela el lote
+  despues de cerrar el inventario causal.
+- Reset del contrato a la segunda reapertura del mismo seam o familia de
+  invariantes; no una tercera ronda de parches.
+- SLA de reviewer: al agotarse su bound, sustituye al reviewer o declaralo
+  bloqueado con evidencia; no esperes indefinidamente ni des por aprobado lo que
+  nadie reviso. Conserva siempre una revision final integrada.
 - Descubrimiento: una pasada inicial y una ampliacion acotada con evidencia nueva.
 - Cada worker: una pasada y como maximo una correccion solicitada por el lead.
 - Requisitos, diff y feedback de PR comparten como maximo dos rondas de review.
 - CI permite tres intentos razonados; no repitas el mismo intento sin evidencia.
 
 Al agotar un limite, detiene nuevos despachos, preserva estado y aplica STOP. No
-cambies de rol, modelo o formulacion para reiniciar un loop agotado.
+cambies de rol, modelo, alias o formulacion para reiniciar un loop agotado; subir
+de curva no es una via para repetir un intento ya agotado.
+
+El protocolo completo, con roles, aliases y excepciones, esta en
+[`agents/README.md`](../agents/README.md).
 
 ## Verificacion y cierre
 

@@ -34,12 +34,53 @@ explicitamente esos destinos. El manifiesto y los backups quedan fuera del repo
 en `~/.local/state/agent-scaffolding/`; `uninstall --apply` restaura archivos,
 symlinks —incluidos los rotos— y ausencias anteriores.
 
+## Definiciones de subagente por host
+
+Los roles canonicos viven en [`agents/roles/`](agents/roles/). `scripts/gen-agents`
+resuelve el alias de cada rol contra el model map local y lo materializa por host:
+
+```text
+~/.codex/agents/<rol>.toml
+~/.claude/agents/<rol>.md
+```
+
+Es una unidad de instalacion aparte, con su propio manifiesto y su propia
+reversion:
+
+```sh
+scripts/gen-agents --host codex --role explorer   # ver el render
+scripts/scaffolding install --agents              # plan
+scripts/scaffolding install --agents --apply
+scripts/scaffolding status --agents
+scripts/scaffolding doctor --agents
+scripts/scaffolding uninstall --agents --apply
+```
+
+El destino es contenido generado, no un symlink, asi que `status --agents`
+distingue dos derivas: `destination changed` cuando han editado el archivo del
+host y `render-changed` cuando ha cambiado el rol, el model map o el generador.
+
+Instalar exige un model map local en `~/.config/agent-scaffolding/model-map.yaml`.
+El ejemplo del repositorio lleva nombres en clave, no ids de modelo, y el
+instalador se niega a copiarlos a un host. Gemini no expone formato de subagente
+y queda fuera de esta unidad.
+
+Un archivo instalado no prueba que el host ejecute en ese modelo y ese effort:
+eso se comprueba con [`tests/runtime-parity.md`](tests/runtime-parity.md).
+
+El manifiesto guarda una entrada por destino, asi que **anadir o quitar un rol
+canonico invalida una unidad ya instalada**. Falla en voz alta y explica la
+recuperacion manual; no hay migracion automatica, porque el contrato fija cuatro
+roles genericos y cambiar ese conjunto es una decision, no una rutina.
+
 Valida el contrato, el instalador y el registro con:
 
 ```sh
 sh tests/contract_test.sh
 sh tests/scaffolding_test.sh
 sh tests/registry_test.sh
+sh tests/gen_agents_test.sh
+sh tests/orchestration_test.sh
 sh tests/protect_repo_test.sh
 ```
 
@@ -60,9 +101,11 @@ contrato opcional para proyectos nuevos esta en
   delegacion, verificacion y STOP.
 - [`ROUTER.md`](ROUTER.md): seleccion app-first del mecanismo y coste.
 - [`profiles/README.md`](profiles/README.md): esfuerzo `fast|standard|deep`,
-  aliases `economy|balanced|frontier` y gates de riesgo.
-- [`agents/README.md`](agents/README.md): roles genericos, briefs, equipos y
-  retorno compacto.
+  aliases `economy|balanced|frontier|critical` y gates de riesgo.
+- [`agents/README.md`](agents/README.md): roles genericos, alias por rol, briefs,
+  presupuesto de concurrencia, orquestacion y retorno compacto.
+- [`agents/roles/`](agents/roles/): ficha canonica de cada rol, con alias, effort
+  y disparador de escalada en el frontmatter.
 - [`policies/README.md`](policies/README.md): limites operativos de Git, contexto,
   seguridad, produccion y loops.
 - [`CLAUDE.md`](CLAUDE.md) y [`GEMINI.md`](GEMINI.md): diferencias reales de
@@ -81,6 +124,18 @@ La app conserva decisiones, contratos compartidos, integracion y verificacion.
 Los workers reciben contexto acotado, usan roles genericos y devuelven un
 envelope compacto. Los writers trabajan sobre paths disjuntos y en worktrees
 separados; no existe delegacion anidada.
+
+El alias del subagente (`economy`, `balanced`, `frontier`, `critical`) fija su
+modelo y su reasoning effort. Solo hay dos curvas por defecto, y se sube a la
+curva alta cuando se cumple uno de los dos gates: **que toca** (seam critico) o
+**cuanto dura** (horizonte largo o sin criterios de aceptacion objetivos).
+
+El presupuesto de concurrencia es de 8 agentes simultaneos, con 3 writers como
+maximo. El lote independiente se lanza entero antes de la primera espera, los
+hallazgos se agrupan contra un snapshot congelado y se corrigen en un solo lote.
+El diseno del piloto que debe validar todo esto, con sus criterios
+pre-registrados, esta en
+[`docs/pilots/2026-09-02-phase-2-model-routing.md`](docs/pilots/2026-09-02-phase-2-model-routing.md).
 
 ## Estado de v0.1
 

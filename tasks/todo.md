@@ -67,6 +67,27 @@ plan sustituye su supuesto de instalacion por proyecto.
 
 ---
 
+## v0.2 - Fase 2: orquestacion de subagentes y routing de modelos
+
+- [x] Definir dos curvas de modelo con effort explicito y sacar a Terra del default.
+- [x] Anadir los dos gates semanticos de escalada a la curva Sol.
+- [x] Asignar alias, effort y disparador de escalada a cada rol canonico.
+- [x] Sustituir `deep = 3 workers` por el presupuesto real de concurrencia.
+- [x] Fundir el protocolo de orquestacion en el contrato y dejar en el registro
+      solo un puntero.
+- [x] Corregir las contradicciones de `spec-reviewer` y `quality-reviewer`.
+- [x] Materializar los roles por host y instalarlos como unidad separada.
+- [x] Cubrir con tests los invariantes del contrato y el generador.
+- [x] Registrar el diseno del piloto A/B con criterios pre-registrados.
+- [ ] Ejecutar la paridad en runtime por host (`tests/runtime-parity.md`).
+- [ ] Ejecutar el piloto A/B y registrar sus mediciones.
+
+Los objetivos de la fase (agentes 19 -> 8-11, reloj 38 h -> 14-22 h, coste
+-40/65 %) son stretch registrados, no resultados: ninguna cifra esta medida
+todavia.
+
+---
+
 ## Review
 
 Implementacion y merge completados; activacion global queda `managed current` y

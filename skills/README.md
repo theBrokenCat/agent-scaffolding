@@ -12,7 +12,7 @@ scalar fields:
 | `trigger` | Narrow condition that activates it. |
 | `mode` | Intended operation, such as `plan`, `implement`, or `review`. |
 | `cost` | `fast`, `standard`, or `deep`. |
-| `source` | `external:<owner>` when unmanaged, or a repository-relative `/SKILL.md` path when managed. |
+| `source` | `external:<owner>` when unmanaged; when managed, a repository-relative `/SKILL.md` path or `contract:<path>[#section]` pointing at a contract section. |
 | `managed` | `false` for external/plugin entries; `true` only for a local `core` skill. |
 
 The parser intentionally supports only one-line fields, quoted or unquoted
@@ -20,6 +20,14 @@ scalars, and simple bracketed host lists. It is not a general YAML parser.
 `tests/registry_test.sh` rejects duplicate IDs, missing or malformed fields,
 unsafe or missing managed paths, and invalid frontmatter for managed
 `SKILL.md` files.
+
+A managed entry may also be a *contract pointer*: `owner: core`, `managed: true`,
+and `source: contract:<repository-relative .md path>[#section]`. It carries no
+skill file. Orchestration is deliberately one of these: spawning, awaiting, and
+correcting a batch of subagents is contract behavior defined in
+`agents/README.md`, so the registry points at that section instead of duplicating
+it as a separate skill. The validator resolves the path, ignores the fragment,
+and rejects absolute or traversing paths.
 
 External and plugin-managed capabilities are inventory entries only. They use
 their actual family as `owner`, an exact matching `external:<owner>` source, and

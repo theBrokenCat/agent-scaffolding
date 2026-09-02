@@ -1,5 +1,38 @@
 # Example only. Keep the real provider/model mapping in local configuration.
-models:
-  economy: luna
-  balanced: terra
-  frontier: sol
+#
+# `scripts/gen-agents` resolves the map in this order and stops at the first hit:
+#   1. --model-map PATH
+#   2. $XDG_CONFIG_HOME/agent-scaffolding/model-map.yaml
+#   3. $HOME/.config/agent-scaffolding/model-map.yaml
+#   4. this example
+#
+# This example uses code names, not provider model ids, so it is never installed
+# into a host: `scaffolding install --agents --apply` stops until a local map
+# exists.
+#
+# Fields per entry:
+#   id      portable alias, or `diagnostic` for the opt-in diagnostic rung
+#   model   provider model id in a local map; a code name here
+#   effort  reasoning effort requested from that model
+#   use     the work the alias is for
+aliases:
+  - id: economy
+    model: luna
+    effort: high
+    use: "docs, extraction, bounded exploration, mechanical fixes"
+  - id: balanced
+    model: luna
+    effort: xhigh
+    use: "multi-file exploration, implementation against a frozen contract"
+  - id: frontier
+    model: sol
+    effort: xhigh
+    use: "critical seam, long horizon, reviewers"
+  - id: critical
+    model: sol
+    effort: max
+    use: "exceptional final audit only"
+  - id: diagnostic
+    model: terra
+    effort: high
+    use: "opt-in rung to separate a capacity failure from a bad brief; never a role default"

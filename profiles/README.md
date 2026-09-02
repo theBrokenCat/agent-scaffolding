@@ -14,14 +14,22 @@ un dominio y no concede autoridad.
 
 ## Aliases de modelo
 
-Los aliases portables son `economy`, `balanced` y `frontier`. El mapping local
-inicial es `economy -> Luna`, `balanced -> Terra` y `frontier -> Sol`. Es una
-configuracion local, no una garantia ni un requisito del repositorio. Los hosts
-sin selector usan el modelo disponible y registran el fallback.
+Los aliases portables son `economy`, `balanced`, `frontier` y `critical`. Un
+alias fija el modelo y el reasoning effort del subagente, no su autoridad. Solo
+hay dos curvas por defecto: `economy` y `balanced` comparten la curva Luna con
+effort `high` y `xhigh`; `frontier` y `critical` comparten la curva Sol con
+effort `xhigh` y `max`. Terra queda fuera por estar dominada en Pareto y solo se
+usa como escalon diagnostico puntual, nunca como default de un rol.
+
+El mapeo concreto de alias a modelo vive en el model map local y se materializa
+por host; no es una garantia ni un requisito del repositorio. Los hosts sin
+selector usan el modelo disponible y registran el fallback. La tabla vigente y
+los gates de escalada estan en [`ROUTER.md`](../ROUTER.md).
 
 Como punto de partida usa `fast / economy`, `standard / balanced` y
 `deep / frontier`, pero mantenlos separados: un alias elige capacidad/coste; el
-nivel limita proceso. Ninguno amplia permisos.
+nivel limita proceso. `critical` no es un punto de partida: se justifica caso a
+caso. Ninguno amplia permisos.
 
 ## Gates de riesgo
 
