@@ -1,0 +1,91 @@
+#!/bin/sh
+
+# Aggregates the pilot's per-attempt artifacts into the final table.
+#
+# It refuses to average what must not be averaged. A row is only counted when its
+# routing matched the arm and every judgement field was filled in by the judge and
+# the blind reviewer. Anything else is reported in the excluded table with its
+# cause, because a pilot that hides its failures inside a mean is worse than no
+# pilot.
+
+set -eu
+
+attempts=${1-}
+[ -n "$attempts" ] && [ -d "$attempts" ] || {
+  printf '%s\n' 'usage: pilot-report ATTEMPTS_DIR' >&2
+  exit 1
+}
+
+value() {
+  awk -v k="$2" '
+    match($0, "\"" k "\":[ ]*\"[^\"]*\"") {
+      s = substr($0, RSTART, RLENGTH)
+      sub("\"" k "\":[ ]*\"", "", s)
+      sub("\"$", "", s)
+      print s; exit
+    }
+    match($0, "\"" k "\":[ ]*[0-9.]+") {
+      s = substr($0, RSTART, RLENGTH)
+      sub("\"" k "\":[ ]*", "", s)
+      print s; exit
+    }
+  ' "$1"
+}
+
+printf 'tarea\tbase_sha\tbloque\tbrazo\tagent_type\torden\tprompt_sha256\tmodelo\teffort\trouting_ok\taceptado\tblocking\timportant\tcorrecciones\tcached\tuncached\toutput\treasoning\treloj_s\tcoste_impl\tcoste_review\tcoste_correcciones\tcoste_total\tfallo\n'
+
+excluded=$(mktemp "${TMPDIR:-/tmp}/pilot-excluded.XXXXXX")
+trap 'rm -f "$excluded"' EXIT HUP INT TERM
+
+for f in "$attempts"/*__implementation__*.json; do
+  [ -f "$f" ] || continue
+  task=$(value "$f" task); arm=$(value "$f" arm)
+  routing=$(value "$f" routing_ok); accepted=$(value "$f" accepted)
+
+  cause=
+  case $routing in
+    yes) ;;
+    KILLED) cause=cap ;;
+    NO-DISPATCH) cause=infraestructura ;;
+    *) cause=routing ;;
+  esac
+  [ -n "$cause" ] || [ -n "$accepted" ] || cause=incompleta
+
+  if [ -n "$cause" ]; then
+    printf '%s\t%s\t%s\t%s\n' "$task" "$arm" "$routing" "$cause" >> "$excluded"
+    continue
+  fi
+
+  # Cost to accepted is the candidate's own: implementation, its corrections and
+  # the reviewers that judged it. Spec review and lead orchestration are shared
+  # overhead and are reported separately, never folded into an arm.
+  cost_impl=$(value "$f" cost_usd)
+  cost_corr=$(cat "$attempts/${task}__${arm}__correction__"*.json 2>/dev/null |
+    awk 'match($0, /"cost_usd":[0-9.]+/) { sum += substr($0, RSTART + 12, RLENGTH - 12) } END { printf "%.4f", sum + 0 }')
+  cost_rev=$(cat "$attempts/${task}__${arm}__review__"*.json 2>/dev/null |
+    awk 'match($0, /"cost_usd":[0-9.]+/) { sum += substr($0, RSTART + 12, RLENGTH - 12) } END { printf "%.4f", sum + 0 }')
+  total=$(awk -v a="$cost_impl" -v b="$cost_corr" -v c="$cost_rev" 'BEGIN { printf "%.4f", a + b + c }')
+
+  printf '%s\t' "$task" "$(value "$f" base_sha)" "$(value "$f" block)" "$arm" \
+    "$(value "$f" agent_type)" "$(value "$f" order)" "$(value "$f" prompt_sha256)" \
+    "$(value "$f" model)" "$(value "$f" effort)" "$routing" "$accepted" \
+    "$(value "$f" blocking)" "$(value "$f" important)" "$(value "$f" corrections)" \
+    "$(value "$f" tokens_cached)" "$(value "$f" tokens_uncached)" "$(value "$f" tokens_output)" \
+    "$(value "$f" tokens_reasoning)" "$(value "$f" wall_seconds)" \
+    "$cost_impl" "$cost_rev" "$cost_corr" "$total"
+  printf '%s\n' "$(value "$f" failure_detail)"
+done
+
+if [ -s "$excluded" ]; then
+  printf '\n# intentos excluidos\ntarea\tbrazo\trouting\tcausa\n'
+  cat "$excluded"
+fi
+
+printf '\n# overhead compartido (spec review y orquestacion del lead)\n'
+shared=$(cat "$attempts"/*__spec-review__*.json "$attempts"/*__orchestration__*.json 2>/dev/null |
+  awk 'match($0, /"cost_usd":[0-9.]+/) { sum += substr($0, RSTART + 12, RLENGTH - 12) } END { printf "%.4f", sum + 0 }')
+printf 'coste_overhead_usd\t%s\n' "$shared"
+
+printf '\n# gasto total registrado (todos los artefactos)\n'
+cat "$attempts"/*.json 2>/dev/null |
+  awk 'match($0, /"cost_usd":[0-9.]+/) { sum += substr($0, RSTART + 12, RLENGTH - 12) } END { printf "coste_total_usd\t%.4f\n", sum + 0 }'

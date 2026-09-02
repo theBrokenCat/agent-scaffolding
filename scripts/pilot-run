@@ -2,11 +2,15 @@
 
 # Measurement harness for the paired A/B pilot in docs/pilots/.
 #
-# It records one row per execution. It fills only what a machine can observe:
-# tokens, wall clock, tool failures, and the model and effort the run actually
-# used. Judgment columns are left empty on purpose, for the blind reviewer to
-# fill; a harness that guessed them would corrupt exactly the data the pilot
-# exists to collect.
+# One artifact per attempt, written once. Nothing appends to a shared file, so
+# concurrent or repeated runs cannot interleave rows or silently overwrite each
+# other.
+#
+# Everything that describes the arm — model, effort, tokens, cost — is read from
+# the SUBAGENT rollout. The parent thread only dispatches and summarises: its
+# model is the host default and its usage is orchestration overhead. Measuring
+# the parent misreports both routing and cost, so the parent's numbers are kept
+# separately and never mixed into the arm.
 
 set -eu
 
@@ -14,19 +18,19 @@ script_dir=$(CDPATH= cd -- "$(dirname "$0")" && pwd -P)
 PILOT_ROOT=${PILOT_ROOT:-$(CDPATH= cd -- "$script_dir/.." && pwd -P)}
 PILOT_SESSIONS_DIR=${PILOT_SESSIONS_DIR:-$HOME/.codex/sessions}
 
-COLUMNS='tarea	bloque	brazo	orden	modelo_esperado	effort_esperado	modelo_observado	effort_observado	routing_ok	tokens_cacheados	tokens_no_cacheados	tokens_salida	tokens_reasoning	reloj_seg	fallos_herramienta	aceptado_1er_intento	blocking_encontrados	important_encontrados	blocking_escapados	important_escapados	correcciones	lotes_correccion	creditos	timeouts_espera	coste_hasta_aceptado'
-
 usage() {
   cat >&2 <<'EOF'
 usage:
-  pilot-run --header
-  pilot-run --order --tasks FILE [--seed N]
-  pilot-run --task ID --block B --arm A --prompt FILE [--order N] [--results FILE]
-            [--max-seconds N] [--cwd DIR]
+  pilot-run dispatch --task ID --block B --arm ALIAS --agent-type NAME
+                     --prompt FILE --attempts DIR --kind implementation|correction|review
+                     [--order N] [--attempt N] [--base-sha SHA] [--cwd DIR]
+                     [--max-seconds N]
+  pilot-run record   --attempts DIR --task ID --arm ALIAS --kind KIND --attempt N
+                     --field NAME --value VALUE
+  pilot-run spent    --attempts DIR
 
-Arms are model-map aliases, or a materialized agent state to dispatch by name.
---max-seconds is a hard cap: the dispatch is killed when it expires and the row
-is marked. Judgment columns stay empty for the blind reviewer.
+Prices are frozen in the script for reproducibility. Cost is API-equivalent, not
+credits.
 EOF
 }
 
@@ -35,101 +39,112 @@ stop() {
   exit 1
 }
 
-action=
-task=; block=; arm=; prompt=; order=; results=; tasks=; seed=
-max_seconds=${PILOT_MAX_SECONDS:-1800}; run_cwd=
+command=${1-}
+[ -n "$command" ] || { usage; exit 1; }
+shift
+
+task=; block=; arm=; agent_type=; prompt=; attempts=; kind=; order=-
+attempt=1; base_sha=-; run_cwd=; max_seconds=${PILOT_MAX_SECONDS:-1800}
+field=; value=
 while [ "$#" -gt 0 ]; do
   case $1 in
-    --header) action=header ;;
-    --order)
-      case ${2-} in
-        ''|--*) action=order ;;
-        *) shift; order=$1 ;;
-      esac
-      ;;
-    --tasks) shift; [ "$#" -gt 0 ] || { usage; exit 1; }; tasks=$1 ;;
-    --seed) shift; [ "$#" -gt 0 ] || { usage; exit 1; }; seed=$1 ;;
-    --task) shift; [ "$#" -gt 0 ] || { usage; exit 1; }; task=$1; action=${action:-run} ;;
-    --block) shift; [ "$#" -gt 0 ] || { usage; exit 1; }; block=$1 ;;
-    --arm) shift; [ "$#" -gt 0 ] || { usage; exit 1; }; arm=$1 ;;
-    --prompt) shift; [ "$#" -gt 0 ] || { usage; exit 1; }; prompt=$1 ;;
-    --results) shift; [ "$#" -gt 0 ] || { usage; exit 1; }; results=$1 ;;
-    --max-seconds) shift; [ "$#" -gt 0 ] || { usage; exit 1; }; max_seconds=$1 ;;
-    --cwd) shift; [ "$#" -gt 0 ] || { usage; exit 1; }; run_cwd=$1 ;;
+    --task) shift; task=${1-} ;;
+    --block) shift; block=${1-} ;;
+    --arm) shift; arm=${1-} ;;
+    --agent-type) shift; agent_type=${1-} ;;
+    --prompt) shift; prompt=${1-} ;;
+    --attempts) shift; attempts=${1-} ;;
+    --kind) shift; kind=${1-} ;;
+    --order) shift; order=${1-} ;;
+    --attempt) shift; attempt=${1-} ;;
+    --base-sha) shift; base_sha=${1-} ;;
+    --cwd) shift; run_cwd=${1-} ;;
+    --max-seconds) shift; max_seconds=${1-} ;;
+    --field) shift; field=${1-} ;;
+    --value) shift; value=${1-} ;;
     *) usage; exit 1 ;;
   esac
+  [ "$#" -gt 0 ] || { usage; exit 1; }
   shift
 done
 
-[ -n "$action" ] || { usage; exit 1; }
+[ -n "$attempts" ] || stop '--attempts DIR is required'
+mkdir -p "$attempts"
 
-if [ "$action" = header ]; then
-  printf '%s\n' "$COLUMNS"
+artifact_path() {
+  printf '%s/%s__%s__%s__%s.json\n' "$attempts" "$task" "$arm" "$kind" "$attempt"
+}
+
+json_escape() {
+  printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g' | tr -d '\n\r'
+}
+
+# --- spent -------------------------------------------------------------------
+# The global ceiling is enforced against what has actually been recorded, not an
+# estimate, so a block can be refused before it is launched.
+if [ "$command" = spent ]; then
+  total=$(cat "$attempts"/*.json 2>/dev/null |
+    awk 'match($0, /"cost_usd":[0-9.]+/) { v = substr($0, RSTART + 12, RLENGTH - 12); sum += v } END { printf "%.4f\n", sum + 0 }')
+  printf '%s\n' "$total"
   exit 0
 fi
 
-# Arm order is randomised per task so operator learning does not always land on
-# the same arm. Pass --seed to reproduce an assignment.
-if [ "$action" = order ]; then
-  [ -n "$tasks" ] || stop '--order requires --tasks FILE'
-  [ -f "$tasks" ] || stop "task list not found: $tasks"
-  awk -v seed="${seed:-0}" '
-    BEGIN { srand(seed + 0 == 0 ? systime() : seed) }
-    /^[[:space:]]*$/ || /^[[:space:]]*#/ { next }
-    {
-      n = split($0, field, /\t/)
-      id = field[1]; blk = field[2]; arms = field[3]
-      if (arms == "") { print "STOP task " id " has no arms column" > "/dev/stderr"; bad = 1; next }
-      count = split(arms, arm, /,/)
-      for (i = 1; i <= count; i++) key[i] = rand()
-      for (i = 1; i <= count; i++)
-        for (j = i + 1; j <= count; j++)
-          if (key[j] < key[i]) {
-            t = key[i]; key[i] = key[j]; key[j] = t
-            t = arm[i]; arm[i] = arm[j]; arm[j] = t
-          }
-      for (i = 1; i <= count; i++) printf "%s\t%s\t%s\t%d\n", id, blk, arm[i], i
-    }
-    END { exit bad }
-  ' "$tasks"
+# --- record ------------------------------------------------------------------
+# Judgement fields are attached after the fact by the judge and the blind
+# reviewer. They are never invented at dispatch time.
+if [ "$command" = record ]; then
+  [ -n "$field" ] || stop '--field is required'
+  target=$(artifact_path)
+  [ -f "$target" ] || stop "no artifact to record into: $target"
+  tmp=$target.tmp.$$
+  awk -v k="$field" -v v="$(json_escape "$value")" '
+    { line = $0 }
+    index(line, "\"" k "\":") { sub("\"" k "\":[ ]*\"[^\"]*\"", "\"" k "\": \"" v "\"", line); found = 1 }
+    { print line }
+    END { if (!found) exit 3 }
+  ' "$target" > "$tmp" || { rm -f "$tmp"; stop "unknown field $field"; }
+  mv "$tmp" "$target"
+  printf 'RECORDED %s=%s in %s\n' "$field" "$value" "$(basename "$target")"
   exit 0
 fi
 
-[ -n "$task" ] || stop '--task is required'
-[ -n "$block" ] || stop '--block is required'
-[ -n "$arm" ] || stop '--arm is required'
-[ -n "$prompt" ] || stop '--prompt is required'
+[ "$command" = dispatch ] || { usage; exit 1; }
+
+for required in task block arm agent_type prompt kind; do
+  eval "v=\$$required"
+  [ -n "$v" ] || stop "--${required} is required"
+done
 [ -f "$prompt" ] || stop "prompt file not found: $prompt"
+case $max_seconds in ''|*[!0-9]*) stop '--max-seconds must be a positive integer' ;; esac
+[ "$max_seconds" -gt 0 ] || stop '--max-seconds must be a positive integer'
 
-resolved=$("$PILOT_ROOT/scripts/gen-agents" --resolve --host codex --require-local-map | awk -F'|' -v a="$arm" '$1 == a { print $2 "|" $3 }')
-[ -n "$resolved" ] || stop "arm $arm is not an alias in the local model map"
-expected_model=${resolved%|*}
-expected_effort=${resolved#*|}
+target=$(artifact_path)
+[ ! -e "$target" ] || stop "artifact already exists, refusing to overwrite: $target"
+
+expected=$("$PILOT_ROOT/scripts/gen-agents" --resolve --host codex --require-local-map |
+  awk -F'|' -v a="$arm" '$1 == a { print $2 "|" $3 }')
+[ -n "$expected" ] || stop "arm $arm is not an alias in the local model map"
+expected_model=${expected%|*}
+expected_effort=${expected#*|}
+
+prompt_sha=$(shasum -a 256 "$prompt" 2>/dev/null | awk '{print $1}')
+[ -n "$prompt_sha" ] || prompt_sha=$(sha256sum "$prompt" | awk '{print $1}')
 
 work=$(mktemp -d "${TMPDIR:-/tmp}/pilot-run.XXXXXX")
 trap 'rm -rf "$work"' EXIT HUP INT TERM
 
-case $max_seconds in
-  ''|*[!0-9]*) stop "--max-seconds must be a positive integer" ;;
-esac
-[ "$max_seconds" -gt 0 ] || stop '--max-seconds must be a positive integer'
-
+started_at=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
 started=$(date +%s)
 killed=no
-# PILOT_EXEC exists so the harness itself can be tested without spending credits.
 if [ -n "${PILOT_EXEC-}" ]; then
   # shellcheck disable=SC2086
   $PILOT_EXEC "$expected_model" "$expected_effort" < "$prompt" > "$work/events.jsonl" 2>"$work/exec.err" &
 else
-  # No override of model or effort: the dispatched state's definition owns the
-  # routing, and an override with `agent_type` is accepted and ignored anyway.
   ( [ -n "$run_cwd" ] && cd "$run_cwd"
     codex exec --json --skip-git-repo-check - ) < "$prompt" > "$work/events.jsonl" 2>"$work/exec.err" &
 fi
 exec_pid=$!
 
-# codex exec has no turn or token cap, so the hard budget is wall clock enforced
-# here. A derailed dispatch is killed, not left to spend.
 waited=0
 while kill -0 "$exec_pid" 2>/dev/null; do
   if [ "$waited" -ge "$max_seconds" ]; then
@@ -144,37 +159,25 @@ while kill -0 "$exec_pid" 2>/dev/null; do
 done
 wait "$exec_pid" 2>/dev/null || :
 elapsed=$(( $(date +%s) - started ))
+ended_at=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
 
-field() {
-  awk -v key="$1" '
-    { while (match($0, "\"" key "\":[0-9]+")) {
-        value = substr($0, RSTART + length(key) + 3, RLENGTH - length(key) - 3)
-        $0 = substr($0, RSTART + RLENGTH)
-      }
-    }
-    END { print value + 0 }
-  ' "$work/events.jsonl"
-}
+# Real failures only. Chronicle and duplicate-hooks notices are emitted on every
+# start; counting them would report a tool failure on every single row.
+tool_failures=$(awk '
+  /"type":"error"/ {
+    if ($0 ~ /Under-development features/) next
+    if ($0 ~ /loading hooks from both/) next
+    count++
+  }
+  /"status":"failed"/ { count++ }
+  END { print count + 0 }
+' "$work/events.jsonl")
 
-thread=$(awk 'match($0, /"thread_id":"[^"]+"/) { print substr($0, RSTART + 13, RLENGTH - 14); exit }' "$work/events.jsonl")
-tool_failures=$(grep -c '"type":"error"' "$work/events.jsonl" || :)
-
-# The routing is read from the session rollout, never from the model's own report.
-#
-# `thread.started` is the PARENT thread of `codex exec`, which always runs at the
-# host default. Reading it would mark every row as off-arm and discard the whole
-# experiment. The dispatched agent is the child: its rollout carries
-# `parent_thread_id`, and that is the join.
-observed_model=-
-observed_effort=-
-dispatched=no
-child=
-# The id in `thread.started` is not always the id the child records as its
-# parent. The rollout is the reliable side: find the parent rollout for this run
-# (newest whose cwd is the dispatch directory), take its own id, and join on that.
-parent_id=$thread
+# The parent rollout is found by its cwd; the id in `thread.started` is not always
+# the id the child records as its parent.
+parent_id=$(awk 'match($0, /"thread_id":"[^"]+"/) { print substr($0, RSTART + 13, RLENGTH - 14); exit }' "$work/events.jsonl")
 if [ -n "$run_cwd" ]; then
-  for candidate in $(ls -t "$PILOT_SESSIONS_DIR"/*/*/*/*.jsonl 2>/dev/null | head -40); do
+  for candidate in $(ls -t "$PILOT_SESSIONS_DIR"/*/*/*/*.jsonl 2>/dev/null | head -60); do
     head -1 "$candidate" | grep -Fq "\"cwd\":\"$run_cwd\"" || continue
     head -1 "$candidate" | grep -Fq '"thread_source":"subagent"' && continue
     found=$(head -1 "$candidate" | awk 'match($0, /"id":"[^"]+"/) { print substr($0, RSTART + 6, RLENGTH - 7); exit }')
@@ -182,91 +185,150 @@ if [ -n "$run_cwd" ]; then
     break
   done
 fi
+
+child=
+child_id=-
 if [ -n "$parent_id" ]; then
   child=$(grep -l "\"parent_thread_id\":\"$parent_id\"" "$PILOT_SESSIONS_DIR"/*/*/*/*.jsonl 2>/dev/null | head -1)
-  if [ -n "$child" ]; then
-    dispatched=yes
-    observed_model=$(awk 'match($0, /"model":"[^"]+"/) { print substr($0, RSTART + 9, RLENGTH - 10); exit }' "$child")
-    observed_effort=$(awk 'match($0, /"effort":"[^"]+"/) { print substr($0, RSTART + 10, RLENGTH - 11); exit }' "$child")
-    [ -n "$observed_model" ] || observed_model=-
-    [ -n "$observed_effort" ] || observed_effort=-
-  fi
+  [ -n "$child" ] && child_id=$(head -1 "$child" | awk 'match($0, /"id":"[^"]+"/) { print substr($0, RSTART + 6, RLENGTH - 7); exit }')
 fi
 
-# The parent's usage is orchestration overhead, not the arm's cost: the parent
-# dispatches and summarises while the subagent does the work. Measuring the parent
-# understates the arm by an order of magnitude, and cost-to-accepted is the metric
-# that decides the pilot.
-child_usage() {
-  [ -n "$child" ] || return 1
-  awk -v key="$1" '
+observed_model=-
+observed_effort=-
+cached=0; input=0; output=0; reasoning=0; cost=0
+if [ -n "$child" ]; then
+  observed_model=$(awk 'match($0, /"model":"[^"]+"/) { print substr($0, RSTART + 9, RLENGTH - 10); exit }' "$child")
+  observed_effort=$(awk 'match($0, /"effort":"[^"]+"/) { print substr($0, RSTART + 10, RLENGTH - 11); exit }' "$child")
+  [ -n "$observed_model" ] || observed_model=-
+  [ -n "$observed_effort" ] || observed_effort=-
+
+  usage=$(awk '
     {
       line = $0
-      while (match(line, "\"total_token_usage\":\\{[^}]*\\}")) {
+      while (match(line, /"total_token_usage":\{[^}]*\}/)) {
         block = substr(line, RSTART, RLENGTH)
-        if (match(block, "\"" key "\":[0-9]+")) {
-          pair = substr(block, RSTART, RLENGTH)
-          match(pair, "[0-9]+$")
-          value = substr(pair, RSTART, RLENGTH)
-        }
         line = substr(line, RSTART + RLENGTH)
+        split("", f)
+        n = split(block, parts, ",")
+        for (i = 1; i <= n; i++) {
+          if (match(parts[i], /"[a-z_]+":[0-9]+/)) {
+            kv = substr(parts[i], RSTART, RLENGTH)
+            split(kv, pair, ":")
+            gsub(/"/, "", pair[1])
+            f[pair[1]] = pair[2]
+          }
+        }
+        inp = f["input_tokens"]; cch = f["cached_input_tokens"]
+        out = f["output_tokens"]; rsn = f["reasoning_output_tokens"]
       }
     }
-    END { if (value == "") exit 1; print value }
-  ' "$child"
-}
+    END { printf "%d %d %d %d\n", inp + 0, cch + 0, out + 0, rsn + 0 }
+  ' "$child")
+  input=$(printf '%s' "$usage" | awk '{print $1}')
+  cached=$(printf '%s' "$usage" | awk '{print $2}')
+  output=$(printf '%s' "$usage" | awk '{print $3}')
+  reasoning=$(printf '%s' "$usage" | awk '{print $4}')
 
-if cached=$(child_usage cached_input_tokens) &&
-  input=$(child_usage input_tokens) &&
-  output=$(child_usage output_tokens) &&
-  reasoning=$(child_usage reasoning_output_tokens); then
-  cost_source=subagent
-else
-  cost_source=parent
-  cached=$(field cached_input_tokens)
-  input=$(field input_tokens)
-  output=$(field output_tokens)
-  reasoning=$(field reasoning_output_tokens)
+  # Frozen prices, applied per turn so the >272K input surcharge lands on the
+  # turns that actually crossed it. `output_tokens` already includes reasoning;
+  # charging reasoning again would double-count it.
+  cost=$(awk -v model="$observed_model" '
+    function price(kind,   m) {
+      m = model
+      if (m ~ /sol/) { if (kind == "in") return 4.0; if (kind == "cached") return 0.40; return 20.0 }
+      if (kind == "in") return 0.20; if (kind == "cached") return 0.02; return 1.20
+    }
+    {
+      line = $0
+      while (match(line, /"last_token_usage":\{[^}]*\}/)) {
+        block = substr(line, RSTART, RLENGTH)
+        line = substr(line, RSTART + RLENGTH)
+        split("", f)
+        n = split(block, parts, ",")
+        for (i = 1; i <= n; i++) {
+          if (match(parts[i], /"[a-z_]+":[0-9]+/)) {
+            kv = substr(parts[i], RSTART, RLENGTH)
+            split(kv, pair, ":")
+            gsub(/"/, "", pair[1])
+            f[pair[1]] = pair[2]
+          }
+        }
+        inp = f["input_tokens"] + 0
+        cch = f["cached_input_tokens"] + 0
+        out = f["output_tokens"] + 0
+        fresh = inp - cch
+        if (fresh < 0) fresh = 0
+        in_mult = 1; out_mult = 1
+        if (inp > 272000) { in_mult = 2; out_mult = 1.5 }
+        total += (fresh / 1000000.0) * price("in") * in_mult
+        total += (cch / 1000000.0) * price("cached") * in_mult
+        total += (out / 1000000.0) * price("out") * out_mult
+      }
+    }
+    END { printf "%.4f\n", total + 0 }
+  ' "$child")
 fi
+
 uncached=$(( input - cached ))
 [ "$uncached" -ge 0 ] || uncached=0
 
-# A row whose observed pair differs from its arm belongs to another arm. It is
-# marked, never silently averaged in.
+parent_cost=0
+parent_usage=$(awk 'match($0, /"input_tokens":[0-9]+/) { i = substr($0, RSTART + 15, RLENGTH - 15) }
+  match($0, /"cached_input_tokens":[0-9]+/) { c = substr($0, RSTART + 22, RLENGTH - 22) }
+  match($0, /"output_tokens":[0-9]+/) { o = substr($0, RSTART + 16, RLENGTH - 16) }
+  END { printf "%d %d %d\n", i + 0, c + 0, o + 0 }' "$work/events.jsonl")
+
 if [ "$killed" = yes ]; then
   routing_ok=KILLED
-elif [ "$dispatched" = no ]; then
-  # No child thread: the parent did the work itself instead of delegating. That is
-  # a failed dispatch, not a row measured at the parent's pair.
+elif [ -z "$child" ]; then
   routing_ok=NO-DISPATCH
 elif [ "$observed_model" = "$expected_model" ] && [ "$observed_effort" = "$expected_effort" ]; then
   routing_ok=yes
-elif [ "$observed_model" = - ]; then
-  routing_ok=unknown
 else
   routing_ok=NO
 fi
 
-row=$(printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t\t\t\t\t\t\t\t\t\t' \
-  "$task" "$block" "$arm" "${order:--}" \
-  "$expected_model" "$expected_effort" "$observed_model" "$observed_effort" "$routing_ok" \
-  "$cached" "$uncached" "$output" "$reasoning" "$elapsed" "$tool_failures")
+cat > "$target" <<JSON
+{
+  "task": "$(json_escape "$task")",
+  "block": "$(json_escape "$block")",
+  "arm": "$(json_escape "$arm")",
+  "agent_type": "$(json_escape "$agent_type")",
+  "kind": "$(json_escape "$kind")",
+  "attempt": $attempt,
+  "order": "$(json_escape "$order")",
+  "base_sha": "$(json_escape "$base_sha")",
+  "prompt_sha256": "$prompt_sha",
+  "started_at": "$started_at",
+  "ended_at": "$ended_at",
+  "wall_seconds": $elapsed,
+  "parent_thread_id": "$(json_escape "$parent_id")",
+  "child_thread_id": "$(json_escape "$child_id")",
+  "expected_model": "$expected_model",
+  "expected_effort": "$expected_effort",
+  "model": "$observed_model",
+  "effort": "$observed_effort",
+  "routing_ok": "$routing_ok",
+  "tokens_cached": $cached,
+  "tokens_uncached": $uncached,
+  "tokens_output": $output,
+  "tokens_reasoning": $reasoning,
+  "cost_usd":$cost,
+  "parent_overhead_tokens": "$(printf '%s' "$parent_usage" | tr ' ' '/')",
+  "tool_failures": $tool_failures,
+  "accepted": "",
+  "blocking": "",
+  "important": "",
+  "corrections": "",
+  "failure_detail": ""
+}
+JSON
 
-if [ -n "$results" ]; then
-  [ -f "$results" ] || printf '%s\n' "$COLUMNS" > "$results"
-  printf '%s\n' "$row" >> "$results"
-fi
-printf '%s\n' "$row"
-
+printf '%s %s %s %s %s %ss $%s\n' "$task" "$arm" "$observed_model" "$observed_effort" "$routing_ok" "$elapsed" "$cost"
 if [ "$killed" = yes ]; then
   printf '%s\n' "WARN $task/$arm hit the ${max_seconds}s hard cap and was killed" >&2
 elif [ "$routing_ok" = NO-DISPATCH ]; then
   printf '%s\n' "WARN $task/$arm never dispatched a subagent; the parent did the work" >&2
-
 elif [ "$routing_ok" != yes ]; then
   printf '%s\n' "WARN routing_ok=$routing_ok for $task/$arm: this row belongs to another arm" >&2
-fi
-
-if [ "$cost_source" = parent ] && [ "$dispatched" = yes ]; then
-  printf '%s\n' "WARN $task/$arm cost came from the parent: the subagent reported no usage" >&2
 fi

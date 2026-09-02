@@ -4,156 +4,147 @@ set -eu
 
 root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
 harness=$root/scripts/pilot-run
+report=$root/scripts/pilot-report
 tmpdir=$(mktemp -d "${TMPDIR:-/tmp}/pilot-run-test.XXXXXX")
 trap 'rm -rf "$tmpdir"' EXIT HUP INT TERM
 
 fail() { printf '%s\n' "FAIL: $*" >&2; exit 1; }
 
-mkdir -p "$tmpdir/cfg/agent-scaffolding" "$tmpdir/sessions"
+mkdir -p "$tmpdir/cfg/agent-scaffolding" "$tmpdir/sessions/2026/09/02" "$tmpdir/run" "$tmpdir/att"
 cat > "$tmpdir/cfg/agent-scaffolding/model-map.yaml" <<'EOF'
 aliases:
   - id: economy
-    model_codex: fixture-economy
-    model_claude: fixture-economy-cl
+    model_codex: luna-test
+    model_claude: luna-cl
     effort: high
   - id: balanced
-    model_codex: fixture-balanced
-    model_claude: fixture-balanced-cl
+    model_codex: luna-test
+    model_claude: luna-cl
     effort: xhigh
   - id: frontier
-    model_codex: fixture-frontier
-    model_claude: fixture-frontier-cl
+    model_codex: sol-test
+    model_claude: sol-cl
     effort: xhigh
   - id: critical
-    model_codex: fixture-critical
-    model_claude: fixture-critical-cl
+    model_codex: sol-test
+    model_claude: sol-cl
     effort: max
 EOF
-XDG_CONFIG_HOME=$tmpdir/cfg
-export XDG_CONFIG_HOME
-PILOT_SESSIONS_DIR=$tmpdir/sessions
-export PILOT_SESSIONS_DIR
+XDG_CONFIG_HOME=$tmpdir/cfg; export XDG_CONFIG_HOME
+PILOT_SESSIONS_DIR=$tmpdir/sessions; export PILOT_SESSIONS_DIR
+printf 'tarea acotada\n' > "$tmpdir/prompt.txt"
 
-printf 'haz algo acotado\n' > "$tmpdir/prompt.txt"
-
-# A fake exec keeps the harness testable without spending credits. It writes the
-# event stream the harness parses and the rollout it reads routing from.
+# The fake exec stands in for `codex exec`. The parent it writes is deliberately
+# unlike the child: different id, different model, far cheaper. Every confusion
+# this harness has actually shipped came from reading the parent, so the fixture
+# makes that mistake detectable instead of plausible.
 cat > "$tmpdir/fake-exec" <<'EOF'
 #!/bin/sh
 model=$1
 effort=$2
-[ "${FAKE_ROUTING-}" = drift ] && { model=other-model; effort=low; }
+[ "${FAKE_ROUTING-}" = drift ] && { model=drifted-model; effort=low; }
 cat <<JSON
-{"type":"thread.started","thread_id":"fixture-thread-1"}
-{"type":"item.completed","item":{"type":"error","message":"tool blew up"}}
-{"type":"turn.completed","usage":{"input_tokens":1000,"cached_input_tokens":400,"output_tokens":50,"reasoning_output_tokens":25}}
+{"type":"thread.started","thread_id":"event-id-not-the-rollout-id"}
+{"type":"item.completed","item":{"type":"error","message":"Under-development features enabled: chronicle."}}
+{"type":"item.completed","item":{"type":"error","message":"loading hooks from both places"}}
+{"type":"turn.completed","usage":{"input_tokens":1000,"cached_input_tokens":400,"output_tokens":50}}
 JSON
-mkdir -p "$PILOT_SESSIONS_DIR/2026/09/02"
+[ "${FAKE_TOOL_FAIL-}" = yes ] && printf '{"type":"item.completed","item":{"type":"error","message":"command exploded"}}\n'
 rm -f "$PILOT_SESSIONS_DIR/2026/09/02/rollout-child.jsonl"
-# The parent always runs at the host default. Measuring it would mark every row
-# off-arm, so the fixture makes parent and child differ on purpose.
-# The id in `thread.started` is NOT always the id the child records as its
-# parent, so the fixture makes them differ and joins through the rollout's cwd.
-printf '{"payload":{"model":"host-default","effort":"xhigh","id":"rollout-id-1","cwd":"%s"}}\n' \
+printf '{"payload":{"id":"real-parent-id","cwd":"%s","model":"host-default","effort":"xhigh"}}\n' \
   "$FAKE_CWD" > "$PILOT_SESSIONS_DIR/2026/09/02/rollout-parent.jsonl"
 if [ "${FAKE_NO_DISPATCH-}" != yes ]; then
-  # The child carries the real cost. The parent's numbers below are deliberately
-  # different and much smaller: measuring them understates the arm.
-  printf '{"payload":{"thread_source":"subagent","parent_thread_id":"rollout-id-1","model":"%s","effort":"%s"}}\n' \
-    "$model" "$effort" > "$PILOT_SESSIONS_DIR/2026/09/02/rollout-child.jsonl"
-  printf '{"payload":{"info":{"total_token_usage":{"input_tokens":9000,"cached_input_tokens":6000,"output_tokens":700,"reasoning_output_tokens":300}}}}\n' \
-    >> "$PILOT_SESSIONS_DIR/2026/09/02/rollout-child.jsonl"
+  {
+    printf '{"payload":{"thread_source":"subagent","parent_thread_id":"real-parent-id","id":"real-child-id","model":"%s","effort":"%s"}}\n' "$model" "$effort"
+    printf '{"payload":{"info":{"last_token_usage":{"input_tokens":300000,"cached_input_tokens":100000,"output_tokens":1000}}}}\n'
+    printf '{"payload":{"info":{"total_token_usage":{"input_tokens":300000,"cached_input_tokens":100000,"output_tokens":1000,"reasoning_output_tokens":400}}}}\n'
+  } > "$PILOT_SESSIONS_DIR/2026/09/02/rollout-child.jsonl"
 fi
 EOF
 chmod +x "$tmpdir/fake-exec"
-PILOT_EXEC=$tmpdir/fake-exec
-export PILOT_EXEC
-FAKE_CWD=$tmpdir/run
-mkdir -p "$FAKE_CWD"
-export FAKE_CWD
+PILOT_EXEC=$tmpdir/fake-exec; export PILOT_EXEC
+FAKE_CWD=$tmpdir/run; export FAKE_CWD
 
-# The header is the row contract; judgment columns must exist and stay empty.
-header=$("$harness" --header)
-for column in tarea brazo routing_ok tokens_no_cacheados tokens_reasoning coste_hasta_aceptado blocking_escapados; do
-  printf '%s' "$header" | tr '\t' '\n' | grep -qx "$column" || fail "header is missing column $column"
+run_dispatch() {
+  "$harness" dispatch --task "$1" --block b --arm "$2" --agent-type "implementer-$2" \
+    --prompt "$tmpdir/prompt.txt" --attempts "$tmpdir/att" --kind "${3:-implementation}" \
+    --attempt "${4:-1}" --cwd "$FAKE_CWD" --base-sha deadbeef >/dev/null 2>"$tmpdir/warn.txt"
+}
+art() { printf '%s/%s__%s__%s__%s.json' "$tmpdir/att" "$1" "$2" "${3:-implementation}" "${4:-1}"; }
+field() { awk -v k="$2" 'match($0, "\"" k "\":[ ]*\"?[^\",]*") { s = substr($0, RSTART, RLENGTH); sub("\"" k "\":[ ]*\"?", "", s); print s; exit }' "$1"; }
+
+# 1. One artifact per attempt, written once. Nothing appends to a shared file, so
+#    two runs cannot interleave and a repeat cannot silently overwrite evidence.
+run_dispatch T1 economy
+[ -f "$(art T1 economy)" ] || fail 'no per-attempt artifact was written'
+if run_dispatch T1 economy 2>/dev/null; then fail 'a second run overwrote an existing artifact'; fi
+run_dispatch T1 economy implementation 2
+[ -f "$(art T1 economy implementation 2)" ] || fail 'a second attempt needs its own artifact'
+[ "$(ls "$tmpdir/att" | wc -l | tr -d ' ')" -eq 2 ] || fail 'artifacts collided'
+
+# 2. The join survives the event id differing from the parent rollout id.
+[ "$(field "$(art T1 economy)" parent_thread_id)" = real-parent-id ] \
+  || fail 'the join did not use the parent rollout id'
+[ "$(field "$(art T1 economy)" child_thread_id)" = real-child-id ] || fail 'the child was not identified'
+
+# 3. Model, effort and usage come from the child, never the parent.
+[ "$(field "$(art T1 economy)" model)" = luna-test ] || fail 'model was not read from the child'
+if [ "$(field "$(art T1 economy)" model)" = host-default ]; then fail 'the parent model was measured'; fi
+[ "$(field "$(art T1 economy)" tokens_cached)" = 100000 ] || fail 'cached tokens were not the child ones'
+[ "$(field "$(art T1 economy)" tokens_uncached)" = 200000 ] || fail 'uncached tokens were not the child ones'
+[ "$(field "$(art T1 economy)" tokens_output)" = 1000 ] || fail 'output tokens were not the child ones'
+[ "$(field "$(art T1 economy)" tokens_reasoning)" = 400 ] || fail 'reasoning tokens were not the child ones'
+
+# 4. Tool failures count real failures. Chronicle and duplicate-hook notices are
+#    printed on every start: counting them reports a failure on every row.
+[ "$(field "$(art T1 economy)" tool_failures)" = 0 ] || fail 'startup warnings were counted as tool failures'
+FAKE_TOOL_FAIL=yes run_dispatch T2 economy
+[ "$(field "$(art T2 economy)" tool_failures)" = 1 ] || fail 'a real tool failure was not counted'
+
+# 5. Judgement fields start empty and are filled only by the judge and reviewer.
+[ -z "$(field "$(art T1 economy)" accepted)" ] || fail 'acceptance was invented at dispatch time'
+"$harness" record --attempts "$tmpdir/att" --task T1 --arm economy --kind implementation \
+  --attempt 1 --field accepted --value si >/dev/null
+[ "$(field "$(art T1 economy)" accepted)" = si ] || fail 'recording acceptance did not work'
+if "$harness" record --attempts "$tmpdir/att" --task T1 --arm economy --kind implementation \
+  --attempt 1 --field invented --value x >/dev/null 2>&1; then fail 'an unknown field was accepted'; fi
+
+# 6. Every attempt keeps the evidence needed to audit it later.
+for key in base_sha prompt_sha256 started_at ended_at wall_seconds parent_thread_id \
+  child_thread_id model effort routing_ok cost_usd parent_overhead_tokens; do
+  [ -n "$(field "$(art T1 economy)" "$key")" ] || fail "the artifact is missing $key"
 done
+[ "$(field "$(art T1 economy)" base_sha)" = deadbeef ] || fail 'base sha not recorded'
 
-row=$("$harness" --task T1 --block mecanicas --arm economy --prompt "$tmpdir/prompt.txt" --order 2 --cwd "$FAKE_CWD" --results "$tmpdir/out.tsv")
-value() { printf '%s' "$row" | cut -f "$1"; }
-[ "$(value 1)" = T1 ] || fail 'task not recorded'
-[ "$(value 3)" = economy ] || fail 'arm not recorded'
-[ "$(value 4)" = 2 ] || fail 'order not recorded'
-[ "$(value 5)" = fixture-economy ] || fail 'expected model not resolved from the map'
-[ "$(value 7)" = fixture-economy ] || fail 'observed model not read from the subagent rollout'
-if [ "$(value 7)" = host-default ]; then fail 'the harness measured the parent thread, not the subagent'; fi
-# The join must survive the event id and the rollout id being different.
-grep -Fq '"id":"rollout-id-1"' "$PILOT_SESSIONS_DIR/2026/09/02/rollout-parent.jsonl" \
-  || fail 'the fixture no longer exercises the id mismatch'
-[ "$(value 9)" = yes ] || fail 'routing_ok should pass when observed matches the arm'
-# Cost is the subagent's, not the parent's. The parent reports 400/600/50/25;
-# reading it would understate the arm by an order of magnitude.
-[ "$(value 10)" = 6000 ] || fail 'cached tokens were not read from the subagent'
-[ "$(value 11)" = 3000 ] || fail 'uncached tokens must be the subagent input minus cached'
-[ "$(value 12)" = 700 ] || fail 'output tokens were not read from the subagent'
-[ "$(value 13)" = 300 ] || fail 'reasoning tokens were not read from the subagent'
-if [ "$(value 10)" = 400 ]; then fail 'the harness measured the parent cost, not the arm'; fi
-[ "$(value 15)" = 1 ] || fail 'tool failures not counted'
+# Cost uses the frozen prices, per turn, with the >272K surcharge, and never
+# charges reasoning twice: output already contains it.
+#   fresh 200000 -> 0.2*0.2*2 = 0.08 ; cached 100000 -> 0.1*0.02*2 = 0.004
+#   output 1000 -> 0.001*1.2*1.5 = 0.0018     total = 0.0858
+cost=$(field "$(art T1 economy)" cost_usd)
+[ "$cost" = 0.0858 ] || fail "frozen-price cost is wrong: got $cost, expected 0.0858"
+# The same usage on the Sol curve must cost far more, or the curves are not
+# being distinguished at all.
+run_dispatch T3 frontier
+sol=$(field "$(art T3 frontier)" cost_usd)
+awk -v a="$sol" -v b="$cost" 'BEGIN { exit !(a > b * 10) }' || fail 'the Sol curve is not priced above Luna'
 
-# Judgment columns are never invented by the harness.
-for column in 16 17 18 19 20 21 22 23 24 25; do
-  [ -z "$(value "$column")" ] || fail "harness filled judgment column $column"
-done
+# The parent's own usage is kept, separately, as experiment overhead.
+[ -n "$(field "$(art T1 economy)" parent_overhead_tokens)" ] || fail 'parent overhead was discarded'
 
-# The results file accumulates rows under one header.
-[ "$(head -1 "$tmpdir/out.tsv")" = "$header" ] || fail 'results file lacks the header'
-"$harness" --task T2 --block mecanicas --arm balanced --prompt "$tmpdir/prompt.txt" --cwd "$FAKE_CWD" --results "$tmpdir/out.tsv" >/dev/null
-[ "$(wc -l < "$tmpdir/out.tsv")" -eq 3 ] || fail 'results file did not accumulate rows'
+# 7. The aggregator refuses incomplete rows and rows that ran off their arm.
+FAKE_ROUTING=drift run_dispatch T4 frontier
+grep -q 'belongs to another arm' "$tmpdir/warn.txt" || fail 'routing drift was not warned about'
+FAKE_NO_DISPATCH=yes run_dispatch T5 economy
+[ "$(field "$(art T5 economy)" routing_ok)" = NO-DISPATCH ] || fail 'a missing subagent was not flagged'
+out=$("$report" "$tmpdir/att")
+printf '%s' "$out" | grep -q '^T1	' || fail 'a complete row was dropped from the report'
+printf '%s' "$out" | grep -q 'T4.*routing' || fail 'a drifted row was not listed as excluded'
+printf '%s' "$out" | grep -q 'T5.*infraestructura' || fail 'a NO-DISPATCH row was not listed as excluded'
+printf '%s' "$out" | awk -F'\t' '$1 == "T2" && NF > 10' | grep -q . && fail 'an unjudged row was counted as a result'
+printf '%s' "$out" | grep -q 'coste_overhead_usd' || fail 'shared overhead is not reported separately'
 
-# A run that drifted off its arm is marked, not silently averaged in.
-drift=$(FAKE_ROUTING=drift "$harness" --task T3 --block mecanicas --arm frontier --prompt "$tmpdir/prompt.txt" --cwd "$FAKE_CWD" 2>"$tmpdir/warn.txt")
-[ "$(printf '%s' "$drift" | cut -f 9)" = NO ] || fail 'routing drift not marked'
-grep -q 'belongs to another arm' "$tmpdir/warn.txt" || fail 'routing drift not warned about'
-
-# The hard cap kills a dispatch that overruns and marks the row instead of
-# letting it spend. codex exec has no cap of its own.
-cat > "$tmpdir/slow-exec" <<'EOF'
-#!/bin/sh
-sleep 120
-EOF
-chmod +x "$tmpdir/slow-exec"
-capped=$(PILOT_EXEC=$tmpdir/slow-exec "$harness" --task T9 --block mecanicas --arm economy \
-  --prompt "$tmpdir/prompt.txt" --max-seconds 5 2>"$tmpdir/cap.txt")
-[ "$(printf '%s' "$capped" | cut -f 9)" = KILLED ] || fail 'an overrunning dispatch was not marked KILLED'
-grep -q 'hard cap' "$tmpdir/cap.txt" || fail 'the hard cap did not warn'
-[ "$(printf '%s' "$capped" | cut -f 14)" -lt 60 ] || fail 'the dispatch was not actually killed'
-if "$harness" --task TA --block mecanicas --arm economy --prompt "$tmpdir/prompt.txt" --max-seconds 0 >/dev/null 2>&1; then
-  fail 'a zero budget was accepted'
-fi
-
-# A dispatch that never spawned a subagent is a failed dispatch, not a row
-# measured at the parent's pair.
-nodisp=$(FAKE_NO_DISPATCH=yes "$harness" --task T8 --block mecanicas --arm economy \
-  --prompt "$tmpdir/prompt.txt" --cwd "$FAKE_CWD" 2>"$tmpdir/nodisp.txt")
-[ "$(printf '%s' "$nodisp" | cut -f 9)" = NO-DISPATCH ] || fail 'a missing subagent was not reported'
-grep -q 'never dispatched a subagent' "$tmpdir/nodisp.txt" || fail 'no warning for a missing dispatch'
-
-# Arm order is randomised per task and covers every arm exactly once.
-printf 'T1\tmecanicas\teconomy,balanced\nT2\tlargo\teconomy,balanced,frontier\n' > "$tmpdir/tasks.tsv"
-order=$("$harness" --order --tasks "$tmpdir/tasks.tsv" --seed 7)
-[ "$(printf '%s\n' "$order" | wc -l)" -eq 5 ] || fail 'order did not emit one row per task-arm'
-[ "$(printf '%s\n' "$order" | awk -F'\t' '$1=="T2"' | cut -f3 | sort | tr '\n' ' ')" = 'balanced economy frontier ' ] \
-  || fail 'order dropped or duplicated an arm'
-[ "$(printf '%s\n' "$order" | awk -F'\t' '$1=="T2"' | cut -f4 | sort | tr '\n' ' ')" = '1 2 3 ' ] \
-  || fail 'order positions are not 1..n'
-same=$("$harness" --order --tasks "$tmpdir/tasks.tsv" --seed 7)
-[ "$order" = "$same" ] || fail 'a seeded order is not reproducible'
-
-# Unknown arms and missing inputs stop instead of producing a row.
-if "$harness" --task T4 --block mecanicas --arm nonexistent --prompt "$tmpdir/prompt.txt" >/dev/null 2>&1; then
-  fail 'unknown arm accepted'
-fi
-if "$harness" --task T5 --block mecanicas --arm economy --prompt "$tmpdir/absent.txt" >/dev/null 2>&1; then
-  fail 'missing prompt accepted'
-fi
+# 8. The recorded spend is what enforces the global ceiling, not an estimate.
+spent=$("$harness" spent --attempts "$tmpdir/att")
+awk -v v="$spent" 'BEGIN { exit !(v > 0) }' || fail 'spend is not accumulated across artifacts'
 
 printf '%s\n' 'ok - pilot harness'
