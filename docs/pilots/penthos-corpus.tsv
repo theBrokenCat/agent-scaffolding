@@ -1,0 +1,10 @@
+# Pre-registro del piloto PenthOX Luna vs Sol. Congelado antes del primer despacho.
+# base = <sha>^. brief_sha256 identico para los dos brazos de la tarea.
+tarea	bloque	sha	base	brazo_1	brazo_2	orden	brief_sha256	tests_canonicos
+A1	mecanicas	cf98b51	e38c3a7	economy	frontier	1	acad4c145a8f59015a0c18ebab89fba1da2642649baa98f92353432f6f083280	tests/scanner.test.ts
+A2	mecanicas	d728351	a4a2d1c	frontier	economy	2	dc642d9e9e089e5f0729379bfca806a415e706b3a0445d33c690501cf54f2001	tests/cli-run-options.test.ts
+A3	mecanicas	3c00c8e	c1c9cd0	economy	frontier	3	4a2d04ac8c33254245e1b81cecc2a768cfce0824ffdb57b221a5f81509865f01	tests/hybrid-runner.test.ts
+B1	normales	00d65b4	cf98b51	balanced	frontier	4	f522fb7fe0db0ef5f0d2669ebb9ab1136bf514d8a937407dcd8a6bad5a76dc15	tests/passive-checks.test.ts
+B2	normales	a314e89	16c8fec	frontier	balanced	5	6f684d9969ac3026fdc4a3e6be74bf7c2ad514db2b353a5d52fe33e647a74623	tests/default-services.test.ts,tests/open-redirect-confirmation.test.ts
+C1	gate	279d571	1ec8266	frontier	balanced	6	65deb07aff68769e7f63546bdcbc8bdd2512b3fb40f5a3066afebc37a2675268	tests/reservation-reconciliation.test.ts
+D1	largo	049e62a	50ac5f4	frontier	balanced	7	314209e5f6f22b11ac345a7aa76e2850fbbfe143245527451c6f92e71cbb13b7	tests/no-progress-budget.test.ts,tests/objective-run-lifecycle.test.ts,tests/objective-state-machine.test.ts

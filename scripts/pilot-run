@@ -22,7 +22,8 @@ usage() {
   cat >&2 <<'EOF'
 usage:
   pilot-run dispatch --task ID --block B --arm ALIAS --agent-type NAME
-                     --prompt FILE --attempts DIR --kind implementation|correction|review
+                     --prompt FILE [--brief FILE] --attempts DIR
+                     --kind implementation|correction|review
                      [--order N] [--attempt N] [--base-sha SHA] [--cwd DIR]
                      [--max-seconds N]
   pilot-run record   --attempts DIR --task ID --arm ALIAS --kind KIND --attempt N
@@ -43,7 +44,7 @@ command=${1-}
 [ -n "$command" ] || { usage; exit 1; }
 shift
 
-task=; block=; arm=; agent_type=; prompt=; attempts=; kind=; order=-
+task=; block=; arm=; agent_type=; prompt=; brief=; attempts=; kind=; order=-
 attempt=1; base_sha=-; run_cwd=; max_seconds=${PILOT_MAX_SECONDS:-1800}
 field=; value=
 while [ "$#" -gt 0 ]; do
@@ -53,6 +54,7 @@ while [ "$#" -gt 0 ]; do
     --arm) shift; arm=${1-} ;;
     --agent-type) shift; agent_type=${1-} ;;
     --prompt) shift; prompt=${1-} ;;
+    --brief) shift; brief=${1-} ;;
     --attempts) shift; attempts=${1-} ;;
     --kind) shift; kind=${1-} ;;
     --order) shift; order=${1-} ;;
@@ -127,8 +129,13 @@ expected=$("$PILOT_ROOT/scripts/gen-agents" --resolve --host codex --require-loc
 expected_model=${expected%|*}
 expected_effort=${expected#*|}
 
-prompt_sha=$(shasum -a 256 "$prompt" 2>/dev/null | awk '{print $1}')
-[ -n "$prompt_sha" ] || prompt_sha=$(sha256sum "$prompt" | awk '{print $1}')
+# The hash records what the implementer actually sees. Both arms of a task get a
+# byte-identical brief; only the dispatch wrapper names a different agent_type, so
+# hashing the wrapper would report a difference that the implementer never sees.
+hashed=${brief:-$prompt}
+[ -f "$hashed" ] || stop "brief file not found: $hashed"
+prompt_sha=$(shasum -a 256 "$hashed" 2>/dev/null | awk '{print $1}')
+[ -n "$prompt_sha" ] || prompt_sha=$(sha256sum "$hashed" | awk '{print $1}')
 
 work=$(mktemp -d "${TMPDIR:-/tmp}/pilot-run.XXXXXX")
 trap 'rm -rf "$work"' EXIT HUP INT TERM
