@@ -32,6 +32,38 @@ value() {
   ' "$1"
 }
 
+valid_decimal() {
+  awk -v n="$1" 'BEGIN { exit !(n ~ /^[0-9]+([.][0-9]+)?$/) }'
+}
+
+sum_costs() {
+  cost_kind=$1
+  sum=0
+  for cost_file in "$attempts/${task}__${arm}__${cost_kind}__"*.json; do
+    [ -f "$cost_file" ] || continue
+    amount=$(value "$cost_file" cost_usd)
+    valid_decimal "$amount" || return 1
+    sum=$(awk -v a="$sum" -v b="$amount" 'BEGIN { printf "%.4f", a + b }')
+  done
+  printf '%.4f\n' "$sum"
+}
+
+sum_linked_costs() {
+  cost_kind=$1; expected_id=$2
+  found=no; sum=0
+  for cost_file in "$attempts/${task}__${arm}__${cost_kind}__"*.json; do
+    [ -f "$cost_file" ] || continue
+    found=yes
+    amount=$(value "$cost_file" cost_usd)
+    valid_decimal "$amount" || return 2
+    [ "$(value "$cost_file" child_thread_id)" = "$expected_id" ] || return 3
+    [ "$(value "$cost_file" routing_ok)" = yes ] || return 4
+    sum=$(awk -v a="$sum" -v b="$amount" 'BEGIN { printf "%.4f", a + b }')
+  done
+  [ "$found" = yes ] || return 1
+  printf '%.4f\n' "$sum"
+}
+
 printf 'tarea\tbase_sha\tbloque\tbrazo\tagent_type\torden\tprompt_sha256\tmodelo\teffort\trouting_ok\taceptado\tblocking\timportant\tcorrecciones\tcached\tuncached\toutput\treasoning\treloj_s\tcoste_impl\tcoste_review\tcoste_correcciones\tcoste_total\tfallo\n'
 
 excluded=$(mktemp "${TMPDIR:-/tmp}/pilot-excluded.XXXXXX")
@@ -49,7 +81,66 @@ for f in "$attempts"/*__implementation__*.json; do
     NO-DISPATCH) cause=infraestructura ;;
     *) cause=routing ;;
   esac
-  [ -n "$cause" ] || [ -n "$accepted" ] || cause=incompleta
+  if [ -z "$cause" ]; then
+    case $accepted in
+      '') cause=missing-accepted ;;
+      yes|no) ;;
+      *) cause=invalid-accepted ;;
+    esac
+  fi
+  if [ -z "$cause" ]; then
+    for judgement in blocking important corrections; do
+      judgement_value=$(value "$f" "$judgement")
+      case $judgement_value in
+        '') cause=missing-$judgement; break ;;
+        *[!0-9]*) cause=invalid-$judgement; break ;;
+      esac
+    done
+  fi
+  if [ -z "$cause" ]; then
+    reviewer_id=$(value "$f" reviewer_id)
+    adjudicator_id=$(value "$f" adjudicator_id)
+    [ -n "$reviewer_id" ] || cause=missing-reviewer_id
+    [ -n "$cause" ] || [ "$reviewer_id" != - ] || cause=invalid-reviewer_id
+    [ -n "$cause" ] || [ -n "$adjudicator_id" ] || cause=missing-adjudicator_id
+  fi
+  if [ -z "$cause" ]; then
+    for identity in task block arm agent_type base_sha prompt_sha256 parent_thread_id \
+      child_thread_id model effort; do
+      identity_value=$(value "$f" "$identity")
+      case $identity_value in ''|-) cause=invalid-$identity; break ;; esac
+    done
+  fi
+
+  cost_impl=$(value "$f" cost_usd)
+  [ -n "$cause" ] || valid_decimal "$cost_impl" || cause=invalid-cost_usd
+  if [ -z "$cause" ]; then
+    if ! cost_corr=$(sum_costs correction); then cause=invalid-correction-cost; fi
+  fi
+  if [ -z "$cause" ]; then
+    review_status=0
+    cost_rev=$(sum_linked_costs review "$reviewer_id") || review_status=$?
+    case $review_status in
+      0) ;;
+      1) cause=missing-review-artifact ;;
+      2) cause=invalid-review-cost ;;
+      3) cause=unlinked-reviewer_id ;;
+      4) cause=invalid-review-routing ;;
+    esac
+  fi
+  if [ -z "$cause" ] && [ "$adjudicator_id" != - ]; then
+    adjudication_status=0
+    cost_adjudication=$(sum_linked_costs adjudication "$adjudicator_id") \
+      || adjudication_status=$?
+    case $adjudication_status in
+      0) cost_rev=$(awk -v a="$cost_rev" -v b="$cost_adjudication" \
+           'BEGIN { printf "%.4f", a + b }') ;;
+      1) cause=missing-adjudication-artifact ;;
+      2) cause=invalid-adjudication-cost ;;
+      3) cause=unlinked-adjudicator_id ;;
+      4) cause=invalid-adjudication-routing ;;
+    esac
+  fi
 
   if [ -n "$cause" ]; then
     printf '%s\t%s\t%s\t%s\n' "$task" "$arm" "$routing" "$cause" >> "$excluded"
@@ -59,11 +150,6 @@ for f in "$attempts"/*__implementation__*.json; do
   # Cost to accepted is the candidate's own: implementation, its corrections and
   # the reviewers that judged it. Spec review and lead orchestration are shared
   # overhead and are reported separately, never folded into an arm.
-  cost_impl=$(value "$f" cost_usd)
-  cost_corr=$(cat "$attempts/${task}__${arm}__correction__"*.json 2>/dev/null |
-    awk 'match($0, /"cost_usd":[0-9.]+/) { sum += substr($0, RSTART + 11, RLENGTH - 11) } END { printf "%.4f", sum + 0 }')
-  cost_rev=$(cat "$attempts/${task}__${arm}__review__"*.json 2>/dev/null |
-    awk 'match($0, /"cost_usd":[0-9.]+/) { sum += substr($0, RSTART + 11, RLENGTH - 11) } END { printf "%.4f", sum + 0 }')
   total=$(awk -v a="$cost_impl" -v b="$cost_corr" -v c="$cost_rev" 'BEGIN { printf "%.4f", a + b + c }')
 
   printf '%s\t' "$task" "$(value "$f" base_sha)" "$(value "$f" block)" "$arm" \

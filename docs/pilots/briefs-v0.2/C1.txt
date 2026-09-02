@@ -1,0 +1,39 @@
+Objetivo: fix: reconciliar reservas de worker huérfanas de runs interrumpidos
+
+- store.reconcileOrphanedWorkerReservations: cierra reservas reserved/
+  pending-settlement como released devolviendo presupuesto; idempotente,
+  por-audit, sin inventar uso (exactly-once intacto)
+- cli: barrido de finalización (buildRunSummaryText) + de arranque al
+  reanudar un audit existente
+
+Contrato publico que debe cumplir (es contrato, no implementacion):
+
+  reconcileOrphanedWorkerReservations(auditId: string): number
+
+- Devuelve el numero de reservas reconciliadas.
+- Devuelve 0 cuando no hay trabajo y en repeticiones idempotentes.
+- Solo procesa reservas `reserved` y `pending-settlement` del audit indicado.
+- Libera su presupuesto exactamente una vez y conserva intacto el uso asentado.
+- El CLI lo ejecuta en tres puntos, todos best-effort: un fallo del barrido nunca
+  debe impedir que el comando continue.
+  - `buildRunSummaryText`, antes de proyectar el informe.
+  - El comando `validate`, al arrancar sobre un audit existente.
+  - El comando `recon-auth`, al arrancar sobre un audit existente.
+
+SHA base congelado: 1ec82668f8959a429bc52d8bc0a6ff30597c617f
+
+Trabajas sobre un worktree ya preparado en ese SHA base. Implementa el cambio que
+el objetivo describe.
+
+Paths en scope (los unicos que puedes tocar):
+src/cli.ts
+src/storage/store.ts
+
+Fuera de scope: cualquier archivo bajo tests/. No escribas ni modifiques tests:
+la aceptacion se mide con una suite independiente que no puedes ver.
+
+Verificacion que puedes usar mientras trabajas: `npx tsc --noEmit` y ejecutar
+tests existentes con `node --import tsx --test <archivo>`.
+
+Termina cuando el cambio este completo y sea coherente con el codigo que lo
+rodea. No amplies el scope, no refactorices lo no relacionado y no delegues.

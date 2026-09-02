@@ -83,7 +83,7 @@ plan sustituye su supuesto de instalacion por proyecto.
       Codex pasa en los cuatro roles; Claude falla por id de modelo no portable.
 - [x] Resolver el alias por host en el model map y verificar Claude por despacho
       real: el modelo lo fija la definicion; el effort sigue sin ser observable.
-- [x] Materializar un archivo por estado escalado y verificar los nueve estados
+- [x] Materializar un archivo por estado escalado y verificar los diez estados
       por despacho real, incluido `quality-reviewer-critical` en sol / max.
 - [x] Prohibir el fork de turnos cuando el alias importe y separar la unidad de
       agentes por host.

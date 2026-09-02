@@ -40,7 +40,7 @@ not a test of the escalated state, because the definition wins over the override
 | Codex | `quality-reviewer` | sol / xhigh | `gpt-5.6-sol` / `xhigh` | pass |
 | Claude | model per state | mapped id | the state's mapped model | pass |
 | Claude | effort per state | — | no field on this host | **degradation** |
-| Codex | eleven materialized states | see below | every state on its own pair | pass |
+| Codex | ten materialized states | see below | every state on its own pair | pass |
 
 ## Run of 2026-09-02
 
@@ -67,7 +67,7 @@ state's, so the subagent's model is separable in the usage record:
 
 Effort is **not** verified and cannot be: see the degradations.
 
-### All eleven states verified
+### All ten states verified
 
 After materializing one file per (role, state), every state was dispatched by
 name with `fork_turns: "none"` and **no** model or effort override — the routing

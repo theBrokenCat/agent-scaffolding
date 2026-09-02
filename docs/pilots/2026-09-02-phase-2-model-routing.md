@@ -120,12 +120,35 @@ proposito**: las rellena el reviewer ciego. Un arnes que las adivinara corromper
 justo el dato que el piloto existe para recoger.
 
 ```sh
-scripts/pilot-run --header                                   # contrato de fila
-scripts/pilot-run --order --tasks tasks.tsv --seed 7          # orden aleatorio reproducible
-scripts/pilot-run --task T1 --block mecanicas --arm balanced \
-  --prompt t1.txt --order 2 --results resultados.tsv \
+scripts/pilot-run dispatch --task T1 --block mecanicas --arm balanced \
+  --agent-type implementer-balanced --prompt wrapper.txt --brief brief.txt \
+  --attempts runtime/pilot-v0.3 --kind implementation \
   --cwd /ruta/al/worktree --max-seconds 1800
+scripts/pilot-run record --attempts runtime/pilot-v0.3 --task T1 \
+  --arm balanced --kind implementation --attempt 1 \
+  --field reviewer_id --value reviewer-blind-01
+scripts/pilot-run spent --attempts runtime/pilot-v0.3 \
+  --ceiling 32.25 --reserve "$NEXT_DISPATCH_USD"
+scripts/pilot-report runtime/pilot-v0.3 > resultados.tsv
 ```
+
+`record` solo admite `accepted`, `blocking`, `important`, `corrections`,
+`reviewer_id`, `adjudicator_id` y `failure_detail`; no puede reescribir modelo,
+tokens, costes, hashes ni IDs de hilo. Los campos de juicio deben registrarse
+explicitamente antes del informe. `adjudicator_id` lleva el ID real cuando hubo
+adjudicacion y `-` cuando no aplicaba.
+
+`reviewer_id` es singular y debe coincidir con el `child_thread_id` de al menos
+un artefacto `review`; si hay varios intentos de review, todos deben pertenecer a
+ese mismo ID. Un `adjudicator_id` distinto de `-` exige el mismo enlace con
+artefactos `adjudication`. Sin esos enlaces la fila se excluye, y el coste de
+review suma tambien la adjudicacion enlazada.
+
+El techo historico autorizado fue `$40`; v0.2 consumio `$7.7491`. v0.3 usa un
+maximo adicional redondeado de `$32.25`, comprobado antes de cada despacho con
+`spent --ceiling 32.25 --reserve N`. La parte reservada para D se lleva fuera del
+arnes: para despachos no-D el operador reduce el `ceiling` por esa reserva; el
+arnes no inventa una estimacion por bloque.
 
 `--max-seconds` es un **tope duro de presupuesto por despacho**: `codex exec` no
 ofrece limite de turnos ni de tokens, asi que el arnes mata el proceso al
@@ -176,7 +199,7 @@ observado no coincida con el esperado se descarta: pertenece a otro brazo.
 ## Estado
 
 Los bloqueantes de routing que impedian lanzar estan resueltos y verificados por
-despacho real: la escalada se despacha por `agent_type` (once estados), el alias
+despacho real: la escalada se despacha por `agent_type` (diez estados), el alias
 se resuelve por host, y el fork de turnos esta prohibido porque anula el alias.
 
 Lo que no esta resuelto es el **corpus**.
@@ -228,6 +251,11 @@ revision; sin el, D1 sigue bloqueado por el mismo motivo.
 declarar su contrato publico y sus puntos de entrada. Fue la unica tarea
 ejecutada en la ultima fase: `balanced` y `frontier` rutearon correctamente,
 pero ambos fueron no aceptados.
+
+El brief conservado en [`briefs-v0.2/C1.txt`](briefs-v0.2/C1.txt), SHA-256
+`169fc3c5bc50006f27660d1cc94817556c1ff94ec2722d5aff8af85c985f5437`, es la
+revision v2 congelada despues del spec gate y antes de despachar ambos
+implementers. Es el contenido que recibieron los dos brazos.
 
 ### Resultado observado de la ultima fase
 

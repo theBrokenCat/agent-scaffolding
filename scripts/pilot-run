@@ -23,12 +23,12 @@ usage() {
 usage:
   pilot-run dispatch --task ID --block B --arm ALIAS --agent-type NAME
                      --prompt FILE [--brief FILE] --attempts DIR
-                     --kind implementation|correction|review
+                     --kind implementation|correction|review|adjudication
                      [--order N] [--attempt N] [--base-sha SHA] [--cwd DIR]
                      [--max-seconds N]
   pilot-run record   --attempts DIR --task ID --arm ALIAS --kind KIND --attempt N
                      --field NAME --value VALUE
-  pilot-run spent    --attempts DIR
+  pilot-run spent    --attempts DIR [--ceiling USD --reserve USD]
 
 Prices are frozen in the script for reproducibility. Cost is API-equivalent, not
 credits.
@@ -46,7 +46,30 @@ shift
 
 task=; block=; arm=; agent_type=; prompt=; brief=; attempts=; kind=; order=-
 attempt=1; base_sha=-; run_cwd=; max_seconds=${PILOT_MAX_SECONDS:-1800}
-field=; value=
+field=; value=; ceiling=; reserve=
+work=; lock_dir=; temp_file=
+
+cleanup() {
+  [ -z "$temp_file" ] || rm -f "$temp_file"
+  [ -z "$work" ] || rm -rf "$work"
+  [ -z "$lock_dir" ] || rmdir "$lock_dir" 2>/dev/null || :
+}
+trap cleanup EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+acquire_lock() {
+  candidate_lock=$1.lock
+  mkdir "$candidate_lock" 2>/dev/null || return 1
+  lock_dir=$candidate_lock
+}
+
+release_lock() {
+  rmdir "$lock_dir" || stop "could not release lock: $lock_dir"
+  lock_dir=
+}
+
 while [ "$#" -gt 0 ]; do
   case $1 in
     --task) shift; task=${1-} ;;
@@ -64,6 +87,8 @@ while [ "$#" -gt 0 ]; do
     --max-seconds) shift; max_seconds=${1-} ;;
     --field) shift; field=${1-} ;;
     --value) shift; value=${1-} ;;
+    --ceiling) shift; ceiling=${1-} ;;
+    --reserve) shift; reserve=${1-} ;;
     *) usage; exit 1 ;;
   esac
   [ "$#" -gt 0 ] || { usage; exit 1; }
@@ -81,12 +106,24 @@ json_escape() {
   printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g' | tr -d '\n\r'
 }
 
+valid_decimal() {
+  awk -v n="$1" 'BEGIN { exit !(n ~ /^[0-9]+([.][0-9]+)?$/) }'
+}
+
 # --- spent -------------------------------------------------------------------
 # The global ceiling is enforced against what has actually been recorded, not an
 # estimate, so a block can be refused before it is launched.
 if [ "$command" = spent ]; then
   total=$(cat "$attempts"/*.json 2>/dev/null |
     awk 'match($0, /"cost_usd":[0-9.]+/) { v = substr($0, RSTART + 11, RLENGTH - 11); sum += v } END { printf "%.4f\n", sum + 0 }')
+  if [ -n "$ceiling$reserve" ]; then
+    [ -n "$ceiling" ] && [ -n "$reserve" ] || stop '--ceiling and --reserve are required together'
+    valid_decimal "$ceiling" || stop '--ceiling must be a non-negative decimal'
+    valid_decimal "$reserve" || stop '--reserve must be a non-negative decimal'
+    awk -v spent="$total" -v held="$reserve" -v cap="$ceiling" \
+      'BEGIN { exit !(spent + held <= cap) }' \
+      || stop "ceiling exceeded: spent $total + reserve $reserve > $ceiling"
+  fi
   printf '%s\n' "$total"
   exit 0
 fi
@@ -96,16 +133,29 @@ fi
 # reviewer. They are never invented at dispatch time.
 if [ "$command" = record ]; then
   [ -n "$field" ] || stop '--field is required'
+  case $field in
+    accepted|blocking|important|corrections|reviewer_id|adjudicator_id|failure_detail) ;;
+    *) stop "field is not reviewer judgement: $field" ;;
+  esac
   target=$(artifact_path)
   [ -f "$target" ] || stop "no artifact to record into: $target"
-  tmp=$target.tmp.$$
+  tries=0
+  while ! acquire_lock "$target"; do
+    tries=$((tries + 1))
+    [ "$tries" -lt 30 ] || stop "timed out waiting for artifact lock: $target"
+    sleep 1
+  done
+  [ -f "$target" ] || stop "no artifact to record into: $target"
+  temp_file=$lock_dir/artifact
   awk -v k="$field" -v v="$(json_escape "$value")" '
     { line = $0 }
     index(line, "\"" k "\":") { sub("\"" k "\":[ ]*\"[^\"]*\"", "\"" k "\": \"" v "\"", line); found = 1 }
     { print line }
     END { if (!found) exit 3 }
-  ' "$target" > "$tmp" || { rm -f "$tmp"; stop "unknown field $field"; }
-  mv "$tmp" "$target"
+  ' "$target" > "$temp_file" || stop "unknown field $field"
+  mv "$temp_file" "$target"
+  temp_file=
+  release_lock
   printf 'RECORDED %s=%s in %s\n' "$field" "$value" "$(basename "$target")"
   exit 0
 fi
@@ -141,8 +191,10 @@ hashed=${brief:-$prompt}
 prompt_sha=$(shasum -a 256 "$hashed" 2>/dev/null | awk '{print $1}')
 [ -n "$prompt_sha" ] || prompt_sha=$(sha256sum "$hashed" | awk '{print $1}')
 
+acquire_lock "$target" || stop "artifact already exists or is locked: $target"
+[ ! -e "$target" ] || stop "artifact already exists, refusing to overwrite: $target"
+
 work=$(mktemp -d "${TMPDIR:-/tmp}/pilot-run.XXXXXX")
-trap 'rm -rf "$work"' EXIT HUP INT TERM
 
 started_at=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
 started=$(date +%s)
@@ -311,7 +363,8 @@ else
   routing_ok=NO
 fi
 
-cat > "$target" <<JSON
+temp_file=$lock_dir/artifact
+cat > "$temp_file" <<JSON
 {
   "task": "$(json_escape "$task")",
   "block": "$(json_escape "$block")",
@@ -343,9 +396,14 @@ cat > "$target" <<JSON
   "blocking": "",
   "important": "",
   "corrections": "",
+  "reviewer_id": "",
+  "adjudicator_id": "",
   "failure_detail": ""
 }
 JSON
+mv "$temp_file" "$target"
+temp_file=
+release_lock
 
 printf '%s %s %s %s %s %ss $%s\n' "$task" "$arm" "$observed_model" "$observed_effort" "$routing_ok" "$elapsed" "$cost"
 if [ "$killed" = yes ]; then
