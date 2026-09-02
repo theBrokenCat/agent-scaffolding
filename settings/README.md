@@ -15,8 +15,10 @@ mechanism rather than exposing local configuration.
 
 ## Model map
 
-A model map resolves each portable alias to a concrete model and reasoning
-effort. `ROUTER.md` owns the alias vocabulary (`economy`, `balanced`, `frontier`,
+A model map resolves each portable alias to a concrete model **per host** and a
+reasoning effort. Model ids are not portable: the alias is the part the contract
+shares, and `model_codex` / `model_claude` are the part it does not. A host with
+no id for an alias stops the generator rather than borrowing another host's. `ROUTER.md` owns the alias vocabulary (`economy`, `balanced`, `frontier`,
 `critical`, plus the opt-in `diagnostic` rung); this directory owns only the file
 shape.
 

@@ -7,32 +7,49 @@
 #   4. this example
 #
 # This example uses code names, not provider model ids, so it is never installed
-# into a host: `scaffolding install --agents --apply` stops until a local map
-# exists.
+# into a host: `scaffolding install --agents --host H --apply` stops until a local
+# map exists.
+#
+# Model ids are NOT portable across hosts: an OpenAI id in a Claude definition is
+# rejected outright. The alias is the portable part of the contract; each host
+# resolves its own id. A host with no `model_<host>` for an alias stops the
+# generator rather than borrowing another host's id.
 #
 # Fields per entry:
-#   id      portable alias, or `diagnostic` for the opt-in diagnostic rung
-#   model   provider model id in a local map; a code name here
-#   effort  reasoning effort requested from that model
-#   use     the work the alias is for
+#   id            portable alias, or `diagnostic` for the opt-in diagnostic rung
+#   model_codex   model id for Codex; a code name here
+#   model_claude  model id for Claude; a code name here
+#   effort        reasoning effort requested from that model
+#
+# Note the shape below: a host may collapse two aliases onto one model when it
+# cannot express the difference. Codex separates `economy` from `balanced` by
+# effort on the same curve; a host with no reasoning-effort field cannot, so both
+# land on the same id. That collapse is a degradation to record, not a mapping
+# error.
 aliases:
   - id: economy
-    model: luna
+    model_codex: luna
+    model_claude: mid
     effort: high
     use: "docs, extraction, bounded exploration, mechanical fixes"
   - id: balanced
-    model: luna
+    model_codex: luna
+    model_claude: mid
     effort: xhigh
     use: "multi-file exploration, implementation against a frozen contract"
   - id: frontier
-    model: sol
+    model_codex: sol
+    model_claude: top
     effort: xhigh
     use: "critical seam, long horizon, reviewers"
   - id: critical
-    model: sol
+    model_codex: sol
+    model_claude: top
     effort: max
     use: "exceptional final audit only"
+  # A rung a host does not offer is simply absent for that host. Nothing borrows
+  # an id from elsewhere to fill the gap.
   - id: diagnostic
-    model: terra
+    model_codex: terra
     effort: high
     use: "opt-in rung to separate a capacity failure from a bad brief; never a role default"

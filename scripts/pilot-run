@@ -96,7 +96,7 @@ fi
 [ -n "$prompt" ] || stop '--prompt is required'
 [ -f "$prompt" ] || stop "prompt file not found: $prompt"
 
-resolved=$("$PILOT_ROOT/scripts/gen-agents" --resolve --require-local-map | awk -F'|' -v a="$arm" '$1 == a { print $2 "|" $3 }')
+resolved=$("$PILOT_ROOT/scripts/gen-agents" --resolve --host codex --require-local-map | awk -F'|' -v a="$arm" '$1 == a { print $2 "|" $3 }')
 [ -n "$resolved" ] || stop "arm $arm is not an alias in the local model map"
 expected_model=${resolved%|*}
 expected_effort=${resolved#*|}
