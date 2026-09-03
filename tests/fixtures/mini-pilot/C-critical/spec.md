@@ -29,6 +29,8 @@ malformado lanza `Error` con `code="LEDGER_CORRUPT"`.
 - Repetir con otro `used` lanza `Error` con `code="RESERVATION_CONFLICT"`.
 - Liquidar una reserva released lanza `Error` con
   `code="RESERVATION_RELEASED"`.
+- La validación de tipos/rangos ocurre antes de consultar el estado. Con inputs
+  válidos, la precedencia es: ID desconocido, released, conflicto con settled.
 
 ## `recoverOrphans(activeOwners)`
 
@@ -48,3 +50,5 @@ malformado lanza `Error` con `code="LEDGER_CORRUPT"`.
   nueva instancia observa el nuevo estado. La estrategia concreta de escritura y
   la inyección de crashes quedan fuera del oracle de este mini piloto.
 - No mantiene locks ni promete concurrencia multiproceso.
+- La implementación solo puede importar módulos estándar `node:*`; `package.json`
+  no puede declarar dependencies o devDependencies.
