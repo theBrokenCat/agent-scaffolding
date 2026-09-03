@@ -97,6 +97,16 @@ todavia.
 
 ---
 
+## v0.3 - Validación nativa mínima
+
+- [x] Ejecutar smoke de batching y espera por eventos (#29).
+- [ ] Crear tres fixtures prospectivas: mecánica, normal y crítica.
+- [ ] Pasar spec gate antes de gastar en implementers.
+- [ ] Ejecutar seis candidatos Luna/Sol con review ciega.
+- [ ] Publicar resultados y separar MEDIDO / STRETCH.
+
+---
+
 ## Review
 
 Implementacion y merge completados; activacion global queda `managed current` y
