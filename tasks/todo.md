@@ -100,10 +100,10 @@ todavia.
 ## v0.3 - Validación nativa mínima
 
 - [x] Ejecutar smoke de batching y espera por eventos (#29).
-- [ ] Crear tres fixtures prospectivas: mecánica, normal y crítica.
-- [ ] Pasar spec gate antes de gastar en implementers.
-- [ ] Ejecutar seis candidatos Luna/Sol con review ciega.
-- [ ] Publicar resultados y separar MEDIDO / STRETCH.
+- [x] Crear tres fixtures prospectivas: mecánica, normal y crítica.
+- [x] Pasar spec gate antes de gastar en implementers; A aprobado, B/C reseteados.
+- [x] Ejecutar la pareja A con review ciega; B/C no se despachan tras segundo reopen.
+- [x] Publicar resultados parciales y separar MEDIDO / STRETCH.
 
 ---
 
