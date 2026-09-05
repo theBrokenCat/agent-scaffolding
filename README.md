@@ -63,11 +63,9 @@ con `agent_type`, la definicion gana a cualquier override de `model` o
 `reasoning_effort`. Por eso escalar es despachar otro nombre, nunca pasar un
 override.
 
-Es una unidad de instalacion aparte, con su propio manifiesto y su propia
-reversion:
-
-Cada host es una unidad propia, con su manifiesto y su reversion, para poder
-retirar el host cuyas definiciones no sirven sin tocar el que si funciona:
+Los agentes de cada host tienen una unidad de instalacion separada de las
+instrucciones, con manifiesto y reversion propios. Se puede retirar un host
+sin afectar al otro:
 
 ```sh
 scripts/gen-agents --host codex --role explorer-economy    # ver el render
