@@ -14,7 +14,7 @@ locales y remotas; escribir requiere scope, ownership, baseline y verificacion.
 
 El ciclo autorizado y el cleanup estan en [AGENTS.md](../AGENTS.md#5-git-github-y-limites).
 No hay una segunda politica de Git aqui. Las restricciones propias de GitHub,
-bootstrap, rulesets, auto-merge y checks estan en [.github/README.md](../.github/README.md).
+bootstrap, rulesets, auto-merge y checks estan en [.github/WORKFLOW.md](../.github/WORKFLOW.md).
 No cambies configuracion remota ni publiques fuera de la autoridad ya concedida.
 
 ## Contexto, grafo y Outline
