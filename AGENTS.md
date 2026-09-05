@@ -72,10 +72,13 @@ confirmacion adicional, y repite la consulta una vez. Registra rama, SHA y estad
 actual, incluidos cambios sin commit. Si sigue fallando, usa texto e informa de
 la degradacion; no entres en un loop de reindexacion.
 
-Consulta Outline solo mediante MCP. No eludas permisos con shell, Docker, bases
-de datos, curl ni archivos de entorno. Solo escribe por peticion explicita y con
-escritura MCP habilitada; no expongas secretos ni elimines documentos. Verifica
-los detalles de implementacion importantes contra el repositorio.
+Consulta y actualiza Outline solo mediante MCP, con escritura habilitada para
+editar. Una tarea autorizada incluye mantener el documento existente del proyecto
+segun [la politica de Outline](policies/README.md#mantenimiento-de-outline), sin
+pedir permiso por cada actualizacion rutinaria dentro de ese alcance. Respeta
+restricciones superiores y locales. No eludas permisos con shell, Docker, bases
+de datos, curl ni archivos de entorno; no expongas secretos ni elimines documentos.
+Verifica los detalles de implementacion importantes contra el repositorio.
 
 ### Mantenimiento de instrucciones locales
 
