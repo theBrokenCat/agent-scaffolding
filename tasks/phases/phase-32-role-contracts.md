@@ -29,9 +29,9 @@ Autorización: puntos 1 y 2 del análisis; implementación, feature push y draft
   TOML válido y ausencia de búsquedas relativas. Probar estados desactivado,
   mal configurado y revisión ejecutada en CI sin credenciales reales ni red.
 - [x] GREEN: actualizar generador, fichas, contrato, selección y workflow/docs.
-- [ ] Verificar regresiones, suite completa, sintaxis shell y diff.
-- [ ] Congelar commit, revisión independiente, resolver hallazgos en lote.
-- [ ] Push, draft PR y CI; registrar SHA/evidencia final.
+- [x] Verificar regresiones, suite completa, sintaxis shell y diff.
+- [x] Congelar commit, revisión independiente, resolver hallazgos en lote.
+- [x] Push, draft PR y CI; registrar SHA/evidencia final.
 
 Paths: `agents/`, `scripts/gen-agents`, `tests/gen_agents_test.sh`,
 `tests/ci_reviewer_test.sh`, `tests/orchestration_test.sh`, `AGENTS.md`,
@@ -46,3 +46,20 @@ Regresiones observadas antes del fix: cuerpo de ficha ausente; check reviewer
 publicado estando desactivado; Codex generaba sin el contrato común cuando faltaba
 el fichero. Las tres regresiones pasan después. La prueba adicional confirma que
 backslashes y comillas triples sobreviven a la decodificación TOML.
+
+## Cierre de implementación
+
+Implementación: `bf72039b84f266992cacb593763f724624c805dd`.
+Ocho suites locales verdes; sintaxis shell, YAML y diff-check correctos.
+Revisión independiente `quality-reviewer-frontier`, tarea
+`/root/review_role_contracts`: pass, sin hallazgos. El revisor repitió generación,
+estados de CI, contrato de orquestación, sintaxis y diff-check sobre ese SHA.
+
+Draft PR: https://github.com/theBrokenCat/agent-scaffolding/pull/33
+CI de implementación: run `33933077755`, `tests` SUCCESS y `reviewer-disabled`
+SUCCESS. Este último acredita desactivación y no sustituye la revisión anterior.
+La PR mantiene el estado/checks actualizados para cualquier commit documental
+posterior. Los avisos Broken pipe son anteriores y no impiden los checks.
+
+Instalación global, activación runtime y merge pendientes de autorización;
+no se cambió el checkout canónico ni la configuración de los hosts.

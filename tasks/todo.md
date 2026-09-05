@@ -113,4 +113,5 @@ mantienen como autorizaciones humanas separadas.
 - [x] Alcance autorizado y baseline congelada; ver `tasks/phases/phase-32-role-contracts.md`.
 - [x] Unificar retorno y generar fichas autocontenidas.
 - [x] Distinguir revisión desactivada/ejecutada y seleccionar roles por necesidad.
-- [ ] Regresiones, suite completa, review independiente y draft PR.
+- [x] Regresiones, ocho suites, review independiente sin hallazgos y draft PR #33.
+- [ ] Merge e instalación global: requieren autorización; no ejecutados.
