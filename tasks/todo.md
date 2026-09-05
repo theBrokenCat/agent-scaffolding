@@ -115,3 +115,10 @@ mantienen como autorizaciones humanas separadas.
 - [x] Distinguir revisión desactivada/ejecutada y seleccionar roles por necesidad.
 - [x] Regresiones, ocho suites, review independiente sin hallazgos y draft PR #33.
 - [ ] Merge e instalación global: requieren autorización; no ejecutados.
+
+## Issue 34 - Simplificación y continuidad
+
+- [x] Eliminar reglas duplicadas y afirmaciones de capacidad no demostradas.
+- [x] Separar aceptación, descomposición y escalada; registrar relevo por objetivo.
+- [ ] Corregir Broken pipe, verificar, revisar y abrir draft PR.
+- Plan/evidencia: `tasks/phases/phase-34-simplify-orchestration.md`.

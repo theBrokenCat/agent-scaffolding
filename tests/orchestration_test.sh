@@ -1,8 +1,7 @@
 #!/bin/sh
 
-# The orchestration contract is prose, so its invariants are easy to break by
-# editing one file and forgetting the other three. These checks pin the parts
-# that must agree across files.
+# Pin safety invariants at their canonical owner and the links to that owner.
+# These are document checks, not evidence of model performance or runtime behavior.
 
 set -eu
 
@@ -29,35 +28,41 @@ refute() {
 # The alias vocabulary is the same everywhere it is named.
 for alias in economy balanced frontier critical; do
   require "\`$alias\`" ROUTER.md
-  require "\`$alias\`" profiles/README.md
 done
 require 'selecciona dos cosas **del subagente**: su modelo y su reasoning effort' ROUTER.md
 require 'Sol `max`' ROUTER.md
 require 'settings/schemas/model-map.example.yaml' ROUTER.md
 
-# Terra is a diagnostic rung, never a default.
-require 'dominada en Pareto' ROUTER.md
-require 'nunca es el' ROUTER.md
-require 'escalon diagnostico' profiles/README.md
+# Profiles is a compatibility index, not a duplicate routing policy.
+require '../ROUTER.md#esfuerzo-modelo-y-mapping-local' profiles/README.md
+require '../policies/README.md' profiles/README.md
+require 'provisional' ROUTER.md
+refute 'dominada en Pareto' ROUTER.md
+refute 'dominada en Pareto' profiles/README.md
+require 'escalon diagnostico' ROUTER.md
 require 'diagnostic' settings/schemas/model-map.example.yaml
 require 'never a role default' settings/schemas/model-map.example.yaml
 
 # Both escalation gates exist and are stated as semantic, not path-based.
 require '### Gates de escalada a la curva Sol' ROUTER.md
 require 'Que toca (seam critico)' ROUTER.md
-require 'Cuanto dura (horizonte largo)' ROUTER.md
+require 'Razonamiento inseparable' ROUTER.md
+require 'no lances implementers' ROUTER.md
+require 'multiple steps or missing acceptance alone do not justify escalation' agents/roles/implementer.md
 require 'los paths son senal, no decision' ROUTER.md
 require 'gates de escalada' agents/README.md
 
 # The concurrency budget replaced the old three-worker cap, in every file that
 # states a limit.
-for file in AGENTS.md agents/README.md policies/README.md; do
+for file in AGENTS.md agents/README.md; do
   require '8 agentes simultaneos' "$file"
   require '3 writers' "$file"
   require 'readers <= 8 - writers' "$file"
   refute 'maximo tres workers' "$file"
   refute 'lead y tres workers' "$file"
 done
+require '../agents/README.md#orquestacion' policies/README.md
+require '../AGENTS.md#5-git-github-y-limites' policies/README.md
 
 # The orchestration protocol lives in the contract, and the registry only points
 # at it. The anchor the registry uses must exist.
@@ -67,19 +72,18 @@ require 'no** es un wait-for-all atomico' agents/README.md
 require 'snapshot congelado' agents/README.md
 require 'Nunca forkees los turnos del padre' agents/README.md
 require 'FALLO' agents/README.md
-for file in AGENTS.md policies/README.md; do
-  require 'fork_turns' "$file"
-done
-require 'subagente despachado con fork y routing por alias' policies/README.md
+require 'fork_turns' agents/README.md
+require 'agents/README.md#orquestacion' AGENTS.md
 require 'La escalada se despacha por nombre, no por override' agents/README.md
 require 'Los roles canonicos son **cuatro**' agents/README.md
 require 'archivo generado es un estado materializado, no un rol nuevo' agents/README.md
-require 'la definicion del archivo gana al' AGENTS.md
-require 'escalada intentada por override en vez de por agent_type' policies/README.md
+require 'la definicion del archivo gana' agents/README.md
 require 'STOP-early' agents/README.md
 require 'Reset del contrato' agents/README.md
 require 'SLA de reviewer' agents/README.md
 require 'Revision final integrada' agents/README.md
+require '## Trabajo multisesion' agents/README.md
+require 'no es una via' policies/README.md
 require 'source: "contract:agents/README.md#orquestacion"' skills/registry.yaml
 grep -Fq 'skills/orchestration' "$root/skills/registry.yaml" && fail 'orchestration must not be a separate skill' || :
 [ ! -d "$root/skills/orchestration" ] || fail 'orchestration must not be a separate skill directory'

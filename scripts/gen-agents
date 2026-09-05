@@ -282,8 +282,10 @@ load_role() {
   role_state=$state
 
   # The name of the sibling state, which is how escalation is actually dispatched.
-  role_escalated_name=$(role_states "$role_file" | awk -F'|' '$1 == "escalated" { print $2; exit }')
-  role_base_name=$(role_states "$role_file" | awk -F'|' '$1 == "base" { print $2; exit }')
+  # Drain the producer even after the first match; early exit causes SIGPIPE
+  # when role_states still has sibling states to emit.
+  role_escalated_name=$(role_states "$role_file" | awk -F'|' '$1 == "escalated" && !found { print $2; found = 1 }')
+  role_base_name=$(role_states "$role_file" | awk -F'|' '$1 == "base" && !found { print $2; found = 1 }')
   role_escalated_model=$(alias_model "$role_escalated_alias")
 
   case $role_authority in
@@ -419,7 +421,7 @@ case $action in
   render_one)
     found=false
     for role_file in $(role_files); do
-      match=$(role_states "$role_file" | awk -F'|' -v want="$role" '$2 == want { print; exit }')
+      match=$(role_states "$role_file" | awk -F'|' -v want="$role" '$2 == want && !found { print; found = 1 }')
       [ -n "$match" ] || continue
       found=true
       old_ifs=$IFS; IFS='|'; set -- $match; IFS=$old_ifs

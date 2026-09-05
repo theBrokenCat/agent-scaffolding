@@ -1,57 +1,21 @@
 # Perfiles de ejecucion
 
-Un perfil combina esfuerzo, alias de modelo, gates de riesgo y mecanismo del
-[`ROUTER.md`](../ROUTER.md). Limita el trabajo; no es una personalidad, no fija
-un dominio y no concede autoridad.
+Indice compatible para referencias existentes; no contiene una politica propia.
 
 ## Esfuerzo
 
-| Nivel | Cuando usarlo | Default operativo |
-| --- | --- | --- |
-| `fast` | Cambio pequeno, pregunta concreta o exploracion acotada | `app-direct`, una pasada, sin delegacion ni confirmacion |
-| `standard` | Feature normal, diagnostico o analisis con varias evidencias | `app-direct`; un worker solo si aporta ahorro neto |
-| `deep` | Seguridad, produccion, ambiguedad alta, integracion compleja o revision exigente | preflight y equipo solo si cumple el umbral |
+Niveles y seleccion en [ROUTER.md](../ROUTER.md#esfuerzo-modelo-y-mapping-local).
 
 ## Aliases de modelo
 
-Los aliases portables son `economy`, `balanced`, `frontier` y `critical`. Un
-alias fija el modelo y el reasoning effort del subagente, no su autoridad. Solo
-hay dos curvas por defecto: `economy` y `balanced` comparten la curva Luna con
-effort `high` y `xhigh`; `frontier` y `critical` comparten la curva Sol con
-effort `xhigh` y `max`. Terra queda fuera por estar dominada en Pareto y solo se
-usa como escalon diagnostico puntual, nunca como default de un rol.
-
-El mapeo concreto de alias a modelo vive en el model map local y se materializa
-por host; no es una garantia ni un requisito del repositorio. Los hosts sin
-selector usan el modelo disponible y registran el fallback. La tabla vigente y
-los gates de escalada estan en [`ROUTER.md`](../ROUTER.md).
-
-Como punto de partida usa `fast / economy`, `standard / balanced` y
-`deep / frontier`, pero mantenlos separados: un alias elige capacidad/coste; el
-nivel limita proceso. `critical` no es un punto de partida: se justifica caso a
-caso. Ninguno amplia permisos.
+Mapping y escalada en [ROUTER.md](../ROUTER.md#esfuerzo-modelo-y-mapping-local).
 
 ## Gates de riesgo
 
-Los gates se combinan con cualquier nivel:
-
-- **read-only:** ninguna escritura local o remota; hallazgos con evidencia.
-- **write:** scope y paths definidos, baseline, diff y verificacion proporcional.
-- **security:** redaccion, skill especializado, validacion de hallazgos y
-  aprobacion para acciones intrusivas.
-- **production:** estado observado, autorizacion explicita para actuar, rollback
-  verificable y comprobacion posterior.
-- **remote:** el ciclo global permite feature branches, checkpoint pushes y
-  draft PR; merge, deploy/produccion, force-push, push a `main` y acciones
-  destructivas siempre se confirman por separado.
-
-Elige el nivel y alias mas bajos que cubran complejidad y riesgo. Si la seleccion
-cambia coste o autoridad, aplica el preflight de [`ROUTER.md`](../ROUTER.md).
+Autoridad en [AGENTS.md](../AGENTS.md); gates y presupuestos en
+[policies/README.md](../policies/README.md).
 
 ## Contexto
 
-Carga contrato, instrucciones locales aplicables y evidencia minima. Los
-dominios, tecnologias y criterios concretos pertenecen al brief del worker, no a
-perfiles especializados. Usa los roles genericos de
-[`agents/README.md`](../agents/README.md) y los limites de
-[`policies/README.md`](../policies/README.md).
+Carga solo lo necesario. Roles, briefs y relevo en
+[agents/README.md](../agents/README.md).

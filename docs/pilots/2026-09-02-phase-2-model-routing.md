@@ -1,5 +1,11 @@
 # Piloto v0.2: routing de modelos y orquestacion
 
+> Documento historico. Desde el issue #34 la politica operativa vive en
+> [ROUTER.md](../../ROUTER.md). La regla asimetrica de este diseno no constituye
+> una comparacion que demuestre superioridad de un modelo, y sus objetivos de
+> ahorro no son resultados medidos. El contenido se conserva para trazabilidad;
+> no debe usarse para despachar agentes ni como criterio de un nuevo piloto.
+
 Diseno del piloto que debe validar —o refutar— el routing de la fase 2. Se
 registra **antes** de ejecutarlo: los criterios de abajo estan pre-registrados y
 no se reinterpretan despues de ver los numeros.

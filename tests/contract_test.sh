@@ -20,9 +20,10 @@ require 'repite la consulta una vez' "$agents"
 require 'incluidos cambios sin commit' "$agents"
 
 require '### Frescura de codebase-memory-mcp' "$policies"
-require 'Reindexa el root actual con `persistence=false`' "$policies"
-require 'no vuelvas a reindexar en el mismo loop' "$policies"
+# Detailed freshness rules have one owner; policy links must keep it reachable.
+require 'AGENTS.md#3-router-y-contexto' "$policies"
 require '`persistence=true`' "$policies"
 require '`fast` para refrescos cotidianos' "$policies"
+require 'agents/README.md#trabajo-multisesion' "$agents"
 
 printf '%s\n' 'ok - global contract'

@@ -6,7 +6,7 @@ effort: xhigh
 escalated_alias: frontier
 escalated_effort: xhigh
 additional_states: economy:high
-escalation_trigger: "either escalation gate fires: the change touches a critical seam, or the work is long-horizon, multi-step, or lacks objective acceptance criteria"
+escalation_trigger: "either escalation gate fires: the change touches a critical seam, or an already specified objective requires interdependent reasoning that cannot be split into independently verifiable tasks without losing required invariants; multiple steps or missing acceptance alone do not justify escalation"
 authority: write
 overrides_builtin: false
 ---
