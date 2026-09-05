@@ -34,6 +34,11 @@ explicitamente esos destinos. El manifiesto y los backups quedan fuera del repo
 en `~/.local/state/agent-scaffolding/`; `uninstall --apply` restaura archivos,
 symlinks —incluidos los rotos— y ausencias anteriores.
 
+`status` y `doctor` pueden consultarse desde otro worktree del mismo repositorio:
+verifican el Git common dir y muestran un NOTE antes de comprobar la instalacion
+canonica y su SHA/render. Las variables Git heredadas no cambian esa identidad.
+`install/uninstall` siguen exigiendo el checkout canonico; no se redirigen.
+
 ## Definiciones de subagente por host
 
 Los roles canonicos viven en [`agents/roles/`](agents/roles/) y **siguen siendo

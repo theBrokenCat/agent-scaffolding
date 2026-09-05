@@ -110,7 +110,7 @@ PY
 
 # Markdown can contain backslashes and triple quotes. They must survive TOML
 # decoding unchanged; checking source text alone would miss an invalid escape.
-copy_root=$tmpdir/source-copy
+copy_root=$tmpdir/'source copy'
 mkdir -p "$copy_root"
 cp -R "$root/agents" "$copy_root/agents"
 printf '\nLiteral fixture: C:\\work\\new and """quoted""".\n' >> "$copy_root/agents/roles/explorer.md"
@@ -123,6 +123,12 @@ role = pathlib.Path(sys.argv[1]).read_text().split('---', 2)[2].strip()
 rendered = tomllib.loads(pathlib.Path(sys.argv[2]).read_text())['developer_instructions']
 assert role in rendered, 'role text changed during TOML encoding'
 PY
+
+# Batch rendering must handle the same spaced source root as single rendering.
+mkdir -p "$tmpdir/spaced-batch"
+GEN_ROOT=$copy_root "$gen" --host codex --out "$tmpdir/spaced-batch" --model-map "$fixture" >/dev/null
+cmp "$tmpdir/escaped.toml" "$tmpdir/spaced-batch/explorer-economy.toml" \
+  || fail 'single and batch rendering differ for a spaced source root'
 
 # Missing return instructions must fail generation, including Codex's piped
 # TOML encoder. Never emit an apparently usable definition without its contract.

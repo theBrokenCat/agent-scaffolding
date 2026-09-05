@@ -84,7 +84,7 @@ else
 fi
 
 required_commands_are_available() {
-  for required in git grep sed awk cksum readlink ln mv cp rm mkdir chmod date; do
+  for required in git grep sed awk cksum readlink ln mv cp rm mkdir chmod date mktemp; do
     command -v "$required" >/dev/null 2>&1 || {
       printf '%s\n' "STOP missing command $required" >&2
       return 1
@@ -148,13 +148,14 @@ all_agent_renders_are_current() {
 
 preflight_install() {
   required_commands_are_available || return 1
-  sources_are_valid || return 1
   scaffolding_state_path_is_safe || return 1
   if scaffolding_manifest_exists; then
     scaffolding_manifest_is_valid || stop_invalid_manifest
+    sources_are_valid || return 1
     all_destinations_managed || return 1
     return 0
   fi
+  sources_are_valid || return 1
   if [ "$migrate" = true ]; then
     all_destinations_supported || return 1
   else
@@ -249,12 +250,16 @@ install() {
 
 status() {
   required_commands_are_available || stop 'status dependency validation failed'
+  if scaffolding_manifest_exists; then
+    scaffolding_use_manifest_source_for_read_only || stop_invalid_manifest
+  fi
   sources_are_valid || stop 'status source validation failed'
   if ! scaffolding_manifest_exists; then
     printf 'STATUS %suninstalled\n' "$unit_prefix"
     return 1
   fi
   scaffolding_manifest_is_valid || stop_invalid_manifest
+  report_canonical_context
   all_destinations_managed || { printf 'STATUS %smanaged destination changed\n' "$unit_prefix"; return 1; }
   if scaffolding_is_agent_unit && ! all_agent_renders_are_current; then
     printf 'STATUS %smanaged render-changed\n' "$unit_prefix"
@@ -271,6 +276,9 @@ status() {
 
 doctor() {
   required_commands_are_available || stop 'doctor dependency validation failed'
+  if scaffolding_manifest_exists; then
+    scaffolding_use_manifest_source_for_read_only || stop_invalid_manifest
+  fi
   sources_are_valid || stop 'doctor source/import validation failed'
   scaffolding_state_path_is_safe || stop 'unsafe state path'
   if ! scaffolding_manifest_exists; then
@@ -282,10 +290,16 @@ doctor() {
     stop 'unmanaged destination exists'
   fi
   scaffolding_manifest_is_valid || stop_invalid_manifest
+  report_canonical_context
   all_destinations_managed || stop 'broken or changed managed destination'
   [ -r "$SCAFFOLDING_MANIFEST" ] && [ -x "$SCAFFOLDING_STATE_DIR" ] || stop 'state permissions are unusable'
   printf 'DOCTOR ok %s\n' "$unit_name"
   report_other_unit
+}
+
+report_canonical_context() {
+  [ -n "${SCAFFOLDING_CALLER_ROOT-}" ] || return 0
+  printf 'NOTE using canonical installation %s from checkout %s\n' "$SCAFFOLDING_ROOT" "$SCAFFOLDING_CALLER_ROOT"
 }
 
 # Each unit is verified on its own. Naming the other one keeps a half-checked

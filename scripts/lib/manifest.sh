@@ -1,7 +1,60 @@
 #!/bin/sh
 
+# Repository-local Git variables (for example from hooks) must not override
+# the path whose identity/SHA we are inspecting. Keep the caller environment.
+scaffolding_git_at() (
+  scaffolding_git_environment=$(git rev-parse --local-env-vars) || exit 1
+  for scaffolding_git_variable in $scaffolding_git_environment; do
+    unset "$scaffolding_git_variable"
+  done
+  git -C "$@"
+)
+
 scaffolding_source_sha() {
-  git -C "$SCAFFOLDING_ROOT" rev-parse HEAD 2>/dev/null || printf '%s\n' unknown
+  scaffolding_git_at "$SCAFFOLDING_ROOT" rev-parse HEAD 2>/dev/null || printf '%s\n' unknown
+}
+
+scaffolding_git_common_dir() (
+  scaffolding_git_root=$1
+  scaffolding_top=$(scaffolding_git_at "$scaffolding_git_root" rev-parse --show-toplevel 2>/dev/null) || return 1
+  scaffolding_top=$(CDPATH= cd -- "$scaffolding_top" && pwd -P) || return 1
+  [ "$scaffolding_top" = "$scaffolding_git_root" ] || return 1
+  # The line-based manifest cannot represent LF in a root. Reject it before
+  # passing a pattern to grep, where LF would separate multiple patterns.
+  case $scaffolding_git_root in *'
+'*) return 1 ;; esac
+  scaffolding_registry=$(mktemp "${TMPDIR:-/tmp}/scaffolding-worktrees.XXXXXX") || return 1
+  trap 'rm -f "$scaffolding_registry"' EXIT HUP INT TERM
+  scaffolding_git_at "$scaffolding_git_root" worktree list --porcelain -z > "$scaffolding_registry" || return 1
+  grep -zFx "worktree $scaffolding_git_root" "$scaffolding_registry" >/dev/null || return 1
+  scaffolding_common_dir=$(scaffolding_git_at "$scaffolding_git_root" rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || return 1
+  [ -d "$scaffolding_common_dir" ] || return 1
+  (CDPATH= cd -- "$scaffolding_common_dir" && pwd -P)
+)
+
+# Read-only checks may use the installed checkout only after proving that the
+# caller and recorded root share the same resolved Git common directory.
+scaffolding_use_manifest_source_for_read_only() {
+  SCAFFOLDING_CALLER_ROOT=
+  scaffolding_state_path_is_safe || return 1
+  [ -f "$SCAFFOLDING_MANIFEST" ] || return 1
+  [ "$(grep -c '^source_root=' "$SCAFFOLDING_MANIFEST")" -eq 1 ] || return 1
+  scaffolding_manifest_root=$(sed -n 's/^source_root=//p' "$SCAFFOLDING_MANIFEST")
+  case $scaffolding_manifest_root in
+    ''|/|.|..|*'\n'*|*'\r'*|*'|'*) return 1 ;;
+    /*) ;;
+    *) return 1 ;;
+  esac
+  [ -d "$scaffolding_manifest_root" ] || return 1
+  scaffolding_manifest_root=$(CDPATH= cd -- "$scaffolding_manifest_root" && pwd -P) || return 1
+  scaffolding_manifest_static_is_valid "$scaffolding_manifest_root" || return 1
+  scaffolding_caller_common=$(scaffolding_git_common_dir "$SCAFFOLDING_ROOT") || return 1
+  scaffolding_manifest_common=$(scaffolding_git_common_dir "$scaffolding_manifest_root") || return 1
+  [ "$scaffolding_caller_common" = "$scaffolding_manifest_common" ] || return 1
+  if [ "$scaffolding_manifest_root" != "$SCAFFOLDING_ROOT" ]; then
+    SCAFFOLDING_CALLER_ROOT=$SCAFFOLDING_ROOT
+    SCAFFOLDING_ROOT=$scaffolding_manifest_root
+  fi
 }
 
 # The instruction unit records symlinks (6 fields, version 2). The agent unit
@@ -25,13 +78,42 @@ scaffolding_manifest_exists() {
   [ -e "$SCAFFOLDING_MANIFEST" ] || [ -L "$SCAFFOLDING_MANIFEST" ]
 }
 
-scaffolding_manifest_is_valid() {
+# This phase reads only manifest text. It must run before scaffolding_targets,
+# whose agent branch invokes the selected checkout's generator.
+scaffolding_manifest_static_is_valid() (
+  scaffolding_expected_root=$1
   scaffolding_state_path_is_safe || return 1
   [ -f "$SCAFFOLDING_MANIFEST" ] || return 1
   grep -Fqx "version=$(scaffolding_manifest_version)" "$SCAFFOLDING_MANIFEST" || return 1
-  grep -Fqx "source_root=$SCAFFOLDING_ROOT" "$SCAFFOLDING_MANIFEST" || return 1
+  [ "$(grep -c '^source_root=' "$SCAFFOLDING_MANIFEST")" -eq 1 ] || return 1
+  grep -Fqx "source_root=$scaffolding_expected_root" "$SCAFFOLDING_MANIFEST" || return 1
   grep -Eq '^source_sha=[0-9a-f]{40}$|^source_sha=unknown$' "$SCAFFOLDING_MANIFEST" || return 1
   grep -Eq '^created_at=[0-9]{4}-[0-9]{2}-[0-9]{2}T' "$SCAFFOLDING_MANIFEST" || return 1
+  scaffolding_entry_count=0
+  while IFS='|' read -r kind name destination previous reference source remaining; do
+    [ "$kind" = entry ] || continue
+    scaffolding_entry_count=$((scaffolding_entry_count + 1))
+    if scaffolding_is_agent_unit; then
+      role_file=${source#"$scaffolding_expected_root/agents/roles/"}
+      [ "$role_file" != "$source" ] || return 1
+      case $role_file in *.md) ;; *) return 1 ;; esac
+      role_stem=${role_file%.md}
+      case $role_stem in ''|*[!a-z0-9-]*) return 1 ;; esac
+    else
+      case $name in
+        codex) expected_source=$scaffolding_expected_root/AGENTS.md ;;
+        claude) expected_source=$scaffolding_expected_root/CLAUDE.md ;;
+        gemini) expected_source=$scaffolding_expected_root/GEMINI.md ;;
+        *) return 1 ;;
+      esac
+      [ "$source" = "$expected_source" ] || return 1
+    fi
+  done < "$SCAFFOLDING_MANIFEST"
+  [ "$scaffolding_entry_count" -gt 0 ]
+)
+
+scaffolding_manifest_is_valid() {
+  scaffolding_manifest_static_is_valid "$SCAFFOLDING_ROOT" || return 1
 
   scaffolding_targets | while IFS='|' read -r name destination source; do
     line=$(grep -F "entry|$name|$destination|" "$SCAFFOLDING_MANIFEST" || :)
