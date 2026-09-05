@@ -214,8 +214,9 @@ fallo y la siguiente accion concreta. `partial` nunca equivale a exito.
 ## Integracion
 
 El lead inspecciona cada retorno y diff, resuelve integracion sobre su propiedad
-y repite las verificaciones aplicables. Despues usa commits, checkpoint pushes y
-draft PR conforme al ciclo global sin reconfirmar cada accion; el merge conserva
+y repite las verificaciones aplicables. Prepara los cambios propios con `git add`
+y presenta el diff staged al usuario. Commit, push y draft PR siguen el gate de
+revision del [ciclo global](../AGENTS.md#5-git-github-y-limites); el merge conserva
 su gate explicito. Cierra workers y limpia recursos temporales unicamente cuando
 todo trabajo este preservado. Los limites de loops y acciones Git viven en
 [`policies/README.md`](../policies/README.md).
