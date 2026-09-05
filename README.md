@@ -104,7 +104,7 @@ scripts/scaffolding uninstall --apply # Restaurar el estado anterior
 
 ### 2. Añade subagentes si los necesitas
 
-La instalación de instrucciones y la de subagentes son independientes. La generación requiere Python 3.11 o posterior. Antes de generar agentes, configura los identificadores reales de tus modelos en `~/.config/agent-scaffolding/model-map.yaml`, siguiendo el [ejemplo comentado](settings/schemas/model-map.example.yaml). Sus nombres de ejemplo no son identificadores instalables.
+La instalación de instrucciones y la de subagentes son independientes. Antes de generar agentes, configura los identificadores reales de tus modelos en `~/.config/agent-scaffolding/model-map.yaml`, siguiendo el [ejemplo comentado](settings/schemas/model-map.example.yaml). Sus nombres de ejemplo no son identificadores instalables.
 
 ```sh
 # Ejemplo para Codex. Para Claude, cambia codex por claude.
