@@ -158,7 +158,7 @@ sh tests/pilot_run_test.sh
 sh tests/protect_repo_test.sh
 ```
 
-Para configurar checks, protección de ramas y el revisor automático, consulta la [guía de GitHub](.github/README.md).
+Para configurar checks, protección de ramas y el revisor automático, consulta la [guía de GitHub](.github/WORKFLOW.md).
 
 </details>
 

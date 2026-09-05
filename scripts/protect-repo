@@ -13,7 +13,7 @@
 #     nunca con push directo a la rama por defecto.
 #
 # Dry-run por defecto; --apply ejecuta. --all recorre cada repo del usuario
-# autenticado. Ver .github/README.md para la especificacion canonica.
+# autenticado. Ver .github/WORKFLOW.md para la especificacion canonica.
 #
 # El check `reviewer` NO se exige salvo --with-reviewer: mientras el revisor-en-CI
 # siga desactivado, exigirlo seria un control ficticio. Ver .github/workflows/ci.yml.
