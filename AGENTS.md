@@ -77,6 +77,20 @@ de datos, curl ni archivos de entorno. Solo escribe por peticion explicita y con
 escritura MCP habilitada; no expongas secretos ni elimines documentos. Verifica
 los detalles de implementacion importantes contra el repositorio.
 
+### Mantenimiento de instrucciones locales
+
+El lead responsable de la tarea revisa las instrucciones locales al empezar y
+antes de entregar cambios. Actualiza `AGENTS.md` y/o `CLAUDE.md` cuando la tarea
+confirme o cambie hechos esenciales y duraderos: comandos de desarrollo/tests,
+convenciones, arquitectura o restricciones del proyecto. Corrige o retira datos
+obsoletos; no actualices por calendario ni anadas diarios de sesion, secretos o
+detalles que ya explica el codigo. Enlaza documentacion extensa.
+
+Respeta la fuente comun y los imports existentes; evita duplicar reglas entre
+hosts. Crea instrucciones locales solo si hay informacion propia que conservar.
+Los workers comunican los hallazgos y el lead integra la actualizacion. Incluye
+estos archivos en el mismo diff para revision del usuario e indica que cambio.
+
 ## 4. Ejecucion y delegacion
 
 - Haz el cambio correcto mas pequeno y conserva trabajo ajeno.
@@ -99,11 +113,13 @@ los detalles de implementacion importantes contra el repositorio.
 
 ## 5. Git, GitHub y limites
 
-Una tarea de cambio autorizada incluye, sin confirmacion por cada accion, el
-ciclo normal de feature: crear o enlazar un issue, actualizar refs, crear
-rama/worktree desde `origin/main`, ejecutar baseline, crear commits logicos, hacer
-push de la feature tras checkpoints verdes y crear o actualizar una draft PR que
-cierre el issue. Una restriccion superior o local puede reducir esta autoridad.
+Una tarea de cambio autorizada incluye crear o enlazar un issue, actualizar refs,
+crear rama/worktree desde `origin/main`, implementar, verificar y preparar los
+cambios con `git add`. El cierre por defecto es un diff staged para que el usuario
+lo revise en Codex: no hagas commit ni push antes de su aprobacion explicita del
+diff. Esta regla incluye workers y commits de checkpoint o documentacion; una
+autorizacion general de implementar no sustituye esa revision. El usuario puede
+autorizar expresamente otro flujo para una tarea concreta.
 
 1. Crea o enlaza el issue que la tarea cierra; inspecciona status, rama, remotos
    y worktrees, y conserva trabajo ajeno.
@@ -114,16 +130,23 @@ cierre el issue. Una restriccion superior o local puede reducir esta autoridad.
    `main` para desarrollar.
 4. Registra SHA base y baseline antes de editar. Si esta rojo, separa el fallo
    preexistente y aplica STOP salvo autorizacion acotada para continuar.
-5. Crea commits logicos. Tras cada checkpoint verde, permite push de la feature
-   y creacion o actualizacion de su draft PR (con `Closes #<n>`) sin reconfirmar.
-6. Ejecuta CI y revision independiente dentro de los limites de
+5. Tras verificar, usa `git add -- <paths>` solo sobre cambios propios. Revisa
+   `git diff --cached` y `git status`; no incluyas trabajo ajeno ni mezcles cambios
+   preexistentes del indice. Si un archivo contiene cambios ajenos, prepara solo
+   tus hunks. Presenta archivos, pruebas y rama/worktree al usuario y espera su
+   revision. Conserva el worktree y los cambios staged mientras espera.
+6. Tras la aprobacion explicita para commit y push, comprueba que el diff sigue
+   siendo el revisado, crea commits logicos, haz push de la feature y crea o
+   actualiza su draft PR (`Closes #<n>`). Si cambia el contenido aprobado, vuelve
+   a presentarlo; no extiendas el permiso a cambios posteriores.
+7. Ejecuta CI y revision independiente dentro de los limites de
    [`policies/README.md`](policies/README.md), sobre el snapshot final. En cuenta
    personal no uses approval del autor: el revisor automatico va como check.
    Si esta desactivado, exige evidencia de revision independiente documentada;
    `reviewer-disabled` nunca la acredita. La puerta es CI verde Y revision
    aprobada. Merge sigue siendo explicito; solo el auto-merge preautorizado lo
    cierra sin accion manual, con todos los checks requeridos en verde.
-7. Confirma la integracion con `gh pr view <n> --json state,mergedAt` antes de
+8. Confirma la integracion con `gh pr view <n> --json state,mergedAt` antes de
    limpiar: el squash merge reescribe el head y `git branch -d` puede
    no reconocerlo. Solo si `state` es `MERGED`, actualiza el main limpio con
    `pull --ff-only`, retira los worktrees limpios de la feature con
