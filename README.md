@@ -1,107 +1,151 @@
+<div align="center">
+
 # Agent Scaffolding
 
-Contrato global, pequeno y verificable para trabajar con Codex, Claude y Gemini
-desde apps o CLI. La fuente canónica vive en `~/agent-scaffolding`; no se instala
-una copia en cada proyecto.
+### Tus agentes trabajan. Tú revisas antes de publicar.
 
-## Activacion global
+Un contrato común para trabajar con **Codex, Claude y Gemini**, mantener el contexto de tus proyectos y delegar cuando aporta valor.
 
-Los destinos gestionados de v0.1 son:
+[![CI](https://github.com/theBrokenCat/agent-scaffolding/actions/workflows/ci.yml/badge.svg?event=pull_request)](https://github.com/theBrokenCat/agent-scaffolding/actions/workflows/ci.yml)
 
-```text
-~/.codex/AGENTS.md   -> ~/agent-scaffolding/AGENTS.md
-~/.claude/CLAUDE.md -> ~/agent-scaffolding/CLAUDE.md
-~/.gemini/GEMINI.md -> ~/agent-scaffolding/GEMINI.md
+[Cómo funciona](#cómo-funciona) · [Empezar](#empezar) · [Documentación](#documentación)
+
+</div>
+
+---
+
+## ¿Qué te aporta?
+
+| | En tu día a día |
+| --- | --- |
+| **👀 Revisión antes de publicar** | El agente prepara los cambios con `git add`. Puedes revisar el diff antes de autorizar commit y push. |
+| **🧭 Contexto para retomar** | El lead conserva el estado del objetivo, los bloqueos, las pruebas y los siguientes pasos. |
+| **📚 Documentación al día** | Las instrucciones locales y el contexto en Outline se actualizan cuando hay novedades importantes. |
+| **🤝 Delegación con límites** | Cuatro roles genéricos, tareas acotadas y un lead responsable de integrar y verificar. |
+| **🏠 Una fuente común** | Se instala globalmente. Cada proyecto añade solo sus comandos, convenciones y restricciones. |
+
+El scaffolding es un conjunto de instrucciones, definiciones de agentes y herramientas de instalación. **No es un servicio que ejecute proyectos por sí solo ni un bloqueo técnico de Git.** Su cumplimiento depende de que el host cargue y siga el contrato.
+
+## Cómo funciona
+
+```mermaid
+flowchart LR
+    A[Defines el objetivo] --> B[El agente implementa y verifica]
+    B --> C[Prepara los cambios con git add]
+    C --> D[Tú revisas el diff]
+    D --> E[Autorizas commit y push]
+    E --> F[PR, CI y revisión independiente]
+    F --> G[Merge con autorización]
 ```
 
-El enlace no basta como prueba. Cada host debe demostrar en runtime que carga el
-contrato comun. Instala siempre desde el checkout canonico de `main`, nunca desde
-un worktree temporal:
+### El código pasa por tus manos
+
+El agente ejecuta `git add` **solo sobre sus cambios** y te indica qué archivos modificó y qué comprobó. Los cambios quedan preparados —*staged*— para que puedas ver las diferencias en Codex o con `git diff --cached`, desde el checkout donde trabajó.
+
+**No hace commit ni push hasta que se lo indiques tras revisar el diff.** Si el contenido cambia después de tu aprobación, vuelve a presentarlo. Puedes autorizar expresamente otro flujo para una tarea concreta; el merge conserva su autorización separada.
+
+### El contexto también forma parte del trabajo
+
+El lead mantiene las instrucciones locales cuando cambian hechos duraderos, como los comandos de pruebas o las restricciones del proyecto. Para objetivos de varias sesiones, conserva un registro que permita continuar sin reconstruir toda la conversación.
+
+En **Outline**, actualiza el documento existente del proyecto ante avances importantes, bloqueos, decisiones y cambios de arranque o pruebas. Conserva tus ediciones y enlaza el detalle del repositorio. Requiere acceso MCP y escritura habilitada; si no puede actualizarlo, lo deja explícitamente pendiente. [Ver la política de Outline →](policies/README.md#mantenimiento-de-outline)
+
+### Cuatro roles, según lo que haga falta
+
+| Rol | Para qué sirve |
+| --- | --- |
+| `explorer` | Entender el código y localizar evidencia. |
+| `implementer` | Implementar un cambio acotado y comprobarlo. |
+| `spec-reviewer` | Revisar si el objetivo y su aceptación están bien definidos. |
+| `quality-reviewer` | Revisar el resultado y detectar problemas antes de integrar. |
+
+**No hay que lanzar los cuatro en cada tarea.** La ejecución directa es el punto de partida. El lead conserva las decisiones, la integración y la verificación; los subagentes no delegan a su vez. [Cómo se eligen y coordinan →](agents/README.md)
+
+## Empezar
+
+### 1. Instala las instrucciones globales
+
+Necesitas Git y un entorno compatible con los scripts de shell del repositorio. Trabaja desde el checkout canónico de `main`, no desde un worktree temporal.
 
 ```sh
+git clone https://github.com/theBrokenCat/agent-scaffolding.git ~/agent-scaffolding
+cd ~/agent-scaffolding
+
+# Primero, inspecciona el plan.
 scripts/scaffolding install
+
+# Después, aplica y comprueba la instalación.
 scripts/scaffolding install --apply
 scripts/scaffolding status
 scripts/scaffolding doctor
-scripts/scaffolding uninstall
-scripts/scaffolding uninstall --apply
 ```
 
-Todos los comandos son dry-run salvo `--apply`. Si existe cualquiera de los
-tres destinos, el instalador aplica STOP. Revisa primero el plan y usa
-`install --migrate-existing --apply` solo cuando quieras guardar y sustituir
-explicitamente esos destinos. El manifiesto y los backups quedan fuera del repo
-en `~/.local/state/agent-scaffolding/`; `uninstall --apply` restaura archivos,
-symlinks —incluidos los rotos— y ausencias anteriores.
+Si ya tienes el repositorio, usa ese checkout. Si existen instrucciones globales previas, el instalador se detiene: revisa el plan de `install --migrate-existing` y usa `--apply` solo si quieres respaldarlas y sustituirlas.
 
-`status` y `doctor` pueden consultarse desde otro worktree del mismo repositorio:
-verifican el Git common dir y muestran un NOTE antes de comprobar la instalacion
-canonica y su SHA/render. Las variables Git heredadas no cambian esa identidad.
-`install/uninstall` siguen exigiendo el checkout canonico; no se redirigen.
-
-## Definiciones de subagente por host
-
-Los roles canonicos viven en [`agents/roles/`](agents/roles/) y **siguen siendo
-cuatro**. `scripts/gen-agents` resuelve sus alias contra el model map local y
-materializa **un archivo por par (rol, estado)** —base y escalado— por host:
+<details>
+<summary><strong>Destinos, copias de seguridad y desinstalación</strong></summary>
 
 ```text
-~/.codex/agents/<rol>-<estado>.toml
-~/.claude/agents/<rol>-<estado>.md
+~/.codex/AGENTS.md   → ~/agent-scaffolding/AGENTS.md
+~/.claude/CLAUDE.md → ~/agent-scaffolding/CLAUDE.md
+~/.gemini/GEMINI.md → ~/agent-scaffolding/GEMINI.md
 ```
 
-Un archivo generado es un estado materializado, no un rol nuevo. Los estados son
-`explorer-economy` / `explorer-balanced`, `implementer-economy` /
-`implementer-balanced` / `implementer-frontier`, `spec-reviewer-frontier-high` /
-`spec-reviewer-frontier-xhigh` y `quality-reviewer-frontier` /
-`quality-reviewer-critical`; `explorer` conserva ademas su nombre desnudo para
-seguir sobrescribiendo el built-in del host.
-
-Cada definicion incluye el cuerpo completo de su ficha y el contrato comun de
-retorno; puede usarse desde otro proyecto sin resolver rutas del scaffolding.
-El retorno separa el estado de ejecucion del veredicto de revision: `completed`
-por si solo no significa aprobado. El formato canonico vive en
-[`agents/README.md`](agents/README.md#envelope-de-retorno).
-
-Son archivos separados porque el host resuelve el routing por el agente nombrado:
-con `agent_type`, la definicion gana a cualquier override de `model` o
-`reasoning_effort`. Por eso escalar es despachar otro nombre, nunca pasar un
-override.
-
-Los agentes de cada host tienen una unidad de instalacion separada de las
-instrucciones, con manifiesto y reversion propios. Se puede retirar un host
-sin afectar al otro:
+El manifiesto y los backups quedan fuera del repositorio, en `~/.local/state/agent-scaffolding/`. Las operaciones de instalación y desinstalación muestran un plan salvo que añadas `--apply`.
 
 ```sh
-scripts/gen-agents --host codex --role explorer-economy    # ver el render
-scripts/scaffolding install --agents --host codex          # plan
+scripts/scaffolding uninstall         # Ver el plan
+scripts/scaffolding uninstall --apply # Restaurar el estado anterior
+```
+
+`status` y `doctor` también funcionan desde worktrees registrados del mismo repositorio: identifican el checkout canónico y lo indican con `NOTE`. Las operaciones que instalan o retiran archivos siguen exigiendo el checkout canónico.
+
+</details>
+
+### 2. Añade subagentes si los necesitas
+
+La instalación de instrucciones y la de subagentes son independientes. Antes de generar agentes, configura los identificadores reales de tus modelos en `~/.config/agent-scaffolding/model-map.yaml`, siguiendo el [ejemplo comentado](settings/schemas/model-map.example.yaml). Sus nombres de ejemplo no son identificadores instalables.
+
+```sh
+# Ejemplo para Codex. Para Claude, cambia codex por claude.
+scripts/gen-agents --host codex --role explorer-economy
+scripts/scaffolding install --agents --host codex
 scripts/scaffolding install --agents --host codex --apply
-scripts/scaffolding status  --agents --host codex
-scripts/scaffolding doctor  --agents --host codex
+scripts/scaffolding doctor --agents --host codex
+```
+
+El generador produce definiciones para **Codex y Claude**. Gemini tiene adaptador de instrucciones, pero no una unidad de subagentes en este repositorio.
+
+<details>
+<summary><strong>Estados, modelos y cambios en la instalación</strong></summary>
+
+Cada combinación de rol y estado tiene su propio archivo en `~/.codex/agents/` o `~/.claude/agents/`. Un estado selecciona capacidad y esfuerzo; no es otra especialidad ni concede más permisos. Las definiciones incluyen su ficha y el contrato común de retorno: terminar una revisión no equivale a aprobarla.
+
+La selección se hace mediante el nombre del agente definido. El [protocolo de despacho](agents/README.md#orquestacion) explica los estados, la escalada y cómo comprobar el modelo realmente utilizado.
+
+```sh
+scripts/scaffolding status --agents --host codex
 scripts/scaffolding uninstall --agents --host codex --apply
 ```
 
-El destino es contenido generado, no un symlink, asi que `status --agents --host H`
-distingue dos derivas: `destination changed` cuando han editado el archivo del
-host y `render-changed` cuando ha cambiado el rol, el model map o el generador.
+Los archivos de agentes son contenido generado, no enlaces. El estado distingue cambios en el destino de cambios en el render. Cada host conserva su manifiesto y restauración independientes. Añadir o quitar un rol canónico invalida una unidad instalada y requiere recuperación explícita; no hay migración automática de ese conjunto.
 
-Instalar exige un model map local en `~/.config/agent-scaffolding/model-map.yaml`.
-El ejemplo del repositorio lleva nombres en clave, no ids de modelo, y el
-instalador se niega a copiarlos a un host. Gemini no expone formato de subagente
-y queda fuera de esta unidad.
+</details>
 
-Un archivo instalado no prueba que el host ejecute en ese modelo y ese effort:
-eso se comprueba con [`tests/runtime-parity.md`](tests/runtime-parity.md).
+### 3. Comprueba que tu host lo carga
 
-El manifiesto guarda una entrada por destino, asi que **anadir o quitar un rol
-canonico invalida una unidad ya instalada**. Falla en voz alta y explica la
-recuperacion manual; no hay migracion automatica, porque el contrato fija cuatro
-roles genericos y cambiar ese conjunto es una decision, no una rutina.
+Un enlace o un archivo instalado no demuestran que el host haya cargado las instrucciones o ejecutado el modelo esperado. Sigue la [comprobación de runtime](tests/runtime-parity.md) en tu entorno.
 
-Valida el contrato, el instalador y el registro con:
+Después, trabaja en tus proyectos habituales: **no copies el scaffolding en cada repositorio**. Añade instrucciones locales únicamente cuando aporten contexto propio. [Guía para proyectos →](templates/README.md)
 
-Las pruebas usan shell y Python 3.11 o posterior (incluido `tomllib` de la
-biblioteca estandar); no requieren llamadas a modelos ni credenciales reales.
+## Comprobaciones y alcance
+
+La [CI de las pull requests](.github/workflows/ci.yml) ejecuta ocho suites. La revisión independiente sigue siendo necesaria para integrar; un check llamado `reviewer-disabled` no la acredita.
+
+<details>
+<summary><strong>Ejecutar las ocho suites localmente</strong></summary>
+
+Requieren shell y Python 3.11 o posterior. No necesitan llamadas a modelos ni credenciales reales.
 
 ```sh
 sh tests/contract_test.sh
@@ -114,81 +158,20 @@ sh tests/pilot_run_test.sh
 sh tests/protect_repo_test.sh
 ```
 
-En cada PR a `main`, [`.github/workflows/ci.yml`](.github/workflows/ci.yml)
-ejecuta estos tests como capa determinista. `scripts/protect-repo` aplica por
-repositorio el ruleset de `main` y el auto-merge; ver
-[`.github/README.md`](.github/README.md).
+Para configurar checks, protección de ramas y el revisor automático, consulta la [guía de GitHub](.github/README.md).
 
-La revision automatica se activa con `AGENT_REVIEWER_ENABLED=true` despues de
-configurar su credencial y harness. Desactivada aparece como `reviewer-disabled`,
-que no acredita revision; activada publica `reviewer` y falla ante configuracion
-incompleta o errores. La revision independiente sigue siendo un gate de
-integracion aunque el revisor automatico no este configurado.
+</details>
 
-Un proyecto puede no tener instrucciones de agentes. Cuando aporten valor, sus
-archivos locales contienen solo hechos, comandos y restricciones propias del
-proyecto; complementan el contrato global y no amplian permisos superiores. El
-contrato opcional para proyectos nuevos esta en
-[`templates/README.md`](templates/README.md).
+El mapeo de modelos es provisional. Las pruebas del repositorio y los [pilotos históricos](docs/pilots/2026-09-02-phase-2-model-routing.md) no demuestran rendimiento máximo ni ahorro general: esas conclusiones requieren comparaciones sobre trabajo real. Los pendientes están en [el registro del proyecto](tasks/todo.md).
 
-## Contratos
+## Documentación
 
-- [`AGENTS.md`](AGENTS.md): autoridad comun, preflight, contexto, Git,
-  delegacion, verificacion y STOP.
-- [`ROUTER.md`](ROUTER.md): seleccion app-first del mecanismo y coste.
-- [`profiles/README.md`](profiles/README.md): indice compatible; esfuerzo y
-  aliases se resuelven en el router, sin una capa adicional de reglas.
-- [`agents/README.md`](agents/README.md): roles genericos, alias por rol, briefs,
-  presupuesto de concurrencia, orquestacion y retorno compacto.
-- [`agents/roles/`](agents/roles/): ficha canonica de cada rol, con alias, effort
-  y disparador de escalada en el frontmatter.
-- [`policies/README.md`](policies/README.md): limites operativos de Git, contexto,
-  seguridad, produccion y loops.
-- [`CLAUDE.md`](CLAUDE.md) y [`GEMINI.md`](GEMINI.md): diferencias reales de
-  cada host, sin asignarles un rol fijo.
-- [`templates/README.md`](templates/README.md): estructura local opcional y bajo
-  demanda.
-
-## Modelo de trabajo
-
-`app-direct` es el default. Para trabajo sustancial, la app recomienda si debe
-ejecutar directamente, delegar, paralelizar, relevar a CLI o combinar ambos. La
-confirmacion se pide solo cuando esa eleccion cambia coste, autoridad, superficie
-de escritura o destino de ejecucion.
-
-La app conserva decisiones, contratos compartidos, integracion y verificacion.
-Los workers reciben contexto acotado, usan roles genericos y devuelven un
-envelope compacto. Los writers trabajan sobre paths disjuntos y en worktrees
-separados; no existe delegacion anidada.
-
-Los cuatro roles son opciones, no una cadena obligatoria. En trabajo delegado,
-el lead define, un implementer ejecuta, un quality-reviewer revisa y el lead
-integra. Exploracion y revision de especificacion se anaden solo con una pregunta
-o riesgo concreto. La ejecucion directa conserva la revision independiente
-exigida por el gate de integracion.
-
-El router conserva el mapping actual como politica provisional. Se decide primero
-aceptacion y division del objetivo; la escalada se justifica por riesgo critico o
-razonamiento inseparable, no por el numero de pasos. No se afirma superioridad de
-modelos ni ahorro sin evidencia comparable.
-
-Para trabajo multisesion, usa el [relevo por objetivo](agents/README.md#trabajo-multisesion)
-en el issue o documento existente. El estado debe permitir retomar con el checkout,
-las dependencias, la evidencia y el siguiente paso correctos.
-
-Los [pilotos historicos](docs/pilots/2026-09-02-phase-2-model-routing.md) se conservan
-como evidencia de diseno y ejecucion; no sustituyen el router ni prueban ahorros
-globales. Concurrencia, despacho y revision estan en
-[agents/README.md](agents/README.md#orquestacion).
-
-## Estado historico de v0.1
-
-El contrato global, instalador reversible, registro de capacidades, roles y
-limites de settings estan implementados. Las pruebas locales cubren dry-run,
-migracion explicita, idempotencia, drift, doctor, rollback por fallo y
-restauracion. La activacion real, validacion de los tres runtimes y piloto solo
-pueden ejecutarse desde el checkout canonico despues del merge autorizado; un
-enlace al worktree de la PR quedaria roto al limpiarlo.
-
-No hagas merge, tag ni deploy por el mero hecho de que esta implementacion
-exista. Consulta [`tasks/todo.md`](tasks/todo.md) para los gates pendientes.
+| Quiero… | Dónde encontrarlo |
+| --- | --- |
+| Entender permisos y flujo de trabajo | [Contrato global](AGENTS.md) |
+| Elegir ejecución directa o delegación | [Router](ROUTER.md) |
+| Preparar y coordinar subagentes | [Guía de agentes](agents/README.md) · [Fichas de roles](agents/roles/) |
+| Consultar límites y mantenimiento de Outline | [Políticas operativas](policies/README.md) |
+| Ver las diferencias entre hosts | [Claude](CLAUDE.md) · [Gemini](GEMINI.md) |
+| Preparar un proyecto nuevo | [Plantillas opcionales](templates/README.md) |
+| Consultar los antiguos perfiles | [Índice de compatibilidad](profiles/README.md) |
