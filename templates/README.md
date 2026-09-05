@@ -39,7 +39,9 @@ globales.
 Crea ADRs para decisiones dificiles de revertir, runbooks para operaciones
 repetibles, incidentes para impacto real y tareas persistentes para trabajo
 multisesion. No generes directorios vacios, backlog duplicado, agentes, hooks,
-scripts o plantillas por anticipado.
+scripts o plantillas por anticipado. Para trabajo multisesion usa el
+[relevo por objetivo](../agents/README.md#trabajo-multisesion) sobre los issues o
+documentos existentes; no crees un registro paralelo.
 
 ## Criterio de cierre
 

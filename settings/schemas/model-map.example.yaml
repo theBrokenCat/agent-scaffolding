@@ -41,7 +41,7 @@ aliases:
     model_codex: sol
     model_claude: top
     effort: xhigh
-    use: "critical seam, long horizon, reviewers"
+    use: "critical seam, inseparable reasoning, reviewers"
   - id: critical
     model_codex: sol
     model_claude: top

@@ -45,30 +45,17 @@ sobre `explorer` o `implementer`.
 
 ## Modelo y effort
 
-Los roles canonicos son **cuatro**. `scripts/gen-agents` materializa un archivo
-por par (rol, estado) —base y escalado— a partir de esas mismas cuatro fichas: un
-archivo generado es un estado materializado, no un rol nuevo, y la regla de roles
-genericos no cambia. Los estados son `explorer-economy` / `explorer-balanced`,
-`implementer-economy` / `implementer-balanced` / `implementer-frontier`,
-`spec-reviewer-frontier-high` / `spec-reviewer-frontier-xhigh` y
-`quality-reviewer-frontier` / `quality-reviewer-critical`. Un rol puede declarar
-peldanos adicionales en `additional_states`: `implementer-economy` es el tier que
-el contrato ya asignaba al trabajo mecanico totalmente especificado, y sin
-materializarlo no era despachable. `explorer` conserva ademas su nombre desnudo para
-seguir sobrescribiendo el built-in del host; sin el, el built-in vuelve y resuelve
-en el default del host.
+Los roles canonicos son **cuatro**. Cada ficha de [roles/](roles/) declara
+alias, effort y escalada; `scripts/gen-agents` materializa los estados por host.
+Un archivo generado es un estado materializado, no un rol nuevo. El nombre
+incluye rol y estado; `explorer` conserva ademas el alias desnudo que sobrescribe
+el built-in. Los nombres concretos se consultan en las capacidades del host o con
+`scripts/gen-agents --host <host> --list`.
 
-El alias fija modelo y reasoning effort del subagente. La tabla de curvas y los
-dos gates de escalada a Sol —**que toca** (seam critico) y **cuanto dura**
-(horizonte largo o sin criterios de aceptacion objetivos)— viven en
-[`ROUTER.md`](../ROUTER.md). Cada ficha de [`roles/`](roles/) declara en su
-frontmatter el alias, el effort, el alias escalado y el disparador exacto de la
-escalada; esa ficha es la fuente canonica y `scripts/gen-agents` la materializa
-por host.
-
-Escala por evidencia, no por prudencia: un solo gate basta, y ninguno se cumple
-por defecto. Terra nunca es el default de un rol; solo se usa como escalon
-diagnostico puntual para separar un fallo de capacidad de un fallo del brief.
+El mapping provisional y los gates de escalada viven solo en [ROUTER.md](../ROUTER.md).
+El brief justifica la seleccion; una tarea larga necesita aceptacion y division
+antes de atribuir su dificultad a la capacidad del modelo. Si no hay estado
+compatible disponible, declara la limitacion; no inventes un alias.
 
 ## Mecanismos y limites
 
@@ -157,6 +144,36 @@ apunta a esta seccion.
 5. **Revision final integrada.** Mantenla aunque cada reviewer estrecho haya
    pasado: dos revisiones estrechas dejan sin cubrir la interaccion entre sus
    dominios.
+
+## Trabajo multisesion
+
+Para cada objetivo que requiera varias sesiones, usa su issue o documento de
+trabajo existente como registro unico. Si no existe, crea un registro breve donde
+el proyecto ya gestione tareas. No instales un segundo backlog ni archivos
+obligatorios del scaffolding. El lead es responsable de mantenerlo; los workers
+aportan evidencia mediante el retorno comun.
+
+Conserva solo lo necesario para continuar:
+
+| Dato | Contenido |
+| --- | --- |
+| Resultado | Objetivo, scope y criterios de aceptacion observables. |
+| Estado y dependencias | Que esta pendiente, bloqueado, en revision o aceptado; IDs de dependencias y decisiones abiertas. |
+| Propiedad | Responsable, paths asignados y autoridad concedida. |
+| Checkout | Worktree/rama, SHA base y actual; cambios sin commit que deben preservarse. |
+| Evidencia | Comandos y resultados, SHA revisado, hallazgos pendientes y enlaces a artefactos. |
+| Siguiente accion | Paso o comando concreto, bloqueo y condicion de STOP. |
+
+Al retomar, contrasta el registro con Git y los artefactos actuales. No reutilices
+un pass de otro SHA ni declares terminada una dependencia porque un worker diga
+`completed`. Si hay drift, evalua el impacto y revalida antes de continuar;
+no sobrescribas trabajo ajeno ni ejecutes dependencias bloqueadas.
+
+Actualiza el registro al cambiar estado, cerrar un checkpoint o terminar la
+sesion, no por cada herramienta. Deja las decisiones sin confirmar marcadas como
+pendientes. Un objetivo se acepta solo cuando sus criterios y reviews requeridas
+se han verificado; implementacion, integracion y despliegue son estados distintos.
+El relevo no autoriza acciones nuevas ni obliga a publicar trabajo parcial.
 
 ## Envelope de retorno
 

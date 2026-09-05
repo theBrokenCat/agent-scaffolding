@@ -68,8 +68,14 @@ codex_out=$tmpdir/codex
 claude_out=$tmpdir/claude
 mkdir -p "$codex_out" "$claude_out"
 mkdir -p "$tmpdir/unrelated-project"
-(cd "$tmpdir/unrelated-project" && "$gen" --host codex --out "$codex_out" --model-map "$fixture") >/dev/null
-(cd "$tmpdir/unrelated-project" && "$gen" --host claude --out "$claude_out" --model-map "$fixture") >/dev/null
+(cd "$tmpdir/unrelated-project" && "$gen" --host codex --out "$codex_out" --model-map "$fixture") >/dev/null 2>"$tmpdir/codex.stderr"
+(cd "$tmpdir/unrelated-project" && "$gen" --host claude --out "$claude_out" --model-map "$fixture") >/dev/null 2>"$tmpdir/claude.stderr"
+for host in codex claude; do
+  if [ -s "$tmpdir/$host.stderr" ]; then
+    cat "$tmpdir/$host.stderr" >&2
+    fail "$host rendering wrote diagnostics despite succeeding"
+  fi
+done
 
 # Installed definitions must carry the role and the common return contract,
 # without depending on files in the consumer project's cwd. Parse the TOML,

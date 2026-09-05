@@ -63,11 +63,9 @@ con `agent_type`, la definicion gana a cualquier override de `model` o
 `reasoning_effort`. Por eso escalar es despachar otro nombre, nunca pasar un
 override.
 
-Es una unidad de instalacion aparte, con su propio manifiesto y su propia
-reversion:
-
-Cada host es una unidad propia, con su manifiesto y su reversion, para poder
-retirar el host cuyas definiciones no sirven sin tocar el que si funciona:
+Los agentes de cada host tienen una unidad de instalacion separada de las
+instrucciones, con manifiesto y reversion propios. Se puede retirar un host
+sin afectar al otro:
 
 ```sh
 scripts/gen-agents --host codex --role explorer-economy    # ver el render
@@ -133,8 +131,8 @@ contrato opcional para proyectos nuevos esta en
 - [`AGENTS.md`](AGENTS.md): autoridad comun, preflight, contexto, Git,
   delegacion, verificacion y STOP.
 - [`ROUTER.md`](ROUTER.md): seleccion app-first del mecanismo y coste.
-- [`profiles/README.md`](profiles/README.md): esfuerzo `fast|standard|deep`,
-  aliases `economy|balanced|frontier|critical` y gates de riesgo.
+- [`profiles/README.md`](profiles/README.md): indice compatible; esfuerzo y
+  aliases se resuelven en el router, sin una capa adicional de reglas.
 - [`agents/README.md`](agents/README.md): roles genericos, alias por rol, briefs,
   presupuesto de concurrencia, orquestacion y retorno compacto.
 - [`agents/roles/`](agents/roles/): ficha canonica de cada rol, con alias, effort
@@ -164,23 +162,21 @@ integra. Exploracion y revision de especificacion se anaden solo con una pregunt
 o riesgo concreto. La ejecucion directa conserva la revision independiente
 exigida por el gate de integracion.
 
-El alias del subagente (`economy`, `balanced`, `frontier`, `critical`) fija su
-modelo y su reasoning effort. Solo hay dos curvas por defecto, y se sube a la
-curva alta cuando se cumple uno de los dos gates: **que toca** (seam critico) o
-**cuanto dura** (horizonte largo o sin criterios de aceptacion objetivos).
+El router conserva el mapping actual como politica provisional. Se decide primero
+aceptacion y division del objetivo; la escalada se justifica por riesgo critico o
+razonamiento inseparable, no por el numero de pasos. No se afirma superioridad de
+modelos ni ahorro sin evidencia comparable.
 
-Nunca se spawnea con `fork_turns: "all"` cuando el alias importa: el fork hereda
-modelo y effort del padre y anula el alias sin aviso. Modelo observado distinto
-del alias es fallo, no variante.
+Para trabajo multisesion, usa el [relevo por objetivo](agents/README.md#trabajo-multisesion)
+en el issue o documento existente. El estado debe permitir retomar con el checkout,
+las dependencias, la evidencia y el siguiente paso correctos.
 
-El presupuesto de concurrencia es de 8 agentes simultaneos, con 3 writers como
-maximo. El lote independiente se lanza entero antes de la primera espera, los
-hallazgos se agrupan contra un snapshot congelado y se corrigen en un solo lote.
-El diseno del piloto que debe validar todo esto, con sus criterios
-pre-registrados, esta en
-[`docs/pilots/2026-09-02-phase-2-model-routing.md`](docs/pilots/2026-09-02-phase-2-model-routing.md).
+Los [pilotos historicos](docs/pilots/2026-09-02-phase-2-model-routing.md) se conservan
+como evidencia de diseno y ejecucion; no sustituyen el router ni prueban ahorros
+globales. Concurrencia, despacho y revision estan en
+[agents/README.md](agents/README.md#orquestacion).
 
-## Estado de v0.1
+## Estado historico de v0.1
 
 El contrato global, instalador reversible, registro de capacidades, roles y
 limites de settings estan implementados. Las pruebas locales cubren dry-run,

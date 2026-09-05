@@ -1,9 +1,8 @@
 # Contrato global de agentes
 
-Este archivo es el contrato comun de `~/agent-scaffolding`. Se activa desde el
-directorio global de cada host; un proyecto no tiene que instalarlo ni copiarlo.
-Las instrucciones locales son opcionales y deben limitarse a hechos, comandos y
-restricciones propios del proyecto.
+Contrato comun de `~/agent-scaffolding`, cargado globalmente por cada host. Los
+proyectos no lo copian; sus instrucciones locales son opcionales y solo anaden
+hechos, comandos y restricciones propios.
 
 ## 1. Autoridad y activacion
 
@@ -21,16 +20,14 @@ Los destinos globales gestionados son:
 ~/.gemini/GEMINI.md -> ~/agent-scaffolding/GEMINI.md
 ```
 
-Cada adaptador debe cargar este archivo mediante un mecanismo soportado y
-probado en runtime por su host. Si un import relativo no se resuelve desde un
-symlink, usa el enlace auxiliar minimo o un adaptador estable generado desde el
-repositorio. No des por valida la activacion solo porque el enlace exista.
+Verifica en runtime que cada host carga el contrato. Si el import relativo no
+resuelve desde un symlink, usa el enlace auxiliar minimo o un adaptador estable.
+La existencia del enlace no prueba activacion.
 
 ## 2. Inicio y preflight
 
-Detecta si operas en app o CLI y que capacidades reales ofrece el host: ejecucion
-directa, delegacion, paralelo, teams, seleccion de modelo, permisos y medicion de
-coste. No simules capacidades ausentes.
+Detecta app/CLI y capacidades reales: ejecucion, delegacion, paralelo, teams,
+modelos, permisos y medicion de coste. No simules las ausentes.
 
 Para una tarea sustancial, antes de ejecutar presenta:
 
@@ -51,40 +48,34 @@ superior.
 ## 3. Router y contexto
 
 Usa [`ROUTER.md`](ROUTER.md) para elegir mecanismo y nivel; `app-direct` es el
-default. Carga despues solo el perfil, las politicas y los briefs necesarios en
-[`profiles/README.md`](profiles/README.md), [`policies/README.md`](policies/README.md)
-y [`agents/README.md`](agents/README.md). La CLI es una opcion de relevo, no el
-destino obligatorio.
+default. Carga solo las secciones necesarias de
+[`policies/README.md`](policies/README.md) para gates y presupuestos, y
+[`agents/README.md`](agents/README.md) para delegacion. La CLI es una opcion de
+relevo, no el destino obligatorio. Los perfiles se resuelven en el router.
 
 Antes de editar confirma objetivo, scope, paths permitidos, SHA o baseline,
 cambios preexistentes y evidencia de finalizacion. Amplia el contexto una sola
 vez si la primera pasada acotada no basta; no leas todo el repositorio por
 defecto.
 
-Para arquitectura, simbolos, llamadas e impacto usa primero
-`codebase-memory-mcp`: `search_graph`, `trace_path`, `get_code_snippet`,
-`query_graph` y `get_architecture`, segun la necesidad. Usa busqueda textual para
-literales, configuracion, documentacion, archivos no indexados o resultados
-insuficientes del grafo.
+Para arquitectura, simbolos, llamadas e impacto usa primero `codebase-memory-mcp`
+(`search_graph`, `trace_path`, `get_code_snippet`, `query_graph`, `get_architecture`).
+Usa texto para literales, configuracion, docs, archivos no indexados o cobertura
+insuficiente; verifica los detalles importantes contra la fuente.
 
-Antes de confiar en el grafo, comprueba `list_projects` o `index_status` y su
-coherencia con el repositorio actual. `ready` solo significa que una indexacion
-termino: no demuestra frescura ni cobertura. Si falta el proyecto, la ruta no
-coincide, el indice es inverosimilmente pequeno, ha cambiado la rama o el
-worktree, existen cambios sustanciales desde la ultima evidencia, o una busqueda
-textual encuentra un simbolo conocido que el grafo omite, ejecuta
-`index_repository` sobre el root actual y repite la consulta una vez. Esta
-reindexacion puede hacerse sin confirmacion cuando usa `persistence=false` y no
-modifica el repositorio. Registra rama, SHA y estado dirty cuando sean relevantes:
-el indice representa los archivos presentes, incluidos cambios sin commit. Si
-el segundo intento falla, usa busqueda textual e informa de la degradacion; no
-entres en un loop de reindexacion.
+Antes de confiar en el grafo, comprueba `list_projects` o `index_status`, root y
+cobertura. `ready` solo significa que una indexacion termino, no que sea actual.
+Reindexa si falta el proyecto, el root no coincide, cambia la rama/worktree, el
+indice es demasiado pequeno, hay cambios sustanciales o el grafo omite simbolos.
+Ejecuta `index_repository` sobre el root actual con `persistence=false`, sin
+confirmacion adicional, y repite la consulta una vez. Registra rama, SHA y estado
+actual, incluidos cambios sin commit. Si sigue fallando, usa texto e informa de
+la degradacion; no entres en un loop de reindexacion.
 
-Consulta Outline mediante MCP para documentacion, decisiones previas y notas de
-despliegue. No eludas permisos con shell, Docker, bases de datos, `curl` ni
-archivos de entorno. Solo modifica Outline por peticion explicita y con escritura
-MCP habilitada; no expongas secretos ni elimines documentos. Verifica en el
-repositorio los detalles de implementacion importantes.
+Consulta Outline solo mediante MCP. No eludas permisos con shell, Docker, bases
+de datos, curl ni archivos de entorno. Solo escribe por peticion explicita y con
+escritura MCP habilitada; no expongas secretos ni elimines documentos. Verifica
+los detalles de implementacion importantes contra el repositorio.
 
 ## 4. Ejecucion y delegacion
 
@@ -94,32 +85,15 @@ repositorio los detalles de implementacion importantes.
   verificacion final incluso cuando delega.
 - Usa solo los roles genericos y el envelope compacto de
   [`agents/README.md`](agents/README.md); los dominios viajan en el brief.
-- Los cuatro roles son opciones: el lead selecciona los necesarios. Exploracion
-  y revision de especificacion requieren una pregunta o riesgo concreto; la
-  revision independiente exigida por el gate de integracion se mantiene.
 - No permitas delegacion anidada. Los writers declaran paths disjuntos y usan
   worktree o aislamiento equivalente desde un SHA conocido.
 - El presupuesto de concurrencia es de 8 agentes simultaneos como maximo, con un
   maximo de 3 writers y `readers <= 8 - writers`. Si el host expone menos, manda
   el host.
-- El alias del subagente (`economy`, `balanced`, `frontier`, `critical`) fija su
-  modelo y su reasoning effort, no su autoridad. Escala a la curva Sol solo si se
-  cumple un gate de [`ROUTER.md`](ROUTER.md): seam critico, u horizonte largo sin
-  criterios de aceptacion objetivos.
-- Spawnea todo el lote independiente antes de la primera espera; espera con
-  bounds largos y no re-emitas esperas cortas cuando el estado no ha cambiado.
-  Agrupa hallazgos contra un snapshot congelado y corrige en un solo lote.
-- **Nunca spawnees con `fork_turns: "all"` cuando el alias importe.** El fork hace
-  que el subagente herede modelo y effort del padre y anule el alias, sin error ni
-  aviso; la herramienta ni siquiera admite override explicito al forkear. Si el
-  fork es imprescindible, declara que ese despacho corrio en el par del padre.
-- **Cuando `agent_type` nombra un agente custom, la definicion del archivo gana al
-  override de `spawn_agent`.** La escalada NUNCA se hace pasando `model` o
-  `reasoning_effort`; se hace despachando la variante materializada del rol
-  (`<rol>-<estado>`). Un override enviado con `agent_type` se acepta sin error y
-  se ignora.
-- Si el modelo observado no coincide con el alias, es FALLO, no una variante
-  aceptable: esa ejecucion pertenece a otro alias y su coste y su calidad tambien.
+- El alias selecciona capacidad, no autoridad. Aplica los criterios de
+  [`ROUTER.md`](ROUTER.md) y el protocolo de despacho de
+  [`agents/README.md`](agents/README.md#orquestacion), incluida la verificacion
+  del modelo observado. No uses un modelo mayor para suplir un objetivo ambiguo.
 - Cierra workers y recursos temporales al terminar sin borrar trabajo no
   integrado.
 
@@ -131,8 +105,6 @@ rama/worktree desde `origin/main`, ejecutar baseline, crear commits logicos, hac
 push de la feature tras checkpoints verdes y crear o actualizar una draft PR que
 cierre el issue. Una restriccion superior o local puede reducir esta autoridad.
 
-Sigue este ciclo:
-
 1. Crea o enlaza el issue que la tarea cierra; inspecciona status, rama, remotos
    y worktrees, y conserva trabajo ajeno.
 2. Ejecuta `git fetch --prune origin` y localiza el worktree limpio que posee
@@ -140,26 +112,27 @@ Sigue este ciclo:
 3. Crea la rama `feat/<n>-slug` (n = numero del issue) y su worktree desde
    `origin/main`; no reutilices un checkout con cambios ni alteres el worktree de
    `main` para desarrollar.
-4. Registra SHA base y baseline antes de editar.
+4. Registra SHA base y baseline antes de editar. Si esta rojo, separa el fallo
+   preexistente y aplica STOP salvo autorizacion acotada para continuar.
 5. Crea commits logicos. Tras cada checkpoint verde, permite push de la feature
    y creacion o actualizacion de su draft PR (con `Closes #<n>`) sin reconfirmar.
-6. Ejecuta CI y la revision del agente dentro de los limites de
-   [`policies/README.md`](policies/README.md). En cuenta personal el revisor no
-   puede aprobar su propia PR: va como check de CI, no como approval. La puerta
-   antes de integrar es CI verde Y revisor verde. El merge sigue siendo un gate
-   explicito; solo el auto-merge preautorizado lo cierra sin accion manual, y
-   unicamente con los checks requeridos en verde.
+6. Ejecuta CI y revision independiente dentro de los limites de
+   [`policies/README.md`](policies/README.md), sobre el snapshot final. En cuenta
+   personal no uses approval del autor: el revisor automatico va como check.
+   Si esta desactivado, exige evidencia de revision independiente documentada;
+   `reviewer-disabled` nunca la acredita. La puerta es CI verde Y revision
+   aprobada. Merge sigue siendo explicito; solo el auto-merge preautorizado lo
+   cierra sin accion manual, con todos los checks requeridos en verde.
 7. Confirma la integracion con `gh pr view <n> --json state,mergedAt` antes de
-   limpiar: el squash merge por defecto reescribe el head, por lo que
-   `git branch -d` siempre falla y dejaria ramas y worktrees huerfanos. Solo si
-   `state` es `MERGED`, actualiza el worktree limpio de `main` con
+   limpiar: el squash merge reescribe el head y `git branch -d` puede
+   no reconocerlo. Solo si `state` es `MERGED`, actualiza el main limpio con
    `pull --ff-only`, retira los worktrees limpios de la feature con
    `git worktree remove`, borra la rama local ya integrada con `git branch -D` y
    poda refs/metadatos obsoletos. El borrado remoto sigue requiriendo autorizacion.
 
-Push directo a `main`, force-push, merge, deploy/produccion, borrado remoto,
-`reset`, restore destructivo, `clean` y cualquier operacion destructiva requieren
-autorizacion explicita. No normalices cambios fuera de propiedad.
+Push a `main`, force-push, merge, deploy/produccion, borrado remoto, `reset`,
+restore destructivo, `clean` y otras acciones destructivas requieren autorizacion
+explicita. No normalices cambios fuera de propiedad.
 
 ## 6. Verificacion y STOP
 
@@ -172,3 +145,6 @@ Aplica STOP si faltan permisos o datos, cambia el scope o la propiedad, la
 evidencia contradice el plan, una accion seria destructiva, se agota un limite o
 no existe verificacion fiable. Informa `status`, evidencia, riesgos y la decision
 minima para continuar; no presentes trabajo parcial como cierre completo.
+
+Para varias sesiones, aplica el [relevo por objetivo](agents/README.md#trabajo-multisesion)
+en el issue o documento existente; un retorno de worker no cierra el objetivo.
