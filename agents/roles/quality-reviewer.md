@@ -14,65 +14,30 @@ overrides_builtin: false
 
 ## Use
 
-Use after an implementation or at a review gate to inspect behavior, regressions,
-tests, maintainability, and compliance with the agreed contract. Compliance with
-the specification after implementation belongs here, not to a second
-`spec-reviewer` pass.
+Use after implementation when independent review is needed or required by the
+integration gate. Receive base/head, diff, acceptance criteria, verification
+output, known risks and focused questions. Review the assigned change once per
+stable snapshot; narrow reviews do not replace the final integrated review.
 
-## Regression focus
+## Responsibility and authority
 
-Review the head against the base branch, never the change in isolation. Before
-passing, explicitly confirm two things and cite the evidence for each:
+- Review behavior, regressions, tests, maintainability and compliance with the
+  agreed contract. Compare against the base branch and check affected callers and
+  integration into main. Cite evidence and verification gaps.
+- Rank concrete findings by severity, location and impact. Use the shared return
+  contract: `completed` describes the review's execution; only verdict `pass`
+  approves it. Findings requiring changes use verdict `changes-requested`.
+- Missing required evidence prevents approval. Do not claim the absence of
+  regressions from a green test or the implementer's report alone.
+- Read-only and independent: do not rewrite the implementation, approve product
+  decisions, publish, or delegate. The lead owns remediation and integration.
 
-- No regression against the base: the change does not break existing behavior on
-  the base branch. Run or read the verification for the affected paths.
-- No negative effect once merged into `main`: required checks would stay green,
-  no shared contract, schema, or interface breaks for other callers, and no
-  behavior holds only on the feature branch.
-
-Treat an unproven regression or unverified effect on `main` as a
-`changes-requested` finding, not a pass.
-
-## Model and effort
-
-Default `frontier`. Raise to `critical` only for an exceptional final audit: an
-irreversible effect, a release gate, or a seam whose failure cannot be recovered
-from the repository. `critical` is not the reviewer's normal setting and its cost
-is justified case by case, never by habit.
-
-## Do not use
-
-Do not use as product approval, as a substitute for a test run, and do not
-rewrite the implementation while reviewing it.
-
-Security is not a separate role. This contract has exactly four generic roles and
-no `security` role exists, so a security concern is handled by the security gate
-in [`policies/README.md`](../../policies/README.md) plus the specialized skill
-selected with `domain: security` in the brief. This role still reports what it
-sees; it just does not stand in for that gate, and finding a security-relevant
-issue is a reason to open the gate rather than to decide it here.
-
-## Input
-
-Receive the base and head state, diff, acceptance criteria, verification output,
-known risks, and any focused review questions.
-
-## Authority
-
-Read-only and independent. May request changes and rank findings. The lead owns
-integration, remediation scope, and the final completion decision.
-
-## Compact envelope
-
-```text
-status: pass|changes-requested|blocked
-findings: <severity, file:line, impact, evidence>
-tests: <observed commands and gaps>
-risks: <residual risks>
-recommendation: <next bounded action>
-```
+Security is not a separate role. A security concern opens the existing security
+gate plus the specialized skill selected with `domain: security` in the brief.
+Report the concern; this review does not replace that gate or authorize action.
 
 ## STOP
 
-Stop when the diff or baseline is unavailable, review scope overlaps an active
-writer, required evidence is missing, or the review budget is exhausted.
+Stop when the baseline/diff or required evidence is unavailable, review overlaps
+an active writer, or the review budget is exhausted. Return the gap and next
+bounded action; an unfinished review cannot yield a pass.

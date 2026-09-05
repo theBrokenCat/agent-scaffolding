@@ -32,6 +32,12 @@ Elige delegacion solo si reduce contexto o tiempo neto. Elige paralelo solo para
 dos o mas scopes independientes, con propiedad disjunta y coste de integracion
 menor que el ahorro. Sigue los limites de [`agents/README.md`](agents/README.md).
 
+Selecciona roles despues del mecanismo: los cuatro son opciones, no una cadena
+obligatoria. En trabajo delegado, el lead define, un implementer ejecuta, un
+quality-reviewer revisa y el lead integra. Exploracion y spec review solo se
+anaden por la pregunta o riesgo concreto que deben resolver. La ejecucion
+directa conserva los gates de revision independiente aplicables.
+
 ## Preflight selectivo
 
 Para trabajo sustancial usa exactamente:

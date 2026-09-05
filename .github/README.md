@@ -45,8 +45,14 @@ ruleset canonico sobre la rama por defecto:
 - requiere que todas las conversaciones esten resueltas
   (`required_review_thread_resolution=true`);
 - exige el check `tests` (capa determinista). El check `reviewer` se añade con
-  `protect-repo --with-reviewer` solo cuando existen su secret y su harness;
-  exigir un check que aun no verifica nada seria un control ficticio.
+  `protect-repo --with-reviewer` solo despues de configurar el secret, implementar
+  su harness y activar la variable de repositorio `AGENT_REVIEWER_ENABLED=true`,
+  comprobando una revision ejecutada sobre el SHA correspondiente.
+- Con la variable desactivada o ausente, CI publica `reviewer-disabled`: informa
+  de la ausencia de revision y no satisface un check requerido `reviewer`.
+  Activado, la falta del secret o del harness y los errores del revisor fallan.
+  No exijas `reviewer-disabled` como gate de revision. Si `reviewer` ya era
+  requerido, desactivar la variable deja ese gate pendiente, nunca aprobado.
 
 Estas garantias son tecnicas solo despues de comprobar que el ruleset esta activo
 (`gh api repos/<owner>/<repo>/rulesets`). Sin ruleset son controles

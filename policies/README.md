@@ -131,10 +131,14 @@ no existe un trigger real. Ningun gate concede escritura.
 - Presupuesto de concurrencia: **8 agentes simultaneos como maximo**, de los
   cuales **como maximo 3 writers**; `readers <= 8 - writers`. El techo real es el
   del host; si expone menos, manda el host.
-- `fast` no delega. `standard` permite un solo worker acotado. `deep` puede usar
+- `fast` no delega. `standard` permite un solo worker activo; implementacion y
+  revision independiente pueden sucederse. `deep` puede usar
   el presupuesto completo, y solo mientras cada agente adicional tenga un scope
   real e independiente.
 - No hay delegacion anidada ni writers sin propiedad y aislamiento explicitos.
+- Los roles se seleccionan por necesidad conforme a `agents/README.md`.
+  Exploracion y spec review requieren una pregunta o riesgo concreto; no son
+  pasos obligatorios. Se mantiene la revision independiente antes de integrar.
 - Prohibido spawnear con `fork_turns: "all"` cuando el alias importe, que es casi
   siempre. El fork hereda modelo y effort del padre y anula el alias en silencio.
   Red flag: *subagente despachado con fork y routing por alias*. Evidencia: un

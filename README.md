@@ -52,6 +52,12 @@ Un archivo generado es un estado materializado, no un rol nuevo. Los estados son
 `quality-reviewer-critical`; `explorer` conserva ademas su nombre desnudo para
 seguir sobrescribiendo el built-in del host.
 
+Cada definicion incluye el cuerpo completo de su ficha y el contrato comun de
+retorno; puede usarse desde otro proyecto sin resolver rutas del scaffolding.
+El retorno separa el estado de ejecucion del veredicto de revision: `completed`
+por si solo no significa aprobado. El formato canonico vive en
+[`agents/README.md`](agents/README.md#envelope-de-retorno).
+
 Son archivos separados porque el host resuelve el routing por el agente nombrado:
 con `agent_type`, la definicion gana a cualquier override de `model` o
 `reasoning_effort`. Por eso escalar es despachar otro nombre, nunca pasar un
@@ -91,11 +97,15 @@ roles genericos y cambiar ese conjunto es una decision, no una rutina.
 
 Valida el contrato, el instalador y el registro con:
 
+Las pruebas usan shell y Python 3.11 o posterior (incluido `tomllib` de la
+biblioteca estandar); no requieren llamadas a modelos ni credenciales reales.
+
 ```sh
 sh tests/contract_test.sh
 sh tests/scaffolding_test.sh
 sh tests/registry_test.sh
 sh tests/gen_agents_test.sh
+sh tests/ci_reviewer_test.sh
 sh tests/orchestration_test.sh
 sh tests/pilot_run_test.sh
 sh tests/protect_repo_test.sh
@@ -105,6 +115,12 @@ En cada PR a `main`, [`.github/workflows/ci.yml`](.github/workflows/ci.yml)
 ejecuta estos tests como capa determinista. `scripts/protect-repo` aplica por
 repositorio el ruleset de `main` y el auto-merge; ver
 [`.github/README.md`](.github/README.md).
+
+La revision automatica se activa con `AGENT_REVIEWER_ENABLED=true` despues de
+configurar su credencial y harness. Desactivada aparece como `reviewer-disabled`,
+que no acredita revision; activada publica `reviewer` y falla ante configuracion
+incompleta o errores. La revision independiente sigue siendo un gate de
+integracion aunque el revisor automatico no este configurado.
 
 Un proyecto puede no tener instrucciones de agentes. Cuando aporten valor, sus
 archivos locales contienen solo hechos, comandos y restricciones propias del
@@ -141,6 +157,12 @@ La app conserva decisiones, contratos compartidos, integracion y verificacion.
 Los workers reciben contexto acotado, usan roles genericos y devuelven un
 envelope compacto. Los writers trabajan sobre paths disjuntos y en worktrees
 separados; no existe delegacion anidada.
+
+Los cuatro roles son opciones, no una cadena obligatoria. En trabajo delegado,
+el lead define, un implementer ejecuta, un quality-reviewer revisa y el lead
+integra. Exploracion y revision de especificacion se anaden solo con una pregunta
+o riesgo concreto. La ejecucion directa conserva la revision independiente
+exigida por el gate de integracion.
 
 El alias del subagente (`economy`, `balanced`, `frontier`, `critical`) fija su
 modelo y su reasoning effort. Solo hay dos curvas por defecto, y se sube a la

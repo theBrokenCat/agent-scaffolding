@@ -15,49 +15,27 @@ overrides_builtin: false
 
 ## Use
 
-Use **before** implementation to test whether the objective, constraints, states,
-inputs, outputs, and acceptance checks are complete and internally consistent.
+Use when the lead needs an independent answer about material ambiguity, a shared
+contract or a decision costly to reverse. The brief names that question or risk
+and supplies the request, proposed specification, constraints and acceptance
+criteria. This role is not a mandatory stage for every task.
 
-This role is pre-implementation only. Checking that a finished change complies
-with the agreed specification is not a second spec review: it belongs to
-`quality-reviewer`, whose contract already covers compliance with the agreed
-contract. Do not run this role over a diff.
+This role is pre-implementation only. Do not run this role over a diff. Checking
+a finished change against the agreed specification is implementation review:
+it belongs to `quality-reviewer`.
 
-## Do not use
+## Responsibility and authority
 
-Do not use to implement the feature, silently resolve product ambiguity, approve
-an implementation based only on prose when repository evidence differs, or audit
-a completed change for compliance.
-
-## Model and effort
-
-Default `frontier` at `high` effort: this review needs the Sol curve's judgment
-about missing states and unfalsifiable acceptance criteria, but it works over a
-bounded artifact rather than a long horizon. Raise the effort to `xhigh` when the
-specification covers a critical seam, where a missed invariant is expensive to
-discover later.
-
-## Input
-
-Receive the request, applicable project contract, proposed design or plan,
-known constraints, and the exact acceptance criteria.
-
-## Authority
-
-Read-only and advisory. May reject the specification as incomplete or identify
-assumptions. The lead and user retain scope and product decisions.
-
-## Compact envelope
-
-```text
-status: approved|needs-clarification|blocked
-findings: <ordered gaps or contradictions>
-acceptance: <observable checks>
-assumptions: <explicit assumptions>
-risks: <scope or contract risks>
-```
+- Check whether objectives, scope, states, inputs, outputs and acceptance checks
+  are complete and consistent. Rank concrete gaps, assumptions and their impact.
+- Read-only and advisory. Do not implement, silently resolve product ambiguity,
+  decide scope, or treat prose as proof when repository evidence differs.
+- The lead resolves decisions and integrates feedback. A clarification request
+  uses verdict `changes-requested` in the shared return contract; completing a
+  review does not approve the specification.
 
 ## STOP
 
-Stop when authority or source of truth is ambiguous, acceptance cannot be made
-observable, or a proposed interpretation would materially change scope.
+Stop when authority or source of truth is ambiguous, necessary evidence is
+missing, acceptance cannot be made observable, or the budget is exhausted.
+Report the missing decision and next action to the lead; do not delegate further.

@@ -169,12 +169,20 @@ role_field() {
   ' "$1"
 }
 
-role_envelope() {
+role_body() {
   awk '
-    /^## Compact envelope/ { section = 1; next }
-    section && /^```/ { if (started) exit; started = 1; next }
-    started { print }
+    NR == 1 && $0 == "---" { frontmatter = 1; next }
+    frontmatter && $0 == "---" { frontmatter = 0; next }
+    !frontmatter { print }
   ' "$1"
+}
+
+return_contract() {
+  awk '
+    /^## Envelope de retorno$/ { section = 1; next }
+    section && /^## / { exit }
+    section { print }
+  ' "$GEN_ROOT/agents/README.md"
 }
 
 toml_escape() {
@@ -282,11 +290,14 @@ load_role() {
     read-only|write) ;;
     *) stop "role ${role_file##*/} has unsupported authority $role_authority" ;;
   esac
+  role_body_text=$(role_body "$role_file") || stop "cannot read role body: $role_file"
+  [ -n "$role_body_text" ] || stop "empty role body: $role_file"
 }
 
 role_instructions() {
   printf '%s\n' "Act as the \`$role_of\` role of the agent-scaffolding contract, for the bounded"
-  printf '%s\n' "task the lead assigns. Follow agents/roles/$role_of.md and the launch brief."
+  printf '%s\n' 'task the lead assigns. The role and shared return contract are included below;'
+  printf '%s\n' 'follow them and the launch brief without looking them up in the project cwd.'
   printf '%s\n' "This file is one materialized state of that role, not a role of its own: the"
   printf '%s\n' "contract has exactly four generic roles."
   printf '\n'
@@ -317,9 +328,10 @@ role_instructions() {
   fi
   printf '%s\n' 'Never change your own model or effort, and never silently continue past that line.'
   printf '\n'
-  printf '%s\n' 'Return exactly this compact envelope and nothing else:'
+  printf '%s\n' "$role_body_text"
   printf '\n'
-  role_envelope "$role_file"
+  printf '%s\n' '## Shared return contract'
+  printf '%s\n' "$shared_return_contract"
   printf '\n'
   printf '%s\n' 'STOP and return `blocked` with evidence when the base SHA, ownership, contract or'
   printf '%s\n' 'required evidence is missing, when scope would grow, or when your budget is spent.'
@@ -348,7 +360,7 @@ render_codex() {
   printf 'model = "%s"\n' "$(toml_escape "$role_model")"
   printf 'model_reasoning_effort = "%s"\n' "$(toml_escape "$role_state_effort")"
   printf 'developer_instructions = """\n'
-  role_instructions | sed 's/"""/\\"\\"\\"/g'
+  role_instructions | sed 's/\\/\\\\/g; s/"""/\\"\\"\\"/g'
   printf '"""\n'
 }
 
@@ -374,6 +386,15 @@ render_role() {
     claude) render_claude ;;
   esac
 }
+
+# Validate source instructions before the Codex encoder pipeline can mask a
+# failed read. List/resolve do not need prompt content.
+case $action in
+  render_all|render_one)
+    shared_return_contract=$(return_contract) || stop 'cannot read shared return contract'
+    [ -n "$shared_return_contract" ] || stop 'empty shared return contract'
+    ;;
+esac
 
 case $action in
   map_path)

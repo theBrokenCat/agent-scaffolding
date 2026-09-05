@@ -26,6 +26,8 @@ jobs:
         run: sh tests/registry_test.sh
       - name: gen_agents_test
         run: sh tests/gen_agents_test.sh
+      - name: ci_reviewer_test
+        run: sh tests/ci_reviewer_test.sh
       - name: orchestration_test
         run: sh tests/orchestration_test.sh
       - name: pilot_run_test
@@ -33,37 +35,39 @@ jobs:
       - name: protect_repo_test
         run: sh tests/protect_repo_test.sh
 
-  # Revisor-en-CI (PREPARADO pero DESACTIVADO). Corre en cada PR pero es un no-op
-  # que reporta exito mientras no exista el secret `ANTHROPIC_API_KEY`.
+  # Desactivado publica un check distinto, que nunca satisface `reviewer`.
+  # Activado solo pasa si se ejecuta el harness y este termina correctamente.
   #
   # Activacion:
   #   1. Anade el secret `ANTHROPIC_API_KEY` al repo.
   #   2. Implementa `scripts/ci-reviewer` (debe fallar ante regresion contra la
   #      base o efectos negativos sobre `main`; ver agents/roles/quality-reviewer.md).
-  #   3. Vuelve a correr `scripts/protect-repo <repo> --apply --with-reviewer`
+  #   3. Activa la variable de repositorio AGENT_REVIEWER_ENABLED=true.
+  #   4. Verifica un run real y vuelve a correr
+  #      `scripts/protect-repo <repo> --apply --with-reviewer`
   #      para exigir el check `reviewer` en el ruleset.
   # Hasta entonces NO es un check requerido: la capa determinista gobierna el merge.
   reviewer:
-    name: reviewer
+    name: ${{ vars.AGENT_REVIEWER_ENABLED == 'true' && 'reviewer' || 'reviewer-disabled' }}
     runs-on: ubuntu-latest
     env:
+      REVIEWER_ENABLED: ${{ vars.AGENT_REVIEWER_ENABLED == 'true' && 'true' || 'false' }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
     steps:
-      - name: Gate
-        id: gate
-        run: |
-          if [ -z "${ANTHROPIC_API_KEY}" ]; then
-            echo "reviewer: DESACTIVADO (sin secret ANTHROPIC_API_KEY); reporto pase neutral."
-            echo "enabled=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "enabled=true" >> "$GITHUB_OUTPUT"
-          fi
       - name: Checkout
-        if: steps.gate.outputs.enabled == 'true'
+        if: vars.AGENT_REVIEWER_ENABLED == 'true'
         uses: actions/checkout@v4
       - name: Run reviewer
-        if: steps.gate.outputs.enabled == 'true'
         run: |
+          if [ "${REVIEWER_ENABLED}" != true ]; then
+            echo "reviewer-disabled: DESACTIVADO; no se ha ejecutado ninguna revision."
+            echo "Revision automatica desactivada. Este check no acredita una revision." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          if [ -z "${ANTHROPIC_API_KEY}" ]; then
+            echo "reviewer: ACTIVADO pero falta ANTHROPIC_API_KEY." >&2
+            exit 1
+          fi
           if [ ! -x scripts/ci-reviewer ]; then
             echo "reviewer: ACTIVADO pero falta scripts/ci-reviewer." >&2
             echo "Implementa el harness del revisor antes de exigir este check." >&2

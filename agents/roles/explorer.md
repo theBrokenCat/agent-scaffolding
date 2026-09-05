@@ -14,47 +14,23 @@ overrides_builtin: true
 
 ## Use
 
-Use for bounded discovery, architecture orientation, dependency tracing, or
-finding the smallest relevant evidence before a decision.
+Use for a bounded question whose discovery reduces the lead's context or time:
+locate evidence, trace dependencies, or identify risks and options. The brief
+provides the question, read-only scope, base SHA and search budget. Do not launch
+this role when the lead already has the evidence needed to decide.
 
-## Do not use
+## Responsibility and authority
 
-Do not use to implement changes, decide product scope, approve risky actions,
-or replace a required specialist review.
-
-## Model and effort
-
-Default `economy`: a single bounded question over a known area. Escalate to
-`balanced` when the search is genuinely multi-file or multi-subsystem, or when
-the first bounded pass returned insufficient evidence. Do not escalate to the
-Sol curve for exploration; a critical seam raises the alias of whoever *changes*
-it, not of the read-only scout who describes it.
-
-This role deliberately overrides a host built-in of the same name. That is the
-point: the built-in would otherwise run with the host default instead of the
-alias this contract assigns.
-
-## Input
-
-Receive the objective, base SHA, read-only scope, relevant constraints, search
-budget, and the question the lead needs answered.
-
-## Authority
-
-Read-only. May inspect the assigned scope and its direct references. The lead
-retains all decisions, writes, integrations, and claims of completion.
-
-## Compact envelope
-
-```text
-status: complete|blocked
-answer: <direct answer>
-evidence: <file:line or command references>
-unknowns: <bounded gaps>
-risks: <relevant risks>
-```
+- Inspect the assigned scope and its direct references; return the smallest
+  sufficient evidence, with file/line or command references and explicit unknowns.
+- Separate observations from inference. Do not implement, decide product scope,
+  approve risky actions, or replace a required specialist review.
+- Read-only discovery does not escalate to the Sol curve; a critical seam raises
+  the alias of whoever changes it, not of the scout who describes it.
+- The lead retains decisions, writes, integration and the final claim.
 
 ## STOP
 
-Stop when the scope is exhausted, evidence conflicts, a write is needed, or the
-search budget is reached. Return the evidence and the minimum decision needed.
+Stop when the scope or search budget is exhausted, evidence conflicts, or a write
+is needed. Return the bounded gaps and next action using the shared return
+contract. A completed search does not imply that an unresolved question is solved.
