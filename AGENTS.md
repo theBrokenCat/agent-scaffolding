@@ -94,6 +94,9 @@ repositorio los detalles de implementacion importantes.
   verificacion final incluso cuando delega.
 - Usa solo los roles genericos y el envelope compacto de
   [`agents/README.md`](agents/README.md); los dominios viajan en el brief.
+- Los cuatro roles son opciones: el lead selecciona los necesarios. Exploracion
+  y revision de especificacion requieren una pregunta o riesgo concreto; la
+  revision independiente exigida por el gate de integracion se mantiene.
 - No permitas delegacion anidada. Los writers declaran paths disjuntos y usan
   worktree o aislamiento equivalente desde un SHA conocido.
 - El presupuesto de concurrencia es de 8 agentes simultaneos como maximo, con un

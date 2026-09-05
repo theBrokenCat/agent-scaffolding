@@ -5,7 +5,8 @@ verificacion final. Delega scopes, no responsabilidad.
 
 ## Roles genericos
 
-Usa solo estos roles; tecnologia y dominio se describen en el brief:
+Estos cuatro roles son opciones del lead, no etapas obligatorias. Tecnologia,
+dominio, contexto y paths permitidos se describen en el brief:
 
 | Rol | Responsabilidad | Alias por defecto | Escalada |
 | --- | --- | --- | --- |
@@ -26,6 +27,21 @@ Sigue siendo el lead quien elige el diseno.
 
 El trabajo de documentacion y extraccion no es un rol: es un brief `economy`
 sobre `explorer` o `implementer`.
+
+### Seleccion por necesidad
+
+- El lead define el resultado y selecciona solo las responsabilidades que aportan
+  valor. No hay que lanzar los cuatro roles para completar una tarea.
+- En trabajo delegado, el flujo habitual es: lead define, `implementer` ejecuta,
+  `quality-reviewer` revisa y lead integra. La ejecucion directa sigue siendo
+  valida; se conserva la revision independiente exigida antes de integrar.
+- Lanza `explorer` solo con una pregunta acotada cuya investigacion reduzca
+  contexto o tiempo del lead. Si la evidencia ya esta disponible, no lo lances.
+- Lanza `spec-reviewer` solo ante una pregunta sobre ambiguedad relevante,
+  contratos compartidos o decisiones costosas de revertir. El brief identifica
+  esa pregunta o riesgo; el rol no se activa por el mero tamano de una tarea.
+- Cada lanzamiento debe indicar resultado esperado y criterio de cierre. Los
+  gates de seguridad, produccion y publicacion conservan su autoridad actual.
 
 ## Modelo y effort
 
@@ -57,7 +73,8 @@ diagnostico puntual para separar un fallo de capacidad de un fallo del brief.
 ## Mecanismos y limites
 
 - `fast`: solo lead, sin delegacion.
-- `standard`: lead y como maximo un worker acotado.
+- `standard`: lead y como maximo un worker activo; implementacion y revision
+  independiente pueden sucederse sin exigir un equipo paralelo.
 - `deep`: lead y el presupuesto de concurrencia completo.
 - Presupuesto de concurrencia: **8 agentes simultaneos como maximo**, de los
   cuales **como maximo 3 writers**; los readers ocupan el resto
@@ -143,10 +160,13 @@ apunta a esta seccion.
 
 ## Envelope de retorno
 
-Todo worker devuelve exactamente estas claves, sin campos adicionales:
+Este es el unico formato de retorno de los cuatro roles. El generador incorpora
+esta seccion completa en cada definicion; las fichas no mantienen formatos
+alternativos. Devuelve exactamente estas claves, sin campos adicionales:
 
 ```yaml
 status: <completed|blocked|partial>
+verdict: <pass|changes-requested|not-assessed|not-applicable>
 summary: <resultado breve>
 changes_or_findings: <paths y cambios, o hallazgos>
 verification: <comandos/evidencia y resultado>
@@ -155,9 +175,24 @@ references: <paths, lineas, commits o enlaces pertinentes>
 next_action: <accion concreta o none>
 ```
 
-No adjuntes logs completos por defecto. Incluye solo el fragmento necesario para
-explicar un fallo. `completed` exige que el scope este cerrado y verificado;
-`partial` no equivale a exito.
+`status` describe la ejecucion del scope asignado; `verdict` describe la decision
+de una revision. Para `explorer` e `implementer`, usa `not-applicable`. Para los
+reviewers:
+
+- Revision terminada: `completed` y `pass` o `changes-requested`. Completar una
+  revision con hallazgos no aprueba el trabajo; `changes_or_findings` incluye
+  severidad, ubicacion, impacto y evidencia, o las lagunas de la especificacion.
+- Revision parcial, bloqueada o sin evidencia requerida: `partial` o `blocked`
+  y `not-assessed`. Nunca se interpreta como aprobacion.
+
+Para un implementer, `completed` exige cambio y verificacion terminados. Para un
+explorer, exige respuesta sustentada; si falta evidencia para responder, usa
+`partial` o `blocked`. Expresa lagunas, supuestos y riesgos en los campos comunes.
+Solo una revision terminada con `verdict: pass` satisface el gate correspondiente;
+no sustituye los demas checks ni concede autoridad de merge o publicacion.
+
+No adjuntes logs completos. Incluye el fragmento necesario para explicar un
+fallo y la siguiente accion concreta. `partial` nunca equivale a exito.
 
 ## Integracion
 

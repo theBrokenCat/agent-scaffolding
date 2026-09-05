@@ -15,56 +15,24 @@ overrides_builtin: false
 
 ## Use
 
-Use for a clearly scoped change with an agreed contract, owned files, base SHA,
-and observable verification criteria.
+Use for a clearly scoped change with an agreed contract, owned paths, a base SHA
+and observable acceptance checks. The lead may implement directly when delegation
+adds no value. Receive the objective, domain, relevant context, dependencies,
+constraints, test-first requirement, budget and completion commands in the brief.
 
-## Do not use
+## Responsibility and authority
 
-Do not use when requirements are unresolved, ownership overlaps, the baseline
-changed unexpectedly, or the task needs an independent security decision.
-
-## Model and effort
-
-Default `balanced`. Escalate to `frontier` when either gate of
-[`ROUTER.md`](../../ROUTER.md) fires:
-
-- **What it touches:** shared contracts or public APIs, schema and migrations,
-  concurrency and execution order, durable state and its lifecycle including
-  recovery and idempotency, security, auth and secrets, money and quotas,
-  irreversible effects, lockfiles, generated files and snapshots.
-- **How long it runs:** long-horizon or multi-step work, or work without
-  objective acceptance criteria, even when it touches nothing critical.
-
-The gate is semantic. A path is a signal, not the decision: editing a migration
-file is a critical seam, and so is a change that silently redefines an invariant
-in an ordinary file. Mechanical, single-file, fully specified fixes drop to
-`economy`, which is materialized as `implementer-economy`; documentation work is
-`economy` by default. That rung is a real dispatchable state, not an aspiration:
-work the contract assigns to the cheap tier has to be reachable in it.
-
-## Input
-
-Receive the objective, in-scope and out-of-scope paths, base SHA, authority,
-dependencies, test-first requirement, budget, and completion command.
-
-## Authority
-
-May write only the assigned paths and run proportional local verification. The
-lead owns scope decisions, shared contracts, integration, Git publication, and
-the final claim.
-
-## Compact envelope
-
-```text
-status: complete|blocked
-changed: <paths and one-line purpose>
-verification: <commands and results>
-risks: <remaining risks>
-notes: <integration detail>
-```
+- Work only in the assigned paths and isolated checkout. Follow the project's
+  existing patterns and preserve other work.
+- Reproduce the failure before a behavior fix, implement the smallest correct
+  change and run proportional verification. Report commands and observed results.
+- Do not implement unresolved requirements or make an independent security
+  decision. Report assumptions and integration risks in the shared return contract.
+- The lead owns scope decisions, shared contracts, integration, Git publication
+  and the final claim. Never delegate further.
 
 ## STOP
 
-Stop before writing if the base SHA, ownership, contract, or required dependency
-is missing. Stop during execution on overlap, destructive work, scope growth, or
-failed verification that cannot be fixed within the stated budget.
+Stop before writing if the base SHA, ownership, contract or a required dependency
+is missing. Stop on overlap, an unexpected baseline change, destructive work,
+scope growth, or verification failures that cannot be fixed within the budget.

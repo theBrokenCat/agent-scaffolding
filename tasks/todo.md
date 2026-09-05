@@ -107,3 +107,10 @@ reparadas o retiradas y la poda de plugins elimino el warning de presupuesto.
 El coste residual fue aislado como contexto fijo del host: el smoke comparable
 bajo solo 316 tokens. La rotacion de Outline sigue diferida. Merge y tag se
 mantienen como autorizaciones humanas separadas.
+
+## Issue 32 - Contratos coherentes y roles por necesidad
+
+- [x] Alcance autorizado y baseline congelada; ver `tasks/phases/phase-32-role-contracts.md`.
+- [x] Unificar retorno y generar fichas autocontenidas.
+- [x] Distinguir revisión desactivada/ejecutada y seleccionar roles por necesidad.
+- [ ] Regresiones, suite completa, review independiente y draft PR.

@@ -67,8 +67,71 @@ XDG_CONFIG_HOME=$tmpdir/xdg "$gen" --host codex --role explorer --require-local-
 codex_out=$tmpdir/codex
 claude_out=$tmpdir/claude
 mkdir -p "$codex_out" "$claude_out"
-"$gen" --host codex --out "$codex_out" --model-map "$fixture" >/dev/null
-"$gen" --host claude --out "$claude_out" --model-map "$fixture" >/dev/null
+mkdir -p "$tmpdir/unrelated-project"
+(cd "$tmpdir/unrelated-project" && "$gen" --host codex --out "$codex_out" --model-map "$fixture") >/dev/null
+(cd "$tmpdir/unrelated-project" && "$gen" --host claude --out "$claude_out" --model-map "$fixture") >/dev/null
+
+# Installed definitions must carry the role and the common return contract,
+# without depending on files in the consumer project's cwd. Parse the TOML,
+# rather than checking its raw encoding, so escaping regressions are observable.
+python3 - "$root" "$codex_out" "$claude_out" <<'PY'
+import pathlib
+import re
+import sys
+import tomllib
+
+root, codex, claude = map(pathlib.Path, sys.argv[1:])
+contract = (root / 'agents/README.md').read_text().split('## Envelope de retorno\n', 1)[1].split('\n## ', 1)[0].strip()
+expected_keys = ['status', 'verdict', 'summary', 'changes_or_findings', 'verification', 'risks', 'references', 'next_action']
+for definition in sorted(codex.glob('*.toml')):
+    instructions = tomllib.loads(definition.read_text())['developer_instructions']
+    role = next(name for name in ('explorer', 'implementer', 'spec-reviewer', 'quality-reviewer')
+                if definition.stem == name or definition.stem.startswith(name + '-'))
+    body = (root / f'agents/roles/{role}.md').read_text().split('---', 2)[2].strip()
+    for rendered in (instructions, (claude / (definition.stem + '.md')).read_text()):
+        assert body in rendered, f'{definition.stem}: canonical role body missing'
+        assert contract in rendered, f'{definition.stem}: common return contract missing'
+        assert 'Follow agents/roles/' not in rendered, f'{definition.stem}: unresolved role lookup'
+        blocks = re.findall(r'```yaml\n(.*?)\n```', rendered, re.S)
+        assert len(blocks) == 1, f'{definition.stem}: expected one return envelope'
+        keys = re.findall(r'^([a-z_]+):', blocks[0], re.M)
+        assert keys == expected_keys, f'{definition.stem}: conflicting return keys {keys}'
+        assert 'status: <completed|blocked|partial>' in blocks[0]
+        assert 'verdict: <pass|changes-requested|not-assessed|not-applicable>' in blocks[0]
+    assert not re.search(r'^status:', body, re.M), f'{role}: duplicated envelope in role card'
+print('ok - self-contained roles and shared return contract on both hosts')
+PY
+
+# Markdown can contain backslashes and triple quotes. They must survive TOML
+# decoding unchanged; checking source text alone would miss an invalid escape.
+copy_root=$tmpdir/source-copy
+mkdir -p "$copy_root"
+cp -R "$root/agents" "$copy_root/agents"
+printf '\nLiteral fixture: C:\\work\\new and """quoted""".\n' >> "$copy_root/agents/roles/explorer.md"
+GEN_ROOT=$copy_root "$gen" --host codex --role explorer-economy --model-map "$fixture" > "$tmpdir/escaped.toml"
+python3 - "$copy_root/agents/roles/explorer.md" "$tmpdir/escaped.toml" <<'PY'
+import pathlib
+import sys
+import tomllib
+role = pathlib.Path(sys.argv[1]).read_text().split('---', 2)[2].strip()
+rendered = tomllib.loads(pathlib.Path(sys.argv[2]).read_text())['developer_instructions']
+assert role in rendered, 'role text changed during TOML encoding'
+PY
+
+# Missing return instructions must fail generation, including Codex's piped
+# TOML encoder. Never emit an apparently usable definition without its contract.
+mv "$copy_root/agents/README.md" "$copy_root/agents/README.saved"
+for host in codex claude; do
+  if GEN_ROOT=$copy_root "$gen" --host "$host" --role explorer-economy --model-map "$fixture" >/dev/null 2>&1; then
+    fail "$host accepted a missing return contract"
+  fi
+done
+printf '# No return contract here\n' > "$copy_root/agents/README.md"
+for host in codex claude; do
+  if GEN_ROOT=$copy_root "$gen" --host "$host" --role explorer-economy --model-map "$fixture" >/dev/null 2>&1; then
+    fail "$host accepted an empty return contract"
+  fi
+done
 states='explorer-economy explorer-balanced implementer-economy implementer-balanced
 implementer-frontier spec-reviewer-frontier-high spec-reviewer-frontier-xhigh
 quality-reviewer-frontier quality-reviewer-critical'

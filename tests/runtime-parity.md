@@ -7,6 +7,18 @@ the only evidence that lets a run claim its routing held.
 
 **A file on disk is not a pass.** Only an observed model and effort count.
 
+## Return contract and role content (issue 32)
+
+The current generator embeds the complete role body and the shared return
+contract. Historical runs below used the earlier per-role envelopes; they are
+evidence of routing at that date, not runtime validation of the new content.
+`gen_agents_test.sh` checks the new artifacts from an unrelated cwd, including
+TOML decoding, the complete role text and the common status/verdict fields.
+Before claiming runtime activation after installation, dispatch a bounded task
+from a consumer project: verify that the role needs no scaffolding file lookup
+and returns the common envelope. A completed review with changes requested is
+not an approval. This change does not install definitions or rerun paid probes.
+
 ## Preconditions
 
 - A local model map exists and `scripts/gen-agents --map-path` resolves to it,
