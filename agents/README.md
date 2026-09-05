@@ -173,7 +173,11 @@ Actualiza el registro al cambiar estado, cerrar un checkpoint o terminar la
 sesion, no por cada herramienta. Deja las decisiones sin confirmar marcadas como
 pendientes. Un objetivo se acepta solo cuando sus criterios y reviews requeridas
 se han verificado; implementacion, integracion y despliegue son estados distintos.
-El relevo no autoriza acciones nuevas ni obliga a publicar trabajo parcial.
+El relevo no autoriza acciones nuevas ni obliga a publicar codigo parcial.
+El lead mantiene tambien el contexto del usuario conforme al
+[mantenimiento de Outline](../policies/README.md#mantenimiento-de-outline): usa el
+mismo registro si vive alli; si vive en un issue, enlazalo desde el resumen de
+Outline sin duplicar el backlog. Documentar el estado no autoriza commit ni push.
 
 ## Envelope de retorno
 

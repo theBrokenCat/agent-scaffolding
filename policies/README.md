@@ -28,9 +28,47 @@ Usa `fast` para refrescos cotidianos, `moderate` para relaciones cross-file y
 `full` para arquitectura o recuperar cobertura. `persistence=true` escribe un
 artefacto en el repo y requiere peticion explicita.
 
-Outline se consulta solo por MCP conforme al contrato global; no dupliques
-sesiones completas ni uses otra via para eludir permisos. El repositorio es la
-fuente de implementacion, no una nota historica.
+### Mantenimiento de Outline
+
+El lead mantiene el contexto del proyecto en su documento existente de Outline;
+los workers aportan hallazgos y evidencia, no publican por su cuenta. Al empezar
+o retomar, localiza y lee ese documento mediante MCP y contrasta sus datos con el
+repositorio. No uses un documento solo por similitud de nombre: verifica el
+proyecto y su destino. Si hay varios destinos plausibles, pide la aclaracion
+minima; no crees otro documento ni un segundo backlog automaticamente.
+
+Actualiza cuando haya un avance importante, bloqueo, decision confirmada, cambio
+de siguientes pasos o de instrucciones para arrancar/probar. Al pausar o cerrar,
+comprueba que el estado sigue vigente y corrige solo diferencias relevantes.
+No edites por calendario, por cada herramienta ni si no hay informacion nueva.
+
+Conserva una vista breve y util para el usuario:
+
+- Objetivo y estado: que se hace, que esta pendiente o bloqueado y por que.
+- Ubicacion: proyecto y checkout/rama de trabajo cuando ayuden a retomarlo.
+- Siguientes pasos: accion concreta, responsable o decision pendiente.
+- Verificacion: pruebas realizadas y resultado, pruebas pendientes y comandos
+  para ejecutarlas desde el directorio correcto. Distingue comprobado de previsto.
+- Arranque: comandos y requisitos no secretos para lanzar el proyecto cuando
+  cambien; enlaza la documentacion del repositorio si ya los explica.
+
+Enlaza issues, PR y evidencia en vez de copiar historiales. Si Outline ya es el
+registro del objetivo, actualiza ese mismo registro. Si el seguimiento detallado
+vive en un issue, conserva alli ese detalle y actualiza en Outline solo el resumen
+util y el enlace. No confundas implementado, staged, integrado y desplegado.
+
+Antes de escribir, relee la version actual y modifica solo las secciones afectadas;
+conserva ediciones manuales y contenido ajeno. Si la herramienta reemplaza todo el
+texto, parte de esa lectura fresca y verifica que el resto se conserva. Despues,
+vuelve a leer y comprueba el resultado. Publica solo hechos sustentados; marca
+incertidumbres y decisiones pendientes. No incluyas secretos ni logs completos.
+
+Si falta MCP, permiso de escritura o un destino inequívoco, informa que Outline
+queda pendiente y conserva el resumen propuesto en el relevo existente. No eludas
+el bloqueo ni afirmes que esta actualizado; continua el trabajo independiente
+que siga autorizado. Crear, mover o reorganizar documentos requiere una peticion
+especifica. La actualizacion rutinaria del documento identificado sigue la
+autoridad del contrato global.
 
 ## Seguridad y produccion
 
