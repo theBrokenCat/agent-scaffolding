@@ -301,6 +301,43 @@ peer_output=$(GIT_DIR="$peer_git_dir" "$peer/scripts/scaffolding" status --home 
 printf '%s\n' "$peer_output" | grep -Fqx 'STATUS managed current' \
   || fail 'inherited Git context replaced the canonical SHA'
 
+# A matching caller path is not an identity/integrity shortcut. Root tampering
+# must be rejected before invoking that peer's generator.
+redirected_manifest=$peer_home/.local/state/agent-scaffolding/manifest.agents.codex
+cp "$redirected_manifest" "$tmpdir/manifest.saved"
+sed "s|^source_root=.*|source_root=$peer|" "$redirected_manifest" > "$tmpdir/manifest.new"
+mv "$tmpdir/manifest.new" "$redirected_manifest"
+peer_marker=$tmpdir/peer-generator-ran
+cp "$peer/scripts/gen-agents" "$tmpdir/peer-generator.saved"
+cat > "$peer/scripts/gen-agents" <<EOF
+#!/bin/sh
+touch "$peer_marker"
+exit 1
+EOF
+chmod +x "$peer/scripts/gen-agents"
+if "$peer/scripts/scaffolding" doctor --agents --host codex --home "$peer_home" >/dev/null 2>&1; then
+  fail 'doctor accepted a root-inconsistent manifest from its matching caller'
+fi
+assert_absent "$peer_marker"
+cp "$tmpdir/peer-generator.saved" "$peer/scripts/gen-agents"
+cp "$tmpdir/manifest.saved" "$redirected_manifest"
+
+# Own-root checks also require a real Git worktree; a directory within a repo
+# must not borrow its ancestor's identity through Git discovery.
+for non_git in "$tmpdir/non-git-own" "$canonical/nested-copy"; do
+  mkdir -p "$non_git"
+  cp -R "$canonical/scripts" "$canonical/agents" "$non_git/"
+  cp "$canonical/AGENTS.md" "$canonical/CLAUDE.md" "$canonical/GEMINI.md" "$non_git/"
+  non_git_home=$tmpdir/home-${non_git##*/}
+  mkdir -p "$non_git_home"
+  "$non_git/scripts/scaffolding" install --apply --home "$non_git_home" >/dev/null
+  for query in status doctor; do
+    if "$non_git/scripts/scaffolding" "$query" --home "$non_git_home" >/dev/null 2>&1; then
+      fail "$query accepted a non-Git own root: $non_git"
+    fi
+  done
+done
+
 # A missing/non-Git recorded root and corrupt manifest remain invalid.
 for bad_root in "$tmpdir/missing-root" "$tmpdir/non-git-root"; do
   bad_home=$tmpdir/bad-home-${bad_root##*/}

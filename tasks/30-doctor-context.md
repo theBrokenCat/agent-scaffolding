@@ -42,3 +42,14 @@ El candidato necesita suite final, revisión independiente y CI antes de integra
 Después del merge autorizado: actualizar el checkout canónico, refrescar las
 unidades instaladas y comprobar doctor/status desde ambos checkouts. El SHA
 revisado, los resultados terminales y el estado de merge constan en la PR.
+
+
+## Reset de contrato tras review
+
+La familia identidad/integridad se revisa como una secuencia completa antes de
+otro lote de corrección: primero estado/manifest estático (versión, root único,
+SHA/fecha y paths de sources consistentes), después raíces de worktree Git reales
+con common dir idéntico y entorno Git aislado, luego fuentes/generadores y la
+validación completa de destinos/backups/checksums. La igualdad de paths no omite
+ningún gate. Se cubren root redirigido al propio caller y root propio no Git.
+No se añade autoridad ni se cambia el scope; no integrar antes de re-review.
