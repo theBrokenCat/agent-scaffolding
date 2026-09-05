@@ -1,7 +1,46 @@
 #!/bin/sh
 
+# Repository-local Git variables (for example from hooks) must not override
+# the path whose identity/SHA we are inspecting. Keep the caller environment.
+scaffolding_git_at() (
+  scaffolding_git_environment=$(git rev-parse --local-env-vars) || exit 1
+  for scaffolding_git_variable in $scaffolding_git_environment; do
+    unset "$scaffolding_git_variable"
+  done
+  git -C "$@"
+)
+
 scaffolding_source_sha() {
-  git -C "$SCAFFOLDING_ROOT" rev-parse HEAD 2>/dev/null || printf '%s\n' unknown
+  scaffolding_git_at "$SCAFFOLDING_ROOT" rev-parse HEAD 2>/dev/null || printf '%s\n' unknown
+}
+
+scaffolding_git_common_dir() {
+  scaffolding_git_root=$1
+  scaffolding_common_dir=$(scaffolding_git_at "$scaffolding_git_root" rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || return 1
+  [ -d "$scaffolding_common_dir" ] || return 1
+  (CDPATH= cd -- "$scaffolding_common_dir" && pwd -P)
+}
+
+# Read-only checks may use the installed checkout only after proving that the
+# caller and recorded root share the same resolved Git common directory.
+scaffolding_use_manifest_source_for_read_only() {
+  scaffolding_state_path_is_safe || return 1
+  [ -f "$SCAFFOLDING_MANIFEST" ] || return 1
+  [ "$(grep -c '^source_root=' "$SCAFFOLDING_MANIFEST")" -eq 1 ] || return 1
+  scaffolding_manifest_root=$(sed -n 's/^source_root=//p' "$SCAFFOLDING_MANIFEST")
+  case $scaffolding_manifest_root in
+    ''|/|.|..|*'\n'*|*'\r'*|*'|'*) return 1 ;;
+    /*) ;;
+    *) return 1 ;;
+  esac
+  [ -d "$scaffolding_manifest_root" ] || return 1
+  scaffolding_manifest_root=$(CDPATH= cd -- "$scaffolding_manifest_root" && pwd -P) || return 1
+  [ "$scaffolding_manifest_root" != "$SCAFFOLDING_ROOT" ] || return 0
+  scaffolding_caller_common=$(scaffolding_git_common_dir "$SCAFFOLDING_ROOT") || return 1
+  scaffolding_manifest_common=$(scaffolding_git_common_dir "$scaffolding_manifest_root") || return 1
+  [ "$scaffolding_caller_common" = "$scaffolding_manifest_common" ] || return 1
+  SCAFFOLDING_CALLER_ROOT=$SCAFFOLDING_ROOT
+  SCAFFOLDING_ROOT=$scaffolding_manifest_root
 }
 
 # The instruction unit records symlinks (6 fields, version 2). The agent unit

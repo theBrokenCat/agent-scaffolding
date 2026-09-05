@@ -5,6 +5,7 @@ set -eu
 repo_root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
 installer=$repo_root/scripts/scaffolding
 tmpdir=$(mktemp -d "${TMPDIR:-/tmp}/scaffolding-test.XXXXXX")
+tmpdir=$(CDPATH= cd -- "$tmpdir" && pwd -P)
 trap 'rm -rf "$tmpdir"' EXIT HUP INT TERM
 
 fail() { printf '%s\n' "FAIL: $*" >&2; exit 1; }
@@ -215,6 +216,109 @@ grep -v 'codex-quality-reviewer-critical' "$agent_stale/.local/state/agent-scaff
 mv "$agent_stale/manifest.new" "$agent_stale/.local/state/agent-scaffolding/manifest.agents.codex"
 run install --agents --host codex --apply --home "$agent_stale" 2>&1 | grep -q 're-run install --agents --host codex --apply' \
   || fail 'a stale agent manifest does not explain the recovery'
+
+# Read-only checks may run from another checkout of this repository. They use
+# the recorded canonical checkout for SHA, sources and renders, and say so.
+canonical=$tmpdir/canonical
+mkdir -p "$canonical"
+cp -R "$repo_root/scripts" "$repo_root/agents" "$canonical/"
+cp "$repo_root/AGENTS.md" "$repo_root/CLAUDE.md" "$repo_root/GEMINI.md" "$canonical/"
+git -C "$canonical" init -q
+git -C "$canonical" config user.name 'Scaffolding Test'
+git -C "$canonical" config user.email scaffolding-test@example.invalid
+git -C "$canonical" add .
+git -C "$canonical" commit -qm canonical
+canonical_sha=$(git -C "$canonical" rev-parse HEAD)
+
+peer=$tmpdir/peer
+git -C "$canonical" worktree add -qb peer "$peer"
+printf '%s\n' '# peer checkout must not supply canonical content' >> "$peer/AGENTS.md"
+printf '%s\n' '# peer checkout must not supply canonical renders' >> "$peer/agents/roles/explorer.md"
+git -C "$peer" add AGENTS.md agents/roles/explorer.md
+git -C "$peer" commit -qm peer
+[ "$canonical_sha" != "$(git -C "$peer" rev-parse HEAD)" ] \
+  || fail 'peer fixture HEAD does not differ from the canonical checkout'
+[ "$(git -C "$canonical" rev-parse --path-format=absolute --git-common-dir)" = \
+  "$(git -C "$peer" rev-parse --path-format=absolute --git-common-dir)" ] \
+  || fail 'peer fixture does not resolve to the canonical Git common dir'
+
+peer_home=$tmpdir/peer-home
+mkdir -p "$peer_home"
+"$canonical/scripts/scaffolding" install --apply --home "$peer_home" >/dev/null
+"$canonical/scripts/scaffolding" install --agents --host codex --apply --home "$peer_home" >/dev/null
+"$canonical/scripts/scaffolding" install --agents --host claude --apply --home "$peer_home" >/dev/null
+peer_note="NOTE using canonical installation $canonical from checkout $peer"
+for peer_args in \
+  "status" "doctor" \
+  "status --agents --host codex" "doctor --agents --host codex" \
+  "status --agents --host claude" "doctor --agents --host claude"; do
+  # shellcheck disable=SC2086
+  peer_output=$("$peer/scripts/scaffolding" $peer_args --home "$peer_home" 2>&1) \
+    || fail "same-repository checkout rejected for $peer_args: $peer_output"
+  case $peer_args in
+    status) printf '%s\n' "$peer_output" | grep -Fqx 'STATUS managed current' || fail 'peer instruction status is not current' ;;
+    'status --agents --host codex') printf '%s\n' "$peer_output" | grep -Fqx 'STATUS agents codex managed current' || fail 'peer Codex status is not current' ;;
+    'status --agents --host claude') printf '%s\n' "$peer_output" | grep -Fqx 'STATUS agents claude managed current' || fail 'peer Claude status is not current' ;;
+  esac
+  printf '%s\n' "$peer_output" | grep -Fqx "$peer_note" \
+    || fail "same-repository checkout note missing for $peer_args"
+done
+if "$peer/scripts/scaffolding" install --home "$peer_home" >/dev/null 2>&1; then
+  fail 'install dry-run redirected to the canonical checkout'
+fi
+if "$peer/scripts/scaffolding" uninstall --home "$peer_home" >/dev/null 2>&1; then
+  fail 'uninstall dry-run redirected to the canonical checkout'
+fi
+
+# Identity is checked before an untrusted checkout can run its generator.
+foreign=$tmpdir/foreign
+cp -R "$peer" "$foreign"
+rm "$foreign/.git"
+git -C "$foreign" init -q
+foreign_marker=$tmpdir/foreign-generator-ran
+cat > "$foreign/scripts/gen-agents" <<EOF
+#!/bin/sh
+touch "$foreign_marker"
+exit 1
+EOF
+chmod +x "$foreign/scripts/gen-agents"
+if "$foreign/scripts/scaffolding" doctor --agents --host codex --home "$peer_home" >/dev/null 2>&1; then
+  fail 'doctor accepted a different repository'
+fi
+assert_absent "$foreign_marker"
+
+# Git's repository-local environment must not spoof identity or make a peer's
+# HEAD look like the canonical installation's HEAD (for example inside hooks).
+for git_variable in GIT_DIR GIT_COMMON_DIR; do
+  if env "$git_variable=$canonical/.git" "$foreign/scripts/scaffolding" doctor --agents --host codex --home "$peer_home" >/dev/null 2>&1; then
+    fail "foreign repository accepted through $git_variable"
+  fi
+  assert_absent "$foreign_marker"
+done
+peer_git_dir=$(git -C "$peer" rev-parse --absolute-git-dir)
+peer_output=$(GIT_DIR="$peer_git_dir" "$peer/scripts/scaffolding" status --home "$peer_home") \
+  || fail 'peer status failed with inherited Git context'
+printf '%s\n' "$peer_output" | grep -Fqx 'STATUS managed current' \
+  || fail 'inherited Git context replaced the canonical SHA'
+
+# A missing/non-Git recorded root and corrupt manifest remain invalid.
+for bad_root in "$tmpdir/missing-root" "$tmpdir/non-git-root"; do
+  bad_home=$tmpdir/bad-home-${bad_root##*/}
+  mkdir -p "$bad_home" "$tmpdir/non-git-root"
+  "$canonical/scripts/scaffolding" install --apply --home "$bad_home" >/dev/null
+  sed "s|^source_root=.*|source_root=$bad_root|" "$bad_home/.local/state/agent-scaffolding/manifest" > "$bad_home/manifest.new"
+  mv "$bad_home/manifest.new" "$bad_home/.local/state/agent-scaffolding/manifest"
+  if "$peer/scripts/scaffolding" doctor --home "$bad_home" >/dev/null 2>&1; then
+    fail "doctor accepted invalid recorded root: $bad_root"
+  fi
+done
+corrupt_home=$tmpdir/corrupt-home
+mkdir -p "$corrupt_home"
+"$canonical/scripts/scaffolding" install --apply --home "$corrupt_home" >/dev/null
+printf '%s\n' corrupt > "$corrupt_home/.local/state/agent-scaffolding/manifest"
+if "$peer/scripts/scaffolding" doctor --home "$corrupt_home" >/dev/null 2>&1; then
+  fail 'doctor accepted a corrupt manifest'
+fi
 
 unset XDG_CONFIG_HOME
 

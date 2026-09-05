@@ -115,12 +115,18 @@ mantienen como autorizaciones humanas separadas.
 - [x] Distinguir revisión desactivada/ejecutada y seleccionar roles por necesidad.
 - [x] Regresiones, ocho suites, review independiente sin hallazgos y draft PR #33.
 - [x] PR #33 integrada: verificado el 05/09/2026, commit `bf5bca0`.
-- [ ] Instalación global: pendiente; no ejecutada en este trabajo.
+- [x] Instalación global verificada el 05/09/2026 sobre `48fa15a`; Codex y Claude comprobados en sesiones nuevas.
 
 ## Issue 34 - Simplificación y continuidad
 
 - [x] Eliminar reglas duplicadas y afirmaciones de capacidad no demostradas.
 - [x] Separar aceptación, descomposición y escalada; registrar relevo por objetivo.
 - [x] Corregir Broken pipe; ocho suites, review independiente y CI verdes; draft PR #35.
-- [ ] Merge de #35 e instalación global: requieren autorización.
+- [x] PR #35 integrada e instalación global verificada el 05/09/2026 (`48fa15a`).
 - Plan/evidencia: `tasks/phases/phase-34-simplify-orchestration.md`.
+
+
+## Issue 30 - Consultas desde worktrees
+
+Contrato y evidencia del relevo: `tasks/30-doctor-context.md`.
+Estado de entrega: https://github.com/theBrokenCat/agent-scaffolding/issues/30
