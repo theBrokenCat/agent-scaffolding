@@ -14,15 +14,23 @@ scaffolding_source_sha() {
   scaffolding_git_at "$SCAFFOLDING_ROOT" rev-parse HEAD 2>/dev/null || printf '%s\n' unknown
 }
 
-scaffolding_git_common_dir() {
+scaffolding_git_common_dir() (
   scaffolding_git_root=$1
   scaffolding_top=$(scaffolding_git_at "$scaffolding_git_root" rev-parse --show-toplevel 2>/dev/null) || return 1
   scaffolding_top=$(CDPATH= cd -- "$scaffolding_top" && pwd -P) || return 1
   [ "$scaffolding_top" = "$scaffolding_git_root" ] || return 1
+  # The line-based manifest cannot represent LF in a root. Reject it before
+  # passing a pattern to grep, where LF would separate multiple patterns.
+  case $scaffolding_git_root in *'
+'*) return 1 ;; esac
+  scaffolding_registry=$(mktemp "${TMPDIR:-/tmp}/scaffolding-worktrees.XXXXXX") || return 1
+  trap 'rm -f "$scaffolding_registry"' EXIT HUP INT TERM
+  scaffolding_git_at "$scaffolding_git_root" worktree list --porcelain -z > "$scaffolding_registry" || return 1
+  grep -zFx "worktree $scaffolding_git_root" "$scaffolding_registry" >/dev/null || return 1
   scaffolding_common_dir=$(scaffolding_git_at "$scaffolding_git_root" rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || return 1
   [ -d "$scaffolding_common_dir" ] || return 1
   (CDPATH= cd -- "$scaffolding_common_dir" && pwd -P)
-}
+)
 
 # Read-only checks may use the installed checkout only after proving that the
 # caller and recorded root share the same resolved Git common directory.

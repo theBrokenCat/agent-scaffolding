@@ -53,3 +53,20 @@ con common dir idéntico y entorno Git aislado, luego fuentes/generadores y la
 validación completa de destinos/backups/checksums. La igualdad de paths no omite
 ningún gate. Se cubren root redirigido al propio caller y root propio no Git.
 No se añade autoridad ni se cambia el scope; no integrar antes de re-review.
+
+
+## Cierre acotado del requisito de registro
+
+La segunda revisión corrigió el atajo previo y encontró un gitfile fabricado que
+compartía common dir sin registro. La identidad exigida incluye pertenencia
+exacta al registro de worktrees, además de top-level/common dir y metadata
+estática. Se conserva el mismo scope y revisor. Se aplica una comprobación
+adicional acotada bajo la autorización del usuario de completar integración,
+instalación y prueba durante la noche; no se cambia el límite por defecto del
+scaffolding ni se reinicia el ciclo con otro rol/modelo.
+
+
+La prueba de paths especiales expuso además un defecto previo del generador:
+los dos bucles `for ... in $(role_files)` separaban una ruta con espacios.
+Se sustituyen por globbing citado sobre el directorio ya validado; no cambian
+roles/modelos/formatos. La regresión de generación usa un source root con espacios.

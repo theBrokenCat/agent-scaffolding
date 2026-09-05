@@ -420,7 +420,8 @@ case $action in
     ;;
   render_one)
     found=false
-    for role_file in $(role_files); do
+    for role_file in "$roles_dir"/*.md; do
+      [ -f "$role_file" ] || continue
       match=$(role_states "$role_file" | awk -F'|' -v want="$role" '$2 == want && !found { print; found = 1 }')
       [ -n "$match" ] || continue
       found=true
@@ -432,7 +433,8 @@ case $action in
     ;;
   render_all)
     [ -d "$out" ] || stop "output directory does not exist: $out"
-    for role_file in $(role_files); do
+    for role_file in "$roles_dir"/*.md; do
+      [ -f "$role_file" ] || continue
       role_states "$role_file" > "$out/.states.$$"
       while IFS='|' read -r state name alias effort; do
         [ -n "$name" ] || continue

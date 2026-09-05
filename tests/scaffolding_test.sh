@@ -219,7 +219,7 @@ run install --agents --host codex --apply --home "$agent_stale" 2>&1 | grep -q '
 
 # Read-only checks may run from another checkout of this repository. They use
 # the recorded canonical checkout for SHA, sources and renders, and say so.
-canonical=$tmpdir/canonical
+canonical=$tmpdir/'canonical á'
 mkdir -p "$canonical"
 cp -R "$repo_root/scripts" "$repo_root/agents" "$canonical/"
 cp "$repo_root/AGENTS.md" "$repo_root/CLAUDE.md" "$repo_root/GEMINI.md" "$canonical/"
@@ -230,7 +230,7 @@ git -C "$canonical" add .
 git -C "$canonical" commit -qm canonical
 canonical_sha=$(git -C "$canonical" rev-parse HEAD)
 
-peer=$tmpdir/peer
+peer=$tmpdir/'peer "quoted"'
 git -C "$canonical" worktree add -qb peer "$peer"
 printf '%s\n' '# peer checkout must not supply canonical content' >> "$peer/AGENTS.md"
 printf '%s\n' '# peer checkout must not supply canonical renders' >> "$peer/agents/roles/explorer.md"
@@ -320,6 +320,36 @@ if "$peer/scripts/scaffolding" doctor --agents --host codex --home "$peer_home" 
 fi
 assert_absent "$peer_marker"
 cp "$tmpdir/peer-generator.saved" "$peer/scripts/gen-agents"
+cp "$tmpdir/manifest.saved" "$redirected_manifest"
+
+# A manufactured gitfile can borrow a common dir without being a registered
+# worktree. Even coherent root/source metadata must not select its generator.
+spoof=$tmpdir/unregistered
+mkdir -p "$spoof"
+cp -R "$canonical/scripts" "$canonical/agents" "$spoof/"
+cp "$canonical/AGENTS.md" "$canonical/CLAUDE.md" "$canonical/GEMINI.md" "$spoof/"
+printf 'gitdir: %s\n' "$canonical/.git" > "$spoof/.git"
+if git -C "$canonical" worktree list --porcelain | grep -Fx "worktree $spoof" >/dev/null; then
+  fail 'spoof fixture unexpectedly registered as a worktree'
+fi
+cp "$redirected_manifest" "$tmpdir/manifest.saved"
+sed "s|$canonical|$spoof|g" "$redirected_manifest" > "$tmpdir/manifest.new"
+mv "$tmpdir/manifest.new" "$redirected_manifest"
+spoof_marker=$tmpdir/spoof-generator-ran
+cat > "$spoof/scripts/gen-agents" <<EOF
+#!/bin/sh
+touch "$spoof_marker"
+exit 1
+EOF
+chmod +x "$spoof/scripts/gen-agents"
+for caller in "$canonical" "$spoof"; do
+  for query in status doctor; do
+    if "$caller/scripts/scaffolding" "$query" --agents --host codex --home "$peer_home" >/dev/null 2>&1; then
+      fail "$query accepted an unregistered worktree from $caller"
+    fi
+    assert_absent "$spoof_marker"
+  done
+done
 cp "$tmpdir/manifest.saved" "$redirected_manifest"
 
 # Own-root checks also require a real Git worktree; a directory within a repo

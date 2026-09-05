@@ -84,7 +84,7 @@ else
 fi
 
 required_commands_are_available() {
-  for required in git grep sed awk cksum readlink ln mv cp rm mkdir chmod date; do
+  for required in git grep sed awk cksum readlink ln mv cp rm mkdir chmod date mktemp; do
     command -v "$required" >/dev/null 2>&1 || {
       printf '%s\n' "STOP missing command $required" >&2
       return 1
