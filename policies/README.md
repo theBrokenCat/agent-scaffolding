@@ -19,6 +19,36 @@ No cambies configuracion remota ni publiques fuera de la autoridad ya concedida.
 
 ## Contexto, grafo y Outline
 
+### Preparacion y baseline
+
+Una implementacion autorizada incluye preparar dependencias en su worktree
+aislado con el lockfile existente y el comando reproducible del proyecto
+(por ejemplo, `npm ci`), salvo restriccion explicita. Comprueba primero runtime,
+herramientas, espacio y ejecutables locales; no lances toda la suite para
+descubrir que el entorno no esta preparado. Verifica que lockfile y archivos
+versionados no cambian; cualquier cambio inesperado requiere diagnostico.
+
+Preparar dependencias no autoriza nuevas versiones, llamadas facturables ni
+ejecucion contra aplicaciones. Si el entorno no puede prepararse, informa
+`entorno incompleto`; un fallo del launcher o la fixture es infraestructura,
+no prueba por si solo una regresion del producto. No ignores fallos ni amplies
+permisos para obtener un baseline verde.
+
+### Recursos de pruebas
+
+Cada ejecucion crea una raiz temporal exclusiva con permisos privados y transmite
+sus rutas explicitamente a los procesos hijos. Limpia solo recursos exactos
+creados por esa ejecucion y despues de confirmar el cierre de sus procesos.
+Nunca borres por patrones en pools compartidos ni limpies evidencia historica.
+Ante fallo o cierre incierto conserva recursos, logs y estado para diagnostico.
+
+Cuando el host permita confinamiento, prueba que padre e hijos no pueden escribir,
+renombrar ni borrar fuera de los destinos autorizados. Si el confinamiento es un
+requisito y no puede aplicarse, detiene esa ejecucion; no uses fallback silencioso.
+Declara el nivel realmente probado y su alcance: un launcher puede confinar sus
+tests sin confinar toda la sesion del agente. Conserva el resultado y evidencia
+de cada ejecucion fuera del area temporal que se limpia.
+
 ### Frescura de codebase-memory-mcp
 
 Aplica la comprobacion de root, cobertura, SHA y dirty state de
@@ -99,6 +129,8 @@ Al agotar un limite, detiene nuevos despachos, preserva estado y aplica STOP. No
 cambies rol, modelo, alias o formulacion para reiniciar un loop agotado: escalar
 no es una via para eludir el limite. Los
 budgets del brief pueden ser menores; ampliar un limite necesita nueva autoridad.
+Antes de solicitarla, consolida las causas abiertas y propone que cambiara en
+contrato, reparto o verificacion; no solicites otra ronda identica sin diagnostico.
 
 ## Verificacion y cierre
 

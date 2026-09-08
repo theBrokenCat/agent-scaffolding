@@ -1,5 +1,12 @@
 # Agent Scaffolding global v0.1 - Plan
 
+## Trabajo vigente
+
+Issue #44: reglas operativas y recursos de pruebas, preparado en worktree aislado.
+Estado, autoridad, dependencia de Penthos #71 y verificaciones:
+[registro del objetivo](44-operational-contract.md). Los apartados siguientes
+conservan el historial; no sustituyen ese estado vigente.
+
 **Goal:** Activar un workflow app-first global, reversible y compartido por Codex, Claude y Gemini sin modificar cada proyecto.
 **Stack:** Markdown, shell POSIX, Git, GitHub CLI y tests de shell.
 
