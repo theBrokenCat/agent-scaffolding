@@ -25,8 +25,9 @@ opinion, lanza un `spec-reviewer` con brief de *design critic*: read-only, antes
 de implementar, devuelve evidencia y objeciones ordenadas y no decide ni edita.
 Sigue siendo el lead quien elige el diseno.
 
-El trabajo de documentacion y extraccion no es un rol: es un brief `economy`
-sobre `explorer` o `implementer`.
+El lead mantiene checkpoints y cambios documentales pequenos cuyo contexto ya
+conoce. Delega documentacion o extraccion solo cuando requiera investigacion o
+elaboracion sustancial, con un brief `economy`; no es otro rol.
 
 ### Seleccion por necesidad
 
@@ -42,6 +43,12 @@ sobre `explorer` o `implementer`.
   esa pregunta o riesgo; el rol no se activa por el mero tamano de una tarea.
 - Cada lanzamiento debe indicar resultado esperado y criterio de cierre. Los
   gates de seguridad, produccion y publicacion conservan su autoridad actual.
+- Reutiliza al implementador durante su paquete y sus correcciones. Usa contexto
+  nuevo para revision independiente, otro paquete o degradacion justificada;
+  declara el motivo del despacho y si reutilizas sesion. No reinicies presupuestos.
+- Si el objetivo cruza componentes, verifica primero un recorrido minimo
+  integrado de sus responsabilidades compartidas antes de ampliar cada paquete.
+  Ese recorrido no sustituye la cobertura ni la revision final.
 
 ## Modelo y effort
 
@@ -119,6 +126,8 @@ apunta a esta seccion.
   cambiado; un despertar sin cambio de estado se responde volviendo a esperar.
 - El presupuesto de espera es tiempo, no numero de despertares. Agotarlo activa
   el SLA de reviewer o un STOP, no una ronda de esperas mas cortas.
+- Un timeout de espera no demuestra fallo del worker. Respeta los bounds del
+  host y comunica transiciones, resultados o bloqueos, no mensajes sin novedades.
 
 ### Hallazgos y correcciones
 
@@ -153,6 +162,11 @@ el proyecto ya gestione tareas. No instales un segundo backlog ni archivos
 obligatorios del scaffolding. El lead es responsable de mantenerlo; los workers
 aportan evidencia mediante el retorno comun.
 
+Empieza el registro con el estado vigente breve; conserva historia y pruebas
+anteriores debajo o enlazadas, marcadas como historicas. Al pausar deja el ultimo
+resultado, la siguiente accion y la condicion de reanudacion; no confundas pausa
+con fallo o cierre. Al retomar actualiza ese mismo registro.
+
 Conserva solo lo necesario para continuar:
 
 | Dato | Contenido |
@@ -163,6 +177,14 @@ Conserva solo lo necesario para continuar:
 | Checkout | Worktree/rama, SHA base y actual; cambios sin commit que deben preservarse. |
 | Evidencia | Comandos y resultados, SHA revisado, hallazgos pendientes y enlaces a artefactos. |
 | Siguiente accion | Paso o comando concreto, bloqueo y condicion de STOP. |
+| Delegacion | Motivo, sesion reutilizada/nueva, alias y modelo/effort observado; si no es observable, declaralo. |
+| Aceptacion | Snapshot revisado, veredicto independiente y resultado aceptado; consumo disponible del lead, workers y reviewers. |
+
+Relaciona las verificaciones con snapshot (incluido diff y archivos nuevos),
+comando y entorno, distinguiendo focal, regresion y revision independiente.
+Una repeticion debe responder a un cambio, fallo o gate concreto; no reutilices
+resultados incompatibles. No afirmes ahorro economico si falta consumo de alguna
+parte; tokens cacheados o tiempo de espera no son por si solos coste facturado.
 
 Al retomar, contrasta el registro con Git y los artefactos actuales. No reutilices
 un pass de otro SHA ni declares terminada una dependencia porque un worker diga

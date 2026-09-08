@@ -26,6 +26,11 @@ La existencia del enlace no prueba activacion.
 
 ## 2. Inicio y preflight
 
+Separa preparacion del entorno, ejecucion del producto y publicacion/exposicion.
+La autoridad vigente para una no concede las otras ni requiere reconfirmarse
+dentro de su alcance. Aplica la preparacion reproducible de
+[politicas](policies/README.md#preparacion-y-baseline) antes del baseline.
+
 Detecta app/CLI y capacidades reales: ejecucion, delegacion, paralelo, teams,
 modelos, permisos y medicion de coste. No simules las ausentes.
 
@@ -89,6 +94,10 @@ convenciones, arquitectura o restricciones del proyecto. Corrige o retira datos
 obsoletos; no actualices por calendario ni anadas diarios de sesion, secretos o
 detalles que ya explica el codigo. Enlaza documentacion extensa.
 
+Registra la finalidad, el entorno y las operaciones autorizadas propias del
+proyecto. Separa esos hechos vigentes de planes historicos; no conviertas una
+antigua autorizacion de otro objetivo en permiso actual.
+
 Respeta la fuente comun y los imports existentes; evita duplicar reglas entre
 hosts. Crea instrucciones locales solo si hay informacion propia que conservar.
 Los workers comunican los hallazgos y el lead integra la actualizacion. Incluye
@@ -113,6 +122,8 @@ estos archivos en el mismo diff para revision del usuario e indica que cambio.
   del modelo observado. No uses un modelo mayor para suplir un objetivo ambiguo.
 - Cierra workers y recursos temporales al terminar sin borrar trabajo no
   integrado.
+- Para pruebas con recursos, aplica [propiedad y aislamiento](policies/README.md#recursos-de-pruebas)
+  a la raiz temporal y a sus procesos hijos; una instruccion no prueba aislamiento.
 
 ## 5. Git, GitHub y limites
 
@@ -131,8 +142,10 @@ autorizar expresamente otro flujo para una tarea concreta.
 3. Crea la rama `feat/<n>-slug` (n = numero del issue) y su worktree desde
    `origin/main`; no reutilices un checkout con cambios ni alteres el worktree de
    `main` para desarrollar.
-4. Registra SHA base y baseline antes de editar. Si esta rojo, separa el fallo
-   preexistente y aplica STOP salvo autorizacion acotada para continuar.
+4. Registra SHA base, preparacion y baseline antes de editar. Distingue entorno
+   incompleto, infraestructura de pruebas y regresion. Prepara lo autorizado
+   antes del baseline; ante fallo real, preserva evidencia y aplica STOP salvo
+   autorizacion acotada para continuar.
 5. Tras verificar, usa `git add -- <paths>` solo sobre cambios propios. Revisa
    `git diff --cached` y `git status`; no incluyas trabajo ajeno ni mezcles cambios
    preexistentes del indice. Si un archivo contiene cambios ajenos, prepara solo
