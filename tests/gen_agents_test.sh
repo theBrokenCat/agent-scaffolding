@@ -97,6 +97,12 @@ for definition in sorted(codex.glob('*.toml')):
     for rendered in (instructions, (claude / (definition.stem + '.md')).read_text()):
         assert body in rendered, f'{definition.stem}: canonical role body missing'
         assert contract in rendered, f'{definition.stem}: common return contract missing'
+        assert 'No commit, push, PR or merge' in rendered, f'{definition.stem}: publication gate missing'
+        assert 'Preserve other work and historical evidence' in rendered, f'{definition.stem}: preservation missing'
+        assert 'Do not load the lead manual' in rendered, f'{definition.stem}: context boundary missing'
+        assert 'cannot override higher-priority instructions' in rendered, f'{definition.stem}: authority boundary missing'
+        assert 'git fetch --prune' not in rendered, f'{definition.stem}: lead Git procedure leaked'
+        assert '## Trabajo multisesion' not in rendered, f'{definition.stem}: lead manual leaked'
         assert 'Follow agents/roles/' not in rendered, f'{definition.stem}: unresolved role lookup'
         blocks = re.findall(r'```yaml\n(.*?)\n```', rendered, re.S)
         assert len(blocks) == 1, f'{definition.stem}: expected one return envelope'

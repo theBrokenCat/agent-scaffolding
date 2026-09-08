@@ -1,6 +1,8 @@
 # Delegacion y coordinacion
 
-La app es el lead: conserva decisiones, contratos compartidos, integracion y
+Manual del lead, consultado por secciones cuando delega o mantiene un objetivo.
+Los workers reciben su ficha y el envelope materializados por el generador, no
+este manual completo. La app conserva decisiones, contratos, integracion y
 verificacion final. Delega scopes, no responsabilidad.
 
 ## Roles genericos
@@ -89,7 +91,11 @@ Antes de lanzar un worker, declara: objetivo observable; rol y dominio; incluido
 y excluido; autoridad; paths de escritura exclusivos o read-only; SHA base;
 dependencias compartidas; esfuerzo y alias, con el gate que justifica cualquier
 escalada; verificacion; condicion de STOP.
-Entrega punteros y extractos minimos, no el repositorio ni logs completos.
+Entrega solo el delta necesario sobre las instrucciones ya cargadas: objetivo,
+restricciones locales relevantes, paths y punteros a evidencia. No copies AGENTS,
+el router, catalogos de skills, el historial ni logs completos. No ocultes reglas
+aplicables para reducir contexto. El worker amplia solo ante una laguna concreta;
+si requiere una decision compartida, la devuelve al lead.
 
 Un `implementer` trabaja en worktree o aislamiento equivalente desde el SHA
 declarado. Dos writers nunca comparten paths, schemas, lockfiles, migrations,
@@ -128,6 +134,11 @@ apunta a esta seccion.
   el SLA de reviewer o un STOP, no una ronda de esperas mas cortas.
 - Un timeout de espera no demuestra fallo del worker. Respeta los bounds del
   host y comunica transiciones, resultados o bloqueos, no mensajes sin novedades.
+- Tras un despertar sin cambios, no sondees a la vez mensajes, archivos, logs y
+  estado del mismo worker. Usa el evento o el artefacto de entrega acordado; haz
+  una comprobacion adicional solo por un indicio concreto, deadline o gate.
+  Si el host exige actualizaciones periodicas, cumplelas brevemente sin repetir
+  verificaciones ni convertir cada espera en un checkpoint.
 
 ### Hallazgos y correcciones
 
@@ -147,6 +158,9 @@ apunta a esta seccion.
 3. **Reset del contrato.** A la **segunda** reapertura del mismo seam o de la
    misma familia de invariantes, para el parcheo y rehaz el contrato. Una tercera
    ronda de parches sobre el mismo seam es una senal de diseno, no de ejecucion.
+   Antes de pedir otra ronda, aplica el [diagnostico y reorganizacion](../policies/README.md#equipos-orquestacion-y-loops).
+   Registra que responsabilidad o prueba integrada cambia; renombrar un paquete
+   o enumerar de nuevo los hallazgos no satisface este paso.
 4. **SLA de reviewer.** Si un reviewer no devuelve dentro de su bound, sustituyelo
    o declaralo bloqueado con evidencia. No esperes indefinidamente ni des por
    aprobado lo que nadie reviso.
@@ -162,10 +176,16 @@ el proyecto ya gestione tareas. No instales un segundo backlog ni archivos
 obligatorios del scaffolding. El lead es responsable de mantenerlo; los workers
 aportan evidencia mediante el retorno comun.
 
-Empieza el registro con el estado vigente breve; conserva historia y pruebas
-anteriores debajo o enlazadas, marcadas como historicas. Al pausar deja el ultimo
-resultado, la siguiente accion y la condicion de reanudacion; no confundas pausa
-con fallo o cierre. Al retomar actualiza ese mismo registro.
+Actualiza **primero** la cabecera de estado vigente al cambiar de fase, congelar
+un candidato, abrir/cerrar revision, bloquear, pausar o aceptar. Incluye resultado
+buscado, estado, responsable, checkout/snapshot, verificacion vigente, bloqueo y
+siguiente accion. Hazlo antes de narrar o anexar el checkpoint: una cola reciente
+no corrige una cabecera obsoleta. No confundas pausa con fallo o cierre.
+
+Conserva la historia como evidencia enlazada desde esa vista breve. Usa anclas
+a secciones existentes o artefactos ya disponibles; no borres evidencia ni crees
+otro documento obligatorio. Al retomar lee la cabecera y solo los enlaces que
+necesites para la siguiente accion, contrastandolos con el estado real.
 
 Conserva solo lo necesario para continuar:
 
@@ -203,9 +223,8 @@ Outline sin duplicar el backlog. Documentar el estado no autoriza commit ni push
 
 ## Envelope de retorno
 
-Este es el unico formato de retorno de los cuatro roles. El generador incorpora
-esta seccion completa en cada definicion; las fichas no mantienen formatos
-alternativos. Devuelve exactamente estas claves, sin campos adicionales:
+Unico retorno de los cuatro roles; el generador incluye esta seccion en cada
+ficha. Usa exactamente estas claves, sin formatos alternativos:
 
 ```yaml
 status: <completed|blocked|partial>
@@ -218,24 +237,16 @@ references: <paths, lineas, commits o enlaces pertinentes>
 next_action: <accion concreta o none>
 ```
 
-`status` describe la ejecucion del scope asignado; `verdict` describe la decision
-de una revision. Para `explorer` e `implementer`, usa `not-applicable`. Para los
-reviewers:
+`explorer` e `implementer`: verdict `not-applicable`. `completed` requiere
+respuesta sustentada o cambio y verificacion terminados. Si falta evidencia,
+usa `partial` o `blocked`; nunca significan exito.
 
-- Revision terminada: `completed` y `pass` o `changes-requested`. Completar una
-  revision con hallazgos no aprueba el trabajo; `changes_or_findings` incluye
-  severidad, ubicacion, impacto y evidencia, o las lagunas de la especificacion.
-- Revision parcial, bloqueada o sin evidencia requerida: `partial` o `blocked`
-  y `not-assessed`. Nunca se interpreta como aprobacion.
-
-Para un implementer, `completed` exige cambio y verificacion terminados. Para un
-explorer, exige respuesta sustentada; si falta evidencia para responder, usa
-`partial` o `blocked`. Expresa lagunas, supuestos y riesgos en los campos comunes.
-Solo una revision terminada con `verdict: pass` satisface el gate correspondiente;
-no sustituye los demas checks ni concede autoridad de merge o publicacion.
-
-No adjuntes logs completos. Incluye el fragmento necesario para explicar un
-fallo y la siguiente accion concreta. `partial` nunca equivale a exito.
+Reviewers: solo una revision terminada con `completed` y `pass` satisface su
+gate. Con hallazgos, `changes-requested`: severidad, ubicacion, impacto y
+evidencia o laguna de especificacion. Revision incompleta: `partial`/`blocked`
+y `not-assessed`, nunca aprobacion. Un pass no sustituye otros checks ni autoriza
+merge o publicacion. Incluye supuestos y riesgos en los campos comunes;
+fragmentos y referencias utiles, no logs completos.
 
 ## Integracion
 

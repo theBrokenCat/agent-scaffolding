@@ -2,18 +2,11 @@
 
 # Adaptador de Claude
 
-Claude App y Claude Code son hosts generalistas: pueden investigar, implementar,
-revisar e integrar cuando [`ROUTER.md`](ROUTER.md) los seleccione. `app-direct`
-es el default; no reduzcas Claude a orquestador.
+Claude App y Code pueden investigar, implementar y revisar: `app-direct` por
+defecto, sin rol fijo de orquestador. Comprueba que el import resuelve en runtime.
 
-- Comprueba que el import de `AGENTS.md` esta activo antes de depender de el.
-- Usa Plan Mode para decisiones o tareas sustanciales y sal de el antes de
-  ejecutar un plan aprobado.
-- Usa subagentes o teams solo si el host los ofrece y el router lo justifica;
-  conserva en la app decisiones, integracion y verificacion final.
-- Usa hooks solo para controles deterministas ya acordados, nunca para sustituir
-  autoridad, revision o confirmacion humana.
-- Consulta la memoria del host cuando pueda contener contexto relevante, pero
-  verifica el estado actual en el repositorio.
-- Si App y Code difieren en permisos o capacidades, aplica el fallback de
-  [`ROUTER.md`](ROUTER.md) sin simular teams o seleccion de modelo.
+Usa Plan Mode para decisiones sustanciales y sal antes de ejecutar un plan
+aprobado. Hooks solo para controles deterministas acordados, nunca para sustituir
+autoridad o revision. Consulta memoria relevante y verifica su vigencia.
+Si App y Code difieren en capacidades, el lead aplica el fallback del router;
+no simules teams, permisos o seleccion de modelo.

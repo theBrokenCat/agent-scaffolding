@@ -2,10 +2,94 @@
 
 ## Trabajo vigente
 
-Issue #44: reglas operativas y recursos de pruebas, preparado en worktree aislado.
-Estado, autoridad, dependencia de Penthos #71 y verificaciones:
-[registro del objetivo](44-operational-contract.md). Los apartados siguientes
-conservan el historial; no sustituyen ese estado vigente.
+**Resultado:** #46, reducir contexto automatico y mejorar reaperturas, estado y esperas.
+**Estado:** candidato verificado y aprobado; usuario autoriza publicacion, merge e instalacion global. Cierre de entrega en el issue #46.
+**Responsable:** lead de esta tarea; reviewer independiente de solo lectura.
+**Checkout:** `.worktrees/46-context`, `feat/46-context`, base `cec18ac02bea6fab36d8d71f8100468510888ac0`.
+**Verificacion vigente:** ocho suites verdes; 20 renders verificados, cuatro fichas intactas; diff-check limpio.
+**Bloqueo:** ninguno. **Siguiente accion:** consultar el [cierre de entrega](https://github.com/theBrokenCat/agent-scaffolding/issues/46) para estado de merge, instalacion y evidencia; cambios posteriores requieren su propio alcance.
+**Autoridad:** solo scaffolding; usuario autorizo instalar e integrar el 08/09/2026. No tocar Penthos ni su tarea.
+**Evidencia:** [inventario y comparacion](#issue-46--contexto-y-coordinacion); historia anterior debajo.
+
+#44 se integro en PR #45 (`cec18ac`); su [registro](44-operational-contract.md)
+conserva el estado historico anterior a publicacion. No es trabajo pendiente de #46.
+
+## Issue 46 — Contexto y coordinacion
+
+Issue: https://github.com/theBrokenCat/agent-scaffolding/issues/46.
+Diseno autorizado: nucleo comun pequeno en AGENTS; procedimientos del lead en las
+politicas/manual existentes; workers autocontenidos mediante ficha, guardas y
+retorno comun. Sin otro framework, dependencia ni documento obligatorio.
+
+### Que se carga y que se consulta
+
+| Entrada | Carga observada / mecanismo | Tratamiento |
+| --- | --- | --- |
+| AGENTS global | Symlink gestionado en Codex; import `@AGENTS.md` en adaptadores Claude/Gemini | Nucleo obligatorio reducido; conserva autoridad y gates. |
+| Instrucciones locales | El host las suministra segun proyecto/checkout; el log auditado incluia contexto local junto al global | No se editan proyectos consumidores. No copiar de nuevo en el brief. |
+| Rol seleccionado | `role_instructions` incorpora guardas, ficha y solo `Envelope de retorno`; diez estados por host, cuatro roles | Reducir texto repetido; conservar modelo/effort, autoridad y ocho campos. |
+| Router, politicas, manual del lead | Enlaces Markdown, no imports del generador | Consultar la seccion requerida antes de la accion afectada. |
+| Skills, herramientas, plugins, memoria y contexto del host | Catalogos/metadata pueden ser inyectados por la plataforma; bodies se consultan cuando aplican | No cambiar configuracion global ni atribuir esa carga al brief del lead. |
+| Historia de tarea / turnos heredados | Depende del host y del fork usado | Brief con delta y evidencia enlazada; no copiar historiales. |
+
+Comprobado mediante symlinks existentes, adaptadores, `scripts/gen-agents` y
+metadatos del log de #72 ya auditado. Esto no prueba que todos los hosts carguen
+igual ni elimina una posible doble inyeccion global/local. Durante la validacion
+del diff no se instalo el candidato ni se relanzaron sesiones del consumidor.
+
+### Verificacion y medida
+
+Evidencia de ejecucion: `/private/tmp/scaffolding-46.jLBEv4/` (raiz exclusiva).
+Baseline: las ocho suites existentes pasan sobre `cec18ac`. La regresion nueva
+del generador fallo primero por ausencia de la guarda de publicacion; el candidato
+debe conservarla en los veinte renders junto con roles y retorno canonicos.
+Comparacion: `git archive cec18ac` a la raiz propia; render de ambos snapshots con
+el mismo `settings/schemas/model-map.example.yaml`, hosts codex y claude.
+Se cuentan bytes UTF-8 y palabras separadas por whitespace: TOML decodificado
+(`developer_instructions`), Markdown Claude sin frontmatter, fuente para AGENTS y
+adaptadores. Datos en `context-sizes.json`:
+
+| Componente | Bytes antes | Bytes despues | Reduccion |
+| --- | ---: | ---: | ---: |
+| AGENTS.md | 10540 | 5826 | 44,7 % |
+| Adaptador Claude (sin sumar su import) | 966 | 554 | 42,7 % |
+| Adaptador Gemini (sin sumar su import) | 894 | 414 | 53,7 % |
+| Worker implementer-frontier, Codex | 3975 | 3438 | 13,5 % |
+| Suma 10 definiciones Codex | 41788 | 35984 | 13,9 % |
+| Suma 10 definiciones Claude | 42748 | 36944 | 13,6 % |
+
+AGENTS pasa de 1476 a 733 palabras; el ejemplo worker de 564 a 472. La suma de
+definiciones compara el catalogo, no implica que un worker cargue los diez cuerpos.
+Las politicas crecen al recibir procedimientos antes automaticos. Tamano de
+los seis documentos juntos: 39235 -> 39747 bytes (+1,3 %); leerlos todos de nuevo
+anularia la ventaja. La reduccion se concentra en las entradas automaticas y
+los roles, con seleccion de secciones para el resto. Metadatos de
+modelo/effort y restricciones de herramientas iguales en los 20 renders;
+cuatro fichas fuente identicas a la base. Ocho suites finales verdes (se repitieron
+solo gen_agents y orchestration tras corregir expectativas literales y un enlace
+trasladado); diff-check limpio. Escenarios revisados en tests/operational-scenarios.md.
+
+Son tamanos estaticos de instrucciones, no tokens facturados ni ahorro total.
+No incluyen catalogos del host, prompt local, lecturas posteriores, razonamiento,
+cache o numero de turnos. Mover texto a politicas solo reduce la carga cuando se
+respeta la consulta selectiva. No es un benchmark de calidad o rendimiento.
+
+Cambios operativos: diagnostico causal y reorganizacion antes de pedir ampliacion
+de rondas; cabecera vigente primero; evidencia historica enlazada; esperar eventos
+sin sondeos redundantes, cumpliendo limites y comunicacion del host.
+Revision completada: `context_review`, sesion nueva por independencia. Modelo
+observado en turn_context: `gpt-5.6-sol`, `xhigh`, tarea
+`01a08231-ed46-7ba0-927a-0e383b24ebdf`. Snapshot de los 11 archivos de contrato,
+generador y tests en `review-snapshot.sha256`; solo este registro recibe resultados
+mientras se revisa. El lead verifica renders y mantiene el estado; sin delegacion
+de checkpoints. Primera review: 0 Blocking / 2 Important, enlace de Outline
+incorrecto y concesion Git preparatoria implicita. Corregidos en un solo lote;
+contract/orchestration y diff-check repetidos con PASS. Relectura de esos dos
+puntos sobre `review-snapshot-v2.sha256`: PASS, 0 Blocking / 0 Important;
+los 11 checksums coinciden. Consumo total no medido. Este cierre del registro
+solo incorpora resultados, no modifica el candidato revisado.
+
+---
 
 **Goal:** Activar un workflow app-first global, reversible y compartido por Codex, Claude y Gemini sin modificar cada proyecto.
 **Stack:** Markdown, shell POSIX, Git, GitHub CLI y tests de shell.
