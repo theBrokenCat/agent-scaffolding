@@ -32,7 +32,8 @@ conserva los gates de revision independiente aplicables.
 
 ## Preflight selectivo
 
-Usa el formato y la autoridad de [AGENTS.md](AGENTS.md#2-inicio-y-preflight).
+El lead usa el formato de [preflight](policies/README.md#preparacion-y-baseline)
+bajo la autoridad de [AGENTS.md](AGENTS.md#2-inicio-y-preflight).
 `fast` no pregunta. Para el resto, solo confirma si cambia coste, autoridad,
 superficie de escritura o destino y esa decision no esta ya autorizada.
 

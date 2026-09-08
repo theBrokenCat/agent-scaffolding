@@ -54,13 +54,20 @@ require 'gates de escalada' agents/README.md
 
 # The concurrency budget replaced the old three-worker cap, in every file that
 # states a limit.
-for file in AGENTS.md agents/README.md; do
+for file in agents/README.md; do
   require '8 agentes simultaneos' "$file"
   require '3 writers' "$file"
   require 'readers <= 8 - writers' "$file"
   refute 'maximo tres workers' "$file"
   refute 'lead y tres workers' "$file"
 done
+require 'agents/README.md#orquestacion' AGENTS.md
+require 'diagnostico del lead' policies/README.md
+require 'Reorganizar no reinicia limites' policies/README.md
+require 'Actualiza **primero** la cabecera' agents/README.md
+require 'no corrige una cabecera obsoleta' agents/README.md
+require 'no sondees a la vez mensajes, archivos, logs' agents/README.md
+require 'Si el host exige actualizaciones periodicas' agents/README.md
 require '../agents/README.md#orquestacion' policies/README.md
 require '../AGENTS.md#5-git-github-y-limites' policies/README.md
 

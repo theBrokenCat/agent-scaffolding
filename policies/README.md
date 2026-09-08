@@ -1,8 +1,9 @@
 # Politicas operativas
 
 Complementan [AGENTS.md](../AGENTS.md) sin conceder permisos. Este archivo
-conserva gates y presupuestos; el contrato global contiene autoridad, preflight,
-Git, contexto y verificacion.
+conserva procedimientos bajo demanda: el lead consulta la seccion pertinente;
+los workers solo las reglas necesarias para ejecutar su brief. Autoridad y
+limites esenciales permanecen en el nucleo global.
 
 ## Confirmacion y mutacion
 
@@ -12,14 +13,70 @@ locales y remotas; escribir requiere scope, ownership, baseline y verificacion.
 
 ## Git, worktrees y PR
 
-El ciclo autorizado y el cleanup estan en [AGENTS.md](../AGENTS.md#5-git-github-y-limites).
-No hay una segunda politica de Git aqui. Las restricciones propias de GitHub,
+El lead ejecuta este ciclo bajo los [gates esenciales](../AGENTS.md#5-git-github-y-limites).
+Los workers no necesitan este procedimiento salvo encargo Git explicito.
+
+1. Crea o enlaza el issue que la tarea cierra; inspecciona status, rama, remotos
+   y worktrees, y conserva trabajo ajeno.
+2. Ejecuta `git fetch --prune origin` y localiza el worktree limpio que posee
+   `main`. Actualizalo con `pull --ff-only` solo si esta limpio.
+3. Crea la rama `feat/<n>-slug` (n = numero del issue) y su worktree desde
+   `origin/main`; no reutilices un checkout con cambios ni alteres el worktree de
+   `main` para desarrollar.
+4. Registra SHA base, preparacion y baseline antes de editar. Distingue entorno
+   incompleto, infraestructura de pruebas y regresion. Prepara lo autorizado
+   antes del baseline; ante fallo real, preserva evidencia y aplica STOP salvo
+   autorizacion acotada para continuar.
+5. Tras verificar, usa `git add -- <paths>` solo sobre cambios propios. Revisa
+   `git diff --cached` y `git status`; no incluyas trabajo ajeno ni mezcles cambios
+   preexistentes del indice. Si un archivo contiene cambios ajenos, prepara solo
+   tus hunks. Presenta archivos, pruebas y rama/worktree al usuario y espera su
+   revision. Conserva el worktree y los cambios staged mientras espera.
+6. Tras la aprobacion explicita para commit y push, comprueba que el diff sigue
+   siendo el revisado, crea commits logicos, haz push de la feature y crea o
+   actualiza su draft PR (`Closes #<n>`). Si cambia el contenido aprobado, vuelve
+   a presentarlo; no extiendas el permiso a cambios posteriores.
+7. Ejecuta CI y revision independiente dentro de los limites de
+   [estas politicas](README.md#verificacion-y-cierre), sobre el snapshot final. En cuenta
+   personal no uses approval del autor: el revisor automatico va como check.
+   Si esta desactivado, exige evidencia de revision independiente documentada;
+   `reviewer-disabled` nunca la acredita. La puerta es CI verde Y revision
+   aprobada. Merge sigue siendo explicito; solo el auto-merge preautorizado lo
+   cierra sin accion manual, con todos los checks requeridos en verde.
+8. Confirma la integracion con `gh pr view <n> --json state,mergedAt` antes de
+   limpiar: el squash merge reescribe el head y `git branch -d` puede
+   no reconocerlo. Solo si `state` es `MERGED`, actualiza el main limpio con
+   `pull --ff-only`, retira los worktrees limpios de la feature con
+   `git worktree remove`, borra la rama local ya integrada con `git branch -D` y
+   poda refs/metadatos obsoletos. El borrado remoto sigue requiriendo autorizacion.
+
+Las restricciones propias de GitHub,
 bootstrap, rulesets, auto-merge y checks estan en [.github/WORKFLOW.md](../.github/WORKFLOW.md).
 No cambies configuracion remota ni publiques fuera de la autoridad ya concedida.
 
 ## Contexto, grafo y Outline
 
 ### Preparacion y baseline
+
+Detecta app/CLI y capacidades reales: ejecucion, delegacion, paralelo, teams,
+modelos, permisos y medicion de coste. No simules las ausentes.
+
+Para una tarea sustancial, antes de ejecutar presenta:
+
+```text
+Recomiendo: <app-direct|app-delegated|app-parallel|cli-handoff|hybrid>
+Motivo: <una frase>
+La app conservara: <decisiones e integracion>
+Delegare: <scope o nada>
+Confirmacion necesaria: <si/no>
+```
+
+`fast` no pregunta. En `standard` o `deep`, escrituras amplias, equipos,
+seguridad, produccion o relevo, pide confirmacion solo cuando la opcion propuesta
+cambie coste, autoridad, superficie de escritura o destino de ejecucion. Una
+instruccion explicita ya resuelve esa decision mientras no contradiga una capa
+superior.
+
 
 Una implementacion autorizada incluye preparar dependencias en su worktree
 aislado con el lockfile existente y el comando reproducible del proyecto
@@ -51,12 +108,37 @@ de cada ejecucion fuera del area temporal que se limpia.
 
 ### Frescura de codebase-memory-mcp
 
-Aplica la comprobacion de root, cobertura, SHA y dirty state de
-[AGENTS.md](../AGENTS.md#3-router-y-contexto), incluida una sola reindexacion con
-`persistence=false` y fallback textual cuando el indice siga sin ser fiable.
+Antes de confiar en el grafo, comprueba `list_projects` o `index_status`, root y
+cobertura. `ready` solo significa que una indexacion termino, no que sea actual.
+Reindexa si falta el proyecto, el root no coincide, cambia la rama/worktree, el
+indice es demasiado pequeno, hay cambios sustanciales o el grafo omite simbolos.
+Ejecuta `index_repository` sobre el root actual con `persistence=false`, sin
+confirmacion adicional, y repite la consulta una vez. Registra rama, SHA y estado
+actual, incluidos cambios sin commit. Si sigue fallando, usa texto e informa de
+la degradacion; no entres en un loop de reindexacion.
+
 Usa `fast` para refrescos cotidianos, `moderate` para relaciones cross-file y
 `full` para arquitectura o recuperar cobertura. `persistence=true` escribe un
 artefacto en el repo y requiere peticion explicita.
+
+### Mantenimiento de instrucciones locales
+
+El lead responsable de la tarea revisa las instrucciones locales al empezar y
+antes de entregar cambios. Actualiza `AGENTS.md` y/o `CLAUDE.md` cuando la tarea
+confirme o cambie hechos esenciales y duraderos: comandos de desarrollo/tests,
+convenciones, arquitectura o restricciones del proyecto. Corrige o retira datos
+obsoletos; no actualices por calendario ni anadas diarios de sesion, secretos o
+detalles que ya explica el codigo. Enlaza documentacion extensa.
+
+Registra la finalidad, el entorno y las operaciones autorizadas propias del
+proyecto. Separa esos hechos vigentes de planes historicos; no conviertas una
+antigua autorizacion de otro objetivo en permiso actual.
+
+Respeta la fuente comun y los imports existentes; evita duplicar reglas entre
+hosts. Crea instrucciones locales solo si hay informacion propia que conservar.
+Los workers comunican los hallazgos y el lead integra la actualizacion. Incluye
+estos archivos en el mismo diff para revision del usuario e indica que cambio.
+
 
 ### Mantenimiento de Outline
 
@@ -129,8 +211,13 @@ Al agotar un limite, detiene nuevos despachos, preserva estado y aplica STOP. No
 cambies rol, modelo, alias o formulacion para reiniciar un loop agotado: escalar
 no es una via para eludir el limite. Los
 budgets del brief pueden ser menores; ampliar un limite necesita nueva autoridad.
-Antes de solicitarla, consolida las causas abiertas y propone que cambiara en
-contrato, reparto o verificacion; no solicites otra ronda identica sin diagnostico.
+Antes de solicitarla, realiza en el registro existente el diagnostico del lead:
+causa de la reapertura, supuesto del contrato que fallo, cobertura que no lo
+detecto y cambio concreto de contrato, reparto o prueba integrada. Distingue
+un defecto nuevo de una correccion que no cerro su causa. Define aceptacion y
+presupuesto del nuevo enfoque; no solicites otra ronda equivalente solo porque
+el ultimo reviewer encuentre algo mas. Reorganizar no reinicia limites ni concede
+autoridad: sin ampliacion autorizada, conserva el STOP.
 
 ## Verificacion y cierre
 

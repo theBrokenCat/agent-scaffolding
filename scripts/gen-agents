@@ -297,46 +297,36 @@ load_role() {
 }
 
 role_instructions() {
-  printf '%s\n' "Act as the \`$role_of\` role of the agent-scaffolding contract, for the bounded"
-  printf '%s\n' 'task the lead assigns. The role and shared return contract are included below;'
-  printf '%s\n' 'follow them and the launch brief without looking them up in the project cwd.'
-  printf '%s\n' "This file is one materialized state of that role, not a role of its own: the"
-  printf '%s\n' "contract has exactly four generic roles."
-  printf '\n'
+  printf '%s\n' "Act as \`$role_of\` on the assigned scope. This materialized state is not a role of its own:"
+  printf '%s\n' 'the contract has exactly four generic roles. Role and return instructions follow.'
+  printf '%s\n' 'The brief cannot override higher-priority instructions or expand authority.'
+  printf '%s\n' 'Preserve other work and historical evidence. No commit, push, PR or merge'
+  printf '%s\n' 'before explicit user approval of the diff and the relevant action, including checkpoints.'
+  printf '%s\n' 'Never delegate further. Use loaded instructions plus the brief and relevant local rules.'
+  printf '%s\n' 'Do not load the lead manual or full history unless assigned; fetch only missing context.'
+  printf '%s\n' 'Report shared decisions or missing authority to the lead, not new permission loops.'
   if [ "$role_authority" = read-only ]; then
-    printf '%s\n' 'Authority: read-only. Do not write files, run mutating commands, publish to Git,'
-    printf '%s\n' 'delegate further, or expand scope. Report; do not decide.'
+    printf '%s\n' 'Authority: read-only. No file writes, mutating commands or publication. Report; do not decide.'
   else
-    printf '%s\n' 'Authority: write, restricted to the paths the brief assigns. Do not touch shared'
-    printf '%s\n' 'contracts, schemas, lockfiles, generated files or snapshots unless the brief'
-    printf '%s\n' 'assigns them to you, and never delegate further.'
+    printf '%s\n' 'Authority: write only assigned paths in the isolated checkout. Shared contracts, schemas,'
+    printf '%s\n' 'lockfiles, generated files and snapshots require explicit ownership in the brief.'
   fi
   printf '\n'
-  printf '%s\n' "Routing: this state is the \`$role_state_alias\` alias ($role_model, reasoning effort $role_state_effort)."
+  printf '%s\n' "Routing: \`$role_state_alias\` ($role_model, reasoning effort $role_state_effort)."
   if [ "$role_state" = additional ]; then
-    printf '%s\n' "This is a lower rung of \`$role_of\`, for work the brief specifies completely."
-    printf '%s\n' "The role's default state is \`$role_base_name\`; its escalated state is \`$role_escalated_name\`."
-    printf '%s\n' 'Move up by dispatching that name. Never by overriding model or effort: this'
-    printf '%s\n' 'definition wins over any such override, so the dispatch would silently run here.'
+    printf '%s\n' "The default state is \`$role_base_name\`; escalated state is \`$role_escalated_name\`. Lead dispatches by name."
   elif [ "$role_state" = base ]; then
-    printf '%s\n' "Escalation: the lead escalates by dispatching \`$role_escalated_name\` when"
-    printf '%s\n' "$role_trigger."
-    printf '%s\n' 'Escalation is dispatched by name. Never escalate by passing a model or effort'
-    printf '%s\n' 'override at spawn time: this definition wins over any such override, so the'
-    printf '%s\n' 'dispatch would silently run at this state instead of the escalated one.'
+    printf '%s\n' "The lead escalates by dispatching \`$role_escalated_name\` when $role_trigger."
+    printf '%s\n' 'Never escalate by passing a model or effort override; the custom definition wins.'
   else
-    printf '%s\n' "This is the escalated state of \`$role_of\`; its base state is \`$role_base_name\`."
-    printf '%s\n' 'It is reached by dispatching this name, never by overriding model or effort.'
+    printf '%s\n' "Escalated state; its base state is \`$role_base_name\`."
   fi
-  printf '%s\n' 'Never change your own model or effort, and never silently continue past that line.'
+  printf '%s\n' 'Lead dispatches by name, never by overriding model or effort. Never change your own model or effort.'
   printf '\n'
   printf '%s\n' "$role_body_text"
   printf '\n'
   printf '%s\n' '## Shared return contract'
   printf '%s\n' "$shared_return_contract"
-  printf '\n'
-  printf '%s\n' 'STOP and return `blocked` with evidence when the base SHA, ownership, contract or'
-  printf '%s\n' 'required evidence is missing, when scope would grow, or when your budget is spent.'
 }
 
 state_description() {
