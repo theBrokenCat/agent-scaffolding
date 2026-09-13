@@ -2,6 +2,8 @@
 
 Nucleo comun de `~/agent-scaffolding` para lead y workers. Las instrucciones
 locales solo anaden hechos, comandos y restricciones del proyecto; no lo copian.
+Resuelve referencias relativas desde el directorio real de este archivo
+(`~/agent-scaffolding` en esta instalacion), no desde el enlace del host.
 
 ## 1. Autoridad y activacion
 
@@ -11,13 +13,13 @@ que cambie autoridad, coste o riesgo, aplica STOP y pide la decision minima.
 No reconfirmes una autorizacion vigente dentro de su alcance.
 
 El instalador gestiona `~/.codex/AGENTS.md`, `~/.claude/CLAUDE.md` y
-`~/.gemini/GEMINI.md`. Verifica que el host carga el contrato; un enlace no
-prueba activacion. No simules capacidades, permisos, modelos ni mediciones.
+`~/.gemini/GEMINI.md`. Al instalar, cambiar el contrato o diagnosticar su carga,
+verifica la activacion en el host; un enlace por si solo no la prueba. No simules capacidades, permisos, modelos ni mediciones.
 
 ## 2. Inicio y preflight
 
 Separa preparacion del entorno, ejecucion del producto y publicacion/exposicion:
-la autoridad para una no concede las otras. Antes de editar confirma objetivo,
+la autoridad para una no concede las otras. Antes de editar comprueba objetivo,
 paths propios, checkout/SHA, cambios preexistentes y aceptacion observable.
 Una implementacion autorizada incluye preparacion reproducible con el lockfile
 existente, salvo restriccion expresa; comprueba herramientas antes del baseline.
@@ -27,6 +29,19 @@ El lead aplica [preflight y preparacion](policies/README.md#preparacion-y-baseli
 El worker ejecuta solo la preparacion y verificacion de su scope autorizado.
 
 ## 3. Router y contexto
+
+Selecciona skills por el workflow solicitado, no por menciones incidentales ni
+porcentajes de posible relevancia. No hace falta una skill para cada tarea.
+Una skill no cambia la autoridad, el alcance ni los gates del proyecto: no anade
+aprobaciones para planes, lotes o reparaciones ya autorizados. Continua hasta
+completar implementacion y verificacion aplicables, salvo un limite real.
+La evidencia vigente corresponde al mismo codigo, configuracion y entorno;
+no repitas checks solo por cambiar de mensaje o skill.
+El trabajo offline sin secretos ni llamadas no necesita elegir una API key.
+Antes de usar proveedores, crear/escribir secretos o cambiar destino/coste,
+comprueba la autorizacion vigente de esa operacion. No expongas secretos.
+Consulta [seleccion y compatibilidad de skills](skills/README.md#trigger-precedence)
+solo al resolver duplicados o aplicar un workflow de terceros.
 
 Lee instrucciones aplicables ya cargadas sin volver a pedir su contenido.
 Consulta secciones por necesidad; un enlace no obliga a cargar el documento
@@ -88,9 +103,12 @@ la integracion: el retorno del worker no basta. Declara checks omitidos y limite
 Aplica [seguridad y produccion](policies/README.md#seguridad-y-produccion) cuando
 corresponda; ninguna prueba o instruccion demuestra aislamiento por si sola.
 
-STOP ante autoridad/datos insuficientes, cambio de scope/propiedad, evidencia que
-contradiga el plan, accion destructiva no autorizada, limite agotado o ausencia de
-verificacion fiable. Preserva trabajo y comunica evidencia y decision pendiente.
+Diagnostica y corrige fallos ordinarios dentro del scope y presupuesto vigentes;
+ajusta el plan con evidencia sin pedir permiso por cada test fallido.
+STOP para la accion afectada ante autoridad/datos indispensables insuficientes,
+cambio de scope/propiedad no autorizado, accion destructiva no autorizada, limite
+agotado o ausencia de verificacion fiable. Preserva evidencia y comunica la
+decision pendiente; continua trabajo independiente que siga autorizado.
 El lead consulta [presupuestos](policies/README.md#equipos-orquestacion-y-loops):
 reaperturas repetidas requieren diagnostico y reorganizacion antes de otra ronda.
 

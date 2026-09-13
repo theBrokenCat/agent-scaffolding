@@ -25,8 +25,10 @@ Los workers no necesitan este procedimiento salvo encargo Git explicito.
    `main` para desarrollar.
 4. Registra SHA base, preparacion y baseline antes de editar. Distingue entorno
    incompleto, infraestructura de pruebas y regresion. Prepara lo autorizado
-   antes del baseline; ante fallo real, preserva evidencia y aplica STOP salvo
-   autorizacion acotada para continuar.
+   antes del baseline. Diagnostica fallos y corrige los de la tarea dentro de su
+   scope y presupuesto; no repares defectos ajenos ni ignores el baseline. Si
+   falta autoridad, aislamiento requerido o verificacion fiable, detiene solo la
+   ejecucion dependiente y conserva evidencia.
 5. Tras verificar, usa `git add -- <paths>` solo sobre cambios propios. Revisa
    `git diff --cached` y `git status`; no incluyas trabajo ajeno ni mezcles cambios
    preexistentes del indice. Si un archivo contiene cambios ajenos, prepara solo
@@ -123,8 +125,8 @@ artefacto en el repo y requiere peticion explicita.
 
 ### Mantenimiento de instrucciones locales
 
-El lead responsable de la tarea revisa las instrucciones locales al empezar y
-antes de entregar cambios. Actualiza `AGENTS.md` y/o `CLAUDE.md` cuando la tarea
+El lead lee las instrucciones aplicables al empezar. Relee al entregar solo las
+secciones modificadas o afectadas por hechos nuevos; reutiliza lo ya vigente. Actualiza `AGENTS.md` y/o `CLAUDE.md` cuando la tarea
 confirme o cambie hechos esenciales y duraderos: comandos de desarrollo/tests,
 convenciones, arquitectura o restricciones del proyecto. Corrige o retira datos
 obsoletos; no actualices por calendario ni anadas diarios de sesion, secretos o
@@ -142,10 +144,13 @@ estos archivos en el mismo diff para revision del usuario e indica que cambio.
 
 ### Mantenimiento de Outline
 
-El lead mantiene el contexto del proyecto en su documento existente de Outline;
-los workers aportan hallazgos y evidencia, no publican por su cuenta. Al empezar
-o retomar, localiza y lee ese documento mediante MCP y contrasta sus datos con el
-repositorio. No uses un documento solo por similitud de nombre: verifica el
+Aplica esta seccion solo cuando el proyecto o la tarea designen Outline como
+contexto necesario y su politica local autorice la operacion concreta. No lo
+consultes ni actualices por defecto en cada tarea. Una exigencia local de
+peticion explicita para escribir prevalece sobre la actualizacion rutinaria.
+El lead mantiene el documento existente; los workers aportan evidencia, no
+publican por su cuenta. Cuando haga falta ese contexto, lee el documento por MCP
+y contrasta con el repositorio los datos que influyan en la decision. No uses un documento solo por similitud de nombre: verifica el
 proyecto y su destino. Si hay varios destinos plausibles, pide la aclaracion
 minima; no crees otro documento ni un segundo backlog automaticamente.
 
@@ -221,7 +226,11 @@ autoridad: sin ampliacion autorizada, conserva el STOP.
 
 ## Verificacion y cierre
 
-Aplica [verificacion y STOP](../AGENTS.md#6-verificacion-y-stop). Declara checks
+Aplica [verificacion y STOP](../AGENTS.md#6-verificacion-y-stop). Define los checks
+por cambios y riesgo; conserva los gates explicitos de cada proyecto. Un resultado
+es reutilizable si codigo, configuracion y entorno relevantes no han cambiado.
+No ejecutes de nuevo un test ya incluido en una suite verificada sobre ese estado.
+Repite o amplia por nuevos cambios, fallos o dudas concretas. Declara checks
 omitidos y riesgo residual; el lead verifica despues de integrar. El
 [retorno comun](../agents/README.md#envelope-de-retorno) distingue terminar una
 revision de aprobarla. CI desactivada, review parcial y falta de evidencia nunca
