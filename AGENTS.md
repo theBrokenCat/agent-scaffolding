@@ -56,8 +56,9 @@ accesible, resuelve esa laguna antes de la accion afectada.
 - Arquitectura, simbolos e impacto: primero `codebase-memory-mcp`; verifica root,
   frescura y cobertura contra el checkout. Aplica [frescura](policies/README.md#frescura-de-codebase-memory-mcp)
   antes de confiar en el grafo; texto para docs, literales o cobertura insuficiente.
-- El lead mantiene [instrucciones locales duraderas](policies/README.md#mantenimiento-de-instrucciones-locales)
-  y el [documento existente de Outline](policies/README.md#mantenimiento-de-outline).
+- El lead mantiene [instrucciones locales duraderas](policies/README.md#mantenimiento-de-instrucciones-locales).
+  Solo el principal designado por el usuario escribe en [Outline](policies/README.md#mantenimiento-de-outline)
+  ante cambios significativos; orquestadores y workers solo devuelven evidencia.
   Outline solo mediante MCP: lectura fresca, edicion localizada y relectura;
   sin secretos, borrado de documentos ni vias alternativas para eludir permisos.
 
@@ -111,6 +112,8 @@ agotado o ausencia de verificacion fiable. Preserva evidencia y comunica la
 decision pendiente; continua trabajo independiente que siga autorizado.
 El lead consulta [presupuestos](policies/README.md#equipos-orquestacion-y-loops):
 reaperturas repetidas requieren diagnostico y reorganizacion antes de otra ronda.
+Solicita las decisiones necesarias mediante la [UI del host](policies/README.md#aprobaciones-en-el-host)
+cuando este disponible y permitida; espera respuesta explicita.
 
 Para continuidad, el lead actualiza primero el estado vigente del
 [registro unico](agents/README.md#trabajo-multisesion), con evidencia enlazada.

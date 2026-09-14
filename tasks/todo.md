@@ -2,6 +2,18 @@
 
 ## Trabajo vigente
 
+Seguimiento canonico: [Issue #51 — principal, aprobaciones y cierre](https://github.com/theBrokenCat/agent-scaffolding/issues/51).
+Estado, checkout, evidencia, bloqueos y siguiente accion se mantienen alli;
+este archivo es un indice y no replica la cabecera mutable.
+
+El cambio delimita quien escribe en Outline, usa decisiones estructuradas del
+host cuando estan permitidas y completa cierre de CI/estado y smoke de entorno.
+Mantiene cuatro roles, retorno comun y gates humanos. No cambia Penthos ni
+instala instrucciones globales durante la preparacion del diff.
+#50 (skills/README.md y skills/registry.yaml) sigue en su worktree independiente.
+
+## Entrega #46 — historia anterior a #51
+
 **Resultado:** #46, reducir contexto automatico y mejorar reaperturas, estado y esperas.
 **Estado:** candidato verificado y aprobado; usuario autoriza publicacion, merge e instalacion global. Cierre de entrega en el issue #46.
 **Responsable:** lead de esta tarea; reviewer independiente de solo lectura.

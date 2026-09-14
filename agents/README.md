@@ -87,6 +87,11 @@ compatible disponible, declara la limitacion; no inventes un alias.
 
 ## Brief de lanzamiento
 
+En el encargo de un orquestador identifica al principal y el registro tecnico
+canonico, si existen. Si el usuario transporta el prompt a otra tarea, conserva
+ese contexto: no se transfieren por ello las escrituras de Outline. Los workers
+reciben solo el scope y la evidencia necesarios, sin copiar el historial global.
+
 Antes de lanzar un worker, declara: objetivo observable; rol y dominio; incluido
 y excluido; autoridad; paths de escritura exclusivos o read-only; SHA base;
 dependencias compartidas; esfuerzo y alias, con el gate que justifica cualquier
@@ -177,7 +182,7 @@ obligatorios del scaffolding. El lead es responsable de mantenerlo; los workers
 aportan evidencia mediante el retorno comun.
 
 Actualiza **primero** la cabecera de estado vigente al cambiar de fase, congelar
-un candidato, abrir/cerrar revision, bloquear, pausar o aceptar. Incluye resultado
+un candidato, abrir/cerrar revision, bloquear, pausar, publicar, integrar o aceptar. Incluye resultado
 buscado, estado, responsable, checkout/snapshot, verificacion vigente, bloqueo y
 siguiente accion. Hazlo antes de narrar o anexar el checkpoint: una cola reciente
 no corrige una cabecera obsoleta. No confundas pausa con fallo o cierre.
@@ -186,6 +191,12 @@ Conserva la historia como evidencia enlazada desde esa vista breve. Usa anclas
 a secciones existentes o artefactos ya disponibles; no borres evidencia ni crees
 otro documento obligatorio. Al retomar lee la cabecera y solo los enlaces que
 necesites para la siguiente accion, contrastandolos con el estado real.
+Elige un solo destino canonico para el estado mutable. Los informes de revision
+son evidencia del snapshot revisado: no les antepongas cada nuevo estado de CI.
+Los demas indices/relevos enlazan al canonico o se marcan como historia fechada;
+no mantengas copias paralelas de la cabecera en phase, handoff y delivery-status.
+Si el registro vive en Git, los estados posteriores a publicar pueden vivir en
+el issue existente enlazado; no generes commits de estado sin autorizacion.
 
 Conserva solo lo necesario para continuar:
 
@@ -216,10 +227,13 @@ sesion, no por cada herramienta. Deja las decisiones sin confirmar marcadas como
 pendientes. Un objetivo se acepta solo cuando sus criterios y reviews requeridas
 se han verificado; implementacion, integracion y despliegue son estados distintos.
 El relevo no autoriza acciones nuevas ni obliga a publicar codigo parcial.
-El lead mantiene tambien el contexto del usuario conforme al
-[mantenimiento de Outline](../policies/README.md#mantenimiento-de-outline): usa el
-mismo registro si vive alli; si vive en un issue, enlazalo desde el resumen de
-Outline sin duplicar el backlog. Documentar el estado no autoriza commit ni push.
+El orquestador mantiene el registro tecnico y devuelve al principal un delta
+breve con evidencia cuando cambie algo significativo. Solo el principal designado
+aplica el [mantenimiento de Outline](../policies/README.md#mantenimiento-de-outline),
+sin copiar el backlog ni delegar su escritura. Si el registro tecnico vive en
+Outline, el principal publica alli el delta; el orquestador conserva su retorno
+como evidencia hasta entonces, no crea otra fuente mutable. Documentar el estado
+no autoriza commit ni push.
 
 ## Envelope de retorno
 
