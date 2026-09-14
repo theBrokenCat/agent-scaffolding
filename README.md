@@ -44,11 +44,13 @@ El agente ejecuta `git add` **solo sobre sus cambios** y te indica qué archivos
 
 **No hace commit ni push hasta que se lo indiques tras revisar el diff.** Si el contenido cambia después de tu aprobación, vuelve a presentarlo. Puedes autorizar expresamente otro flujo para una tarea concreta; el merge conserva su autorización separada.
 
+Cuando haga falta ampliar una ronda, el agente presenta el diagnóstico y el lote concreto mediante **opciones de aprobación en la interfaz**, si el host lo permite. Espera tu respuesta y continúa sin pedirte que escribas otro prompt. Los permisos de ejecución y publicación conservan sus controles. [Cómo se pide aprobación →](policies/README.md#aprobaciones-en-el-host)
+
 ### El contexto también forma parte del trabajo
 
 El lead mantiene las instrucciones locales cuando cambian hechos duraderos, como los comandos de pruebas o las restricciones del proyecto. Para objetivos de varias sesiones, conserva un registro que permita continuar sin reconstruir toda la conversación.
 
-En **Outline**, actualiza el documento existente del proyecto ante avances importantes, bloqueos, decisiones y cambios de arranque o pruebas. Conserva tus ediciones y enlaza el detalle del repositorio. Requiere acceso MCP y escritura habilitada; si no puede actualizarlo, lo deja explícitamente pendiente. [Ver la política de Outline →](policies/README.md#mantenimiento-de-outline)
+En **Outline**, solo escribe tu **agente principal**: el que mantiene la visión del proyecto y prepara los encargos de los orquestadores. Estos le devuelven evidencia, aunque les pases los prompts manualmente. El principal agrupa cambios significativos y conserva tus ediciones; no publica cada ronda o test. Requiere acceso MCP y autoridad de escritura vigente. [Ver la política de Outline →](policies/README.md#mantenimiento-de-outline)
 
 ### Cuatro roles, según lo que haga falta
 

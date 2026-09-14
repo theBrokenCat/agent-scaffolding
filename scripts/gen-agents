@@ -303,6 +303,7 @@ role_instructions() {
   printf '%s\n' 'Preserve other work and historical evidence. No commit, push, PR or merge'
   printf '%s\n' 'before explicit user approval of the diff and the relevant action, including checkpoints.'
   printf '%s\n' 'Never delegate further. Use loaded instructions plus the brief and relevant local rules.'
+  printf '%s\n' 'Do not write to Outline; return evidence to the designated principal through the lead.'
   printf '%s\n' 'Do not load the lead manual or full history unless assigned; fetch only missing context.'
   printf '%s\n' 'Report shared decisions or missing authority to the lead, not new permission loops.'
   if [ "$role_authority" = read-only ]; then

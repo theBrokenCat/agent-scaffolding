@@ -11,6 +11,39 @@ Aplica [autoridad y preflight](../AGENTS.md#2-inicio-y-preflight).
 Una herramienta disponible no implica permiso. `read-only` excluye escrituras
 locales y remotas; escribir requiere scope, ownership, baseline y verificacion.
 
+### Aprobaciones en el host
+
+Cuando falte una decision humana, prepara primero un resultado revisable: motivo,
+scope/paths, snapshot, limite concreto de correccion/review/tests y accion
+solicitada. Una ampliacion de rondas requiere el diagnostico de
+[loops](#equipos-orquestacion-y-loops); no es un permiso indefinido ni de publicacion.
+
+Prefiere la UI estructurada del host a terminar pidiendo otro prompt escrito:
+en Codex, `request_user_input_async` si esta disponible y sus instrucciones
+permiten esa decision; otro mecanismo nativo solo si el host/modo lo admite.
+Presenta opciones inequivocas, por ejemplo "Aprobar este lote" y "Mantener pausa".
+La pregunta incluye el alcance y el limite, no solo "Continuar". Registra la
+respuesta humana y su scope en el registro existente; no anadas otro formulario.
+
+Una peticion asincrona no concede permiso: mantiene pendiente la accion afectada
+hasta recibir la respuesta. Preseleccion, timeout, cierre del dialogo, ausencia
+de respuesta o aprobacion automatica de una herramienta no equivalen al si del
+usuario. Tras aprobacion explicita, retoma dentro de ese alcance sin exigir
+otro mensaje; mientras esperas, continua solo trabajo independiente autorizado.
+Si no hay UI compatible, informa la limitacion y pide la misma decision breve
+por texto, con estado pendiente, sin presentar el objetivo como terminado.
+
+Las aprobaciones nativas de comandos/archivos/MCP se usan para la operacion real
+que el host somete a permiso. No uses comandos vacios, herramientas ajenas,
+escaladas ficticias ni cambios de configuracion para fabricar un boton. Un permiso
+de filesystem no aprueba rondas, diff, push ni merge; conserva sus gates humanos
+cuando correspondan. Si la capa de aprobacion rechaza, no la eludas: explica la
+accion y el motivo, preserva el estado y continua lo no afectado.
+
+Referencia de capacidades (no API invocable desde este contrato):
+[Codex App Server — approvals](https://learn.chatgpt.com/docs/app-server#approvals).
+La UI disponible depende del host; no se cambia su harness ni su politica global.
+
 ## Git, worktrees y PR
 
 El lead ejecuta este ciclo bajo los [gates esenciales](../AGENTS.md#5-git-github-y-limites).
@@ -43,7 +76,14 @@ Los workers no necesitan este procedimiento salvo encargo Git explicito.
    personal no uses approval del autor: el revisor automatico va como check.
    Si esta desactivado, exige evidencia de revision independiente documentada;
    `reviewer-disabled` nunca la acredita. La puerta es CI verde Y revision
-   aprobada. Merge sigue siendo explicito; solo el auto-merge preautorizado lo
+   aprobada. Si te comprometiste a comprobar CI, sigue el run del SHA publicado
+   hasta resultado terminal; lee los checks requeridos y sus artefactos pertinentes.
+   Un timeout de espera no es fallo del run. Si debes detenerte, deja pendiente el
+   gate con run/SHA, responsable, siguiente comprobacion y condicion de reanudacion
+   en el mismo registro; no prometas seguimiento automatico que no existe.
+   Antes de merge, revisa titulo/cuerpo, base/head, scope y cierre del issue
+   (`Closes #<n>` cuando proceda), tambien en PRs creadas por otros.
+   Merge sigue siendo explicito; solo el auto-merge preautorizado lo
    cierra sin accion manual, con todos los checks requeridos en verde.
 8. Confirma la integracion con `gh pr view <n> --json state,mergedAt` antes de
    limpiar: el squash merge reescribe el head y `git branch -d` puede
@@ -51,6 +91,10 @@ Los workers no necesitan este procedimiento salvo encargo Git explicito.
    `pull --ff-only`, retira los worktrees limpios de la feature con
    `git worktree remove`, borra la rama local ya integrada con `git branch -D` y
    poda refs/metadatos obsoletos. El borrado remoto sigue requiriendo autorizacion.
+   Comprueba el cierre del issue que la PR debia resolver y actualiza primero el
+   estado canonico con merge/SHA y gates restantes. Corrige cabeceras vigentes que
+   todavia pidan una aprobacion ya concedida. El cierre documental no autoriza
+   otro commit ni una escritura en Outline por parte del orquestador.
 
 Las restricciones propias de GitHub,
 bootstrap, rulesets, auto-merge y checks estan en [.github/WORKFLOW.md](../.github/WORKFLOW.md).
@@ -92,6 +136,17 @@ ejecucion contra aplicaciones. Si el entorno no puede prepararse, informa
 `entorno incompleto`; un fallo del launcher o la fixture es infraestructura,
 no prueba por si solo una regresion del producto. No ignores fallos ni amplies
 permisos para obtener un baseline verde.
+
+Antes de una suite costosa, comprueba un recorrido integrado pequeno en cada
+entorno de ejecucion afectado/disponible: runtime/compilador/flags relevantes,
+temporales escribibles, arranque y cierre de CLI/navegador/supervisor cuando el
+cambio los use. Reutiliza las pruebas existentes que cubran ese recorrido; no
+impongas Linux, contenedores ni un smoke nuevo a proyectos que no los necesiten.
+Si una plataforma requerida no esta disponible o autorizada, declara ese gate
+pendiente; el verde de otra plataforma no acredita equivalencia.
+Registra duracion y margen respecto al deadline cuando sea relevante. Una base
+cerca del limite exige diagnostico de coste/variabilidad, no retries ni ampliacion
+de plazos automatica. No llames regresion del producto a un entorno invalido.
 
 ### Recursos de pruebas
 
@@ -144,20 +199,31 @@ estos archivos en el mismo diff para revision del usuario e indica que cambio.
 
 ### Mantenimiento de Outline
 
-Aplica esta seccion solo cuando el proyecto o la tarea designen Outline como
-contexto necesario y su politica local autorice la operacion concreta. No lo
-consultes ni actualices por defecto en cada tarea. Una exigencia local de
-peticion explicita para escribir prevalece sobre la actualizacion rutinaria.
-El lead mantiene el documento existente; los workers aportan evidencia, no
-publican por su cuenta. Cuando haga falta ese contexto, lee el documento por MCP
-y contrasta con el repositorio los datos que influyan en la decision. No uses un documento solo por similitud de nombre: verifica el
-proyecto y su destino. Si hay varios destinos plausibles, pide la aclaracion
-minima; no crees otro documento ni un segundo backlog automaticamente.
+Solo el **principal designado por el usuario** mantiene el documento existente
+de Outline. Es la sesion que conserva la vision global y redacta encargos para
+los orquestadores, incluso cuando el usuario copia esos prompts manualmente.
+Principal/orquestador describen responsabilidades entre tareas, no roles nuevos
+ni modelos. Ser lead de una implementacion, recibir un prompt del usuario o
+tener herramientas MCP no convierte al orquestador en principal.
 
-Actualiza cuando haya un avance importante, bloqueo, decision confirmada, cambio
-de siguientes pasos o de instrucciones para arrancar/probar. Al pausar o cerrar,
-comprueba que el estado sigue vigente y corrige solo diferencias relevantes.
-No edites por calendario, por cada herramienta ni si no hay informacion nueva.
+Los orquestadores y workers no escriben en Outline ni delegan esa escritura.
+Devuelven al principal el cambio relevante y su evidencia en el retorno/relevo
+existente. El principal conserva esa responsabilidad; un cambio de responsable
+solo procede por designacion expresa del usuario. Si no consta principal,
+no publiques alli; conserva el resultado tecnico y pide designacion solo cuando
+esa actualizacion sea necesaria. La lectura necesaria por MCP sigue permitida
+dentro de la autoridad local; no se fuerza una consulta al empezar cada tarea.
+
+El principal comprueba que proyecto/destino y permiso de escritura son explicitos
+y vigentes. Una restriccion local prevalece sobre mantenimiento rutinario.
+No elijas por nombre parecido ni crees otro documento/backlog automaticamente.
+
+Publica solo cambios significativos para la vision del usuario: hito aceptado o
+integrado, decision que cambie alcance/prioridades, bloqueo que requiera accion,
+o comandos/requisitos de arranque o pruebas que hayan cambiado. Una ronda nueva,
+un focal verde, un commit o CI en curso no bastan por si solos. Consolida varios
+resultados de orquestadores en una actualizacion y no escribas por calendario,
+por herramienta ni al cerrar cada tarea sin novedad significativa.
 
 Conserva una vista breve y util para el usuario:
 
@@ -222,7 +288,11 @@ detecto y cambio concreto de contrato, reparto o prueba integrada. Distingue
 un defecto nuevo de una correccion que no cerro su causa. Define aceptacion y
 presupuesto del nuevo enfoque; no solicites otra ronda equivalente solo porque
 el ultimo reviewer encuentre algo mas. Reorganizar no reinicia limites ni concede
-autoridad: sin ampliacion autorizada, conserva el STOP.
+autoridad: sin ampliacion autorizada, conserva el STOP y solicita la decision
+mediante [aprobaciones en el host](#aprobaciones-en-el-host), sin cerrar como exito.
+Si se repiten fallos temporales, revisa en ese diagnostico la familia completa:
+preparacion, inicio del presupuesto, entrada observable, deadline y cierre.
+No encadenes parches de tiempos ni suites completas por cada sintoma aislado.
 
 ## Verificacion y cierre
 
