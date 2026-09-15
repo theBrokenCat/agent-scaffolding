@@ -1,39 +1,8 @@
-# Capability Registry
+# Skill selection
 
-`registry.yaml` is a deliberately small YAML subset. It has one top-level
-`capabilities:` key and a sequence of records. Each record uses exactly these
-scalar fields:
-
-| Field | Meaning |
-| --- | --- |
-| `id` | Stable lowercase capability identifier. |
-| `owner` | `core` or the actual external/plugin family, never generic `external`. |
-| `hosts` | Bracketed list of hosts that can use the capability. |
-| `trigger` | Narrow condition that activates it. |
-| `mode` | Intended operation, such as `plan`, `implement`, or `review`. |
-| `cost` | `fast`, `standard`, or `deep`. |
-| `source` | `external:<owner>` when unmanaged; when managed, a repository-relative `/SKILL.md` path or `contract:<path>[#section]` pointing at a contract section. |
-| `managed` | `false` for external/plugin entries; `true` only for a local `core` skill. |
-
-The parser intentionally supports only one-line fields, quoted or unquoted
-scalars, and simple bracketed host lists. It is not a general YAML parser.
-`tests/registry_test.sh` rejects duplicate IDs, missing or malformed fields,
-unsafe or missing managed paths, and invalid frontmatter for managed
-`SKILL.md` files.
-
-A managed entry may also be a *contract pointer*: `owner: core`, `managed: true`,
-and `source: contract:<repository-relative .md path>[#section]`. It carries no
-skill file. Orchestration is deliberately one of these: spawning, awaiting, and
-correcting a batch of subagents is contract behavior defined in
-`agents/README.md`, so the registry points at that section instead of duplicating
-it as a separate skill. The validator resolves the path, ignores the fragment,
-and rejects absolute or traversing paths.
-
-External and plugin-managed capabilities are inventory entries only. They use
-their actual family as `owner`, an exact matching `external:<owner>` source, and
-`managed: false`; the installer must never copy or symlink them. A local managed
-skill must use `owner: core`, a repository-relative path ending in `/SKILL.md`,
-and have `name` and `description` in a closed `---` frontmatter block.
+The host owns skill discovery, installation and enablement. This document only
+explains selection and compatibility; it is not a parallel capability catalog.
+Consult the skills actually available in the current host before choosing one.
 
 ## Trigger precedence
 
@@ -87,5 +56,21 @@ For third-party skills, the global and project contracts govern these boundaries
   authority is missing. Offline implementation, planning and mocked tests may
   proceed independently. Never print secrets or bypass a denied destination.
 
-The registry is an allowlist and routing hint, not a replacement for host
-installation, local configuration, or runtime policy.
+
+## Consolidated personal workflows
+
+Personal workflows are maintained under `~/.agents/skills`; scaffolding does not
+install or delete them.
+
+- `agent-tech-lead`: coordination, delegation briefs and independent batches.
+- `agent-code-reviewer`: review requests and independent review; implementers
+  cannot approve their own work. Verification follows the project contract.
+- `systematic-debugging`: scoped causal diagnosis and affected verification.
+- System `skill-creator`: ordinary authoring; personal `skill-evals`: explicitly
+  requested evaluations, with host-specific runner limits.
+- Native artifact skills: normal file work; `document-file-repair`: narrow
+  compatibility/OCR routes with preserved upstream resources.
+
+Do not infer another host's installed catalog from this list. Select one
+maintained workflow where duplicates overlap. Plugin enablement belongs to the
+host; deleting cache directories is not a substitute for uninstalling a plugin.

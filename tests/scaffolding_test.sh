@@ -13,6 +13,42 @@ assert_absent() { [ ! -e "$1" ] && [ ! -L "$1" ] || fail "expected absent: $1"; 
 assert_link_to() { [ -L "$1" ] && [ "$(readlink "$1")" = "$2" ] || fail "unexpected link: $1"; }
 run() { "$installer" "$@"; }
 
+# Unsupported Git must fail before mutating a HOME, with an actionable message.
+git_shim=$tmpdir/git-shim
+mkdir -p "$git_shim" "$tmpdir/unsupported-home"
+test_real_git=$(command -v git)
+cat > "$git_shim/git" <<'EOF'
+#!/bin/sh
+if [ "$1" = --version ]; then printf '%s\n' 'git version 2.34.9'; exit 0; fi
+exec "$TEST_REAL_GIT" "$@"
+EOF
+chmod +x "$git_shim/git"
+if TEST_REAL_GIT="$test_real_git" PATH="$git_shim:$PATH" "$installer" install --apply --home "$tmpdir/unsupported-home" >"$tmpdir/old-git.log" 2>&1; then
+  fail 'unsupported Git installed instructions'
+fi
+grep -Fq 'Git >= 2.36' "$tmpdir/old-git.log" || fail 'missing minimum Git diagnostic'
+assert_absent "$tmpdir/unsupported-home/.local/state/agent-scaffolding/manifest"
+
+# Source contamination is rejected both before install and by doctor. No repair
+# or deletion of the offending source is implicit in either operation.
+guard_root=$tmpdir/guard-source
+mkdir -p "$guard_root"
+cp -R "$repo_root/scripts" "$guard_root/scripts"
+cp "$repo_root/AGENTS.md" "$repo_root/CLAUDE.md" "$repo_root/GEMINI.md" "$guard_root/"
+for guard_file in AGENTS.md CLAUDE.md GEMINI.md; do
+  cp "$guard_root/$guard_file" "$tmpdir/guard.saved"
+  printf '\n<!-- codebase-memory-mcp:start -->\nfixture\n<!-- codebase-memory-mcp:end -->\n' >> "$guard_root/$guard_file"
+  before_guard=$(cksum < "$guard_root/$guard_file")
+  for guard_action in install doctor; do
+    if "$guard_root/scripts/scaffolding" "$guard_action" --home "$tmpdir/unsupported-home" >"$tmpdir/guard.log" 2>&1; then
+      fail "$guard_action accepted generated MCP block in $guard_file"
+    fi
+    grep -Fq 'generated MCP block' "$tmpdir/guard.log" || { cat "$tmpdir/guard.log" >&2; fail 'missing contamination diagnostic'; }
+  done
+  [ "$(cksum < "$guard_root/$guard_file")" = "$before_guard" ] || fail 'guard altered caller source'
+  cp "$tmpdir/guard.saved" "$guard_root/$guard_file"
+done
+
 home=$tmpdir/home
 mkdir -p "$home"
 
@@ -386,6 +422,25 @@ printf '%s\n' corrupt > "$corrupt_home/.local/state/agent-scaffolding/manifest"
 if "$peer/scripts/scaffolding" doctor --home "$corrupt_home" >/dev/null 2>&1; then
   fail 'doctor accepted a corrupt manifest'
 fi
+
+# Recontamination after installation must also fail doctor without mutating the
+# source or manifest; uninstall remains available for recovery.
+managed_guard_home=$tmpdir/managed-guard-home
+mkdir -p "$managed_guard_home"
+"$canonical/scripts/scaffolding" install --apply --home "$managed_guard_home" >/dev/null
+cp "$canonical/AGENTS.md" "$tmpdir/managed-guard.saved"
+printf '\n<!-- codebase-memory-mcp:end -->\n' >> "$canonical/AGENTS.md"
+managed_source_sum=$(cksum < "$canonical/AGENTS.md")
+managed_manifest_sum=$(cksum < "$managed_guard_home/.local/state/agent-scaffolding/manifest")
+if "$canonical/scripts/scaffolding" doctor --home "$managed_guard_home" > "$tmpdir/managed-guard.log" 2>&1; then
+  fail 'doctor accepted recontamination after installation'
+fi
+grep -Fq 'generated MCP block' "$tmpdir/managed-guard.log" || fail 'missing installed contamination diagnostic'
+[ "$(cksum < "$canonical/AGENTS.md")" = "$managed_source_sum" ] || fail 'doctor repaired source implicitly'
+[ "$(cksum < "$managed_guard_home/.local/state/agent-scaffolding/manifest")" = "$managed_manifest_sum" ] || fail 'doctor changed manifest'
+"$canonical/scripts/scaffolding" uninstall --apply --home "$managed_guard_home" >/dev/null
+assert_absent "$managed_guard_home/.codex/AGENTS.md"
+cp "$tmpdir/managed-guard.saved" "$canonical/AGENTS.md"
 
 unset XDG_CONFIG_HOME
 

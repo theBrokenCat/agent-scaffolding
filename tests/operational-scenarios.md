@@ -36,6 +36,9 @@ Comprobar cada escenario contra AGENTS.md, agents/README.md y policies/README.md
 | Publicacion aprobada despues de guardar el phase | Actualiza el estado canonico; indices enlazan y el informe de review permanece evidencia de su snapshot. No crea commits de estado sin permiso. |
 | Linux afectado: compilador correcto, tmp no escribible | El smoke integrado detecta preparacion incompleta antes de la suite costosa; no transfiere el verde de macOS ni relaja aislamiento. |
 | Fallos temporales repetidos y suite cerca del deadline | Diagnostica inicio del presupuesto/entrada/cierre de la familia y coste/variabilidad; conserva aserciones y limites hasta decidir con evidencia. |
+| Revisor necesita una suite que escribe en el checkout | Mantiene read-only/never; el lead ejecuta en su scope y el revisor evalua resultados y lagunas. No se convierte al reviewer en writer. |
+| Reaparece bloque MCP generado en instrucciones globales | Install/doctor rechazan con ruta y diagnostico sin editar ni reparar implicitamente la fuente. Retirar solo el bloque requiere autoridad vigente. |
+| Git anterior a 2.36 o Python de tests anterior a 3.11 | Preflight falla con requisito claro antes de mutar instalacion o ejecutar la suite dependiente. No exige Python para generar agentes. |
 
 La aceptacion de todos los casos debe preservar cuatro roles opcionales, el
 retorno de ocho campos y revision del usuario antes de commit/push. Los tests

@@ -2,6 +2,11 @@
 
 set -eu
 
+python3 -c 'import sys; sys.exit(sys.version_info < (3, 11))' >/dev/null 2>&1 || {
+  printf '%s\n' 'STOP tests require Python >= 3.11 (tomllib)' >&2
+  exit 1
+}
+
 root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
 gen=$root/scripts/gen-agents
 example_map=$root/settings/schemas/model-map.example.yaml
@@ -9,6 +14,15 @@ tmpdir=$(mktemp -d "${TMPDIR:-/tmp}/gen-agents-test.XXXXXX")
 trap 'rm -rf "$tmpdir"' EXIT HUP INT TERM
 
 fail() { printf '%s\n' "FAIL: $*" >&2; exit 1; }
+
+# Check the prerequisite failure before rendering or importing tomllib.
+mkdir -p "$tmpdir/old-python"
+printf '#!/bin/sh\nexit 1\n' > "$tmpdir/old-python/python3"
+chmod +x "$tmpdir/old-python/python3"
+if PATH="$tmpdir/old-python:$PATH" sh "$0" > "$tmpdir/old-python.log" 2>&1; then
+  fail 'unsupported Python reached generator tests'
+fi
+grep -Fq 'Python >= 3.11' "$tmpdir/old-python.log" || fail 'missing Python prerequisite diagnostic'
 
 fixture=$tmpdir/model-map.yaml
 cat > "$fixture" <<'EOF'
@@ -90,10 +104,16 @@ root, codex, claude = map(pathlib.Path, sys.argv[1:])
 contract = (root / 'agents/README.md').read_text().split('## Envelope de retorno\n', 1)[1].split('\n## ', 1)[0].strip()
 expected_keys = ['status', 'verdict', 'summary', 'changes_or_findings', 'verification', 'risks', 'references', 'next_action']
 for definition in sorted(codex.glob('*.toml')):
-    instructions = tomllib.loads(definition.read_text())['developer_instructions']
+    config = tomllib.loads(definition.read_text())
+    instructions = config['developer_instructions']
     role = next(name for name in ('explorer', 'implementer', 'spec-reviewer', 'quality-reviewer')
                 if definition.stem == name or definition.stem.startswith(name + '-'))
     body = (root / f'agents/roles/{role}.md').read_text().split('---', 2)[2].strip()
+    if role == 'implementer':
+        assert 'sandbox_mode' not in config and 'approval_policy' not in config, 'writer must inherit host permissions'
+    else:
+        assert config.get('sandbox_mode') == 'read-only', f'{definition.stem}: missing filesystem restriction'
+        assert config.get('approval_policy') == 'never', f'{definition.stem}: read-only role can request escalation'
     for rendered in (instructions, (claude / (definition.stem + '.md')).read_text()):
         assert body in rendered, f'{definition.stem}: canonical role body missing'
         assert contract in rendered, f'{definition.stem}: common return contract missing'

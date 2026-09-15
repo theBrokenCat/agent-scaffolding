@@ -90,9 +90,27 @@ required_commands_are_available() {
       return 1
     }
   done
+  git_version=$(git --version) || return 1
+  if ! printf '%s\n' "$git_version" | awk '{
+    split($3, v, ".")
+    exit !(v[1] ~ /^[0-9]+$/ && v[2] ~ /^[0-9]+$/ &&
+           (v[1] > 2 || (v[1] == 2 && v[2] >= 36)))
+  }'; then
+    printf '%s\n' "STOP Git >= 2.36 required; found $git_version" >&2
+    return 1
+  fi
 }
 
 sources_are_valid() {
+  for contract in AGENTS.md CLAUDE.md GEMINI.md; do
+    source_contract=$SCAFFOLDING_ROOT/$contract
+    if [ -f "$source_contract" ] && grep -Fq \
+      -e '<!-- codebase-memory-mcp:start -->' \
+      -e '<!-- codebase-memory-mcp:end -->' "$source_contract"; then
+      printf '%s\n' "STOP generated MCP block in $source_contract; review and remove only that block before install/doctor" >&2
+      return 1
+    fi
+  done
   scaffolding_targets | while IFS='|' read -r name destination source; do
     [ -f "$source" ] && [ -r "$source" ] || {
       printf '%s\n' "STOP missing source $source" >&2

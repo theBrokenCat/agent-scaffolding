@@ -71,8 +71,7 @@ require 'Si el host exige actualizaciones periodicas' agents/README.md
 require '../agents/README.md#orquestacion' policies/README.md
 require '../AGENTS.md#5-git-github-y-limites' policies/README.md
 
-# The orchestration protocol lives in the contract, and the registry only points
-# at it. The anchor the registry uses must exist.
+# Orchestration lives in the contract; it is not a separate skill or registry.
 require '## Orquestacion' agents/README.md
 require 'antes de la primera espera' agents/README.md
 require 'no** es un wait-for-all atomico' agents/README.md
@@ -91,8 +90,7 @@ require 'SLA de reviewer' agents/README.md
 require 'Revision final integrada' agents/README.md
 require '## Trabajo multisesion' agents/README.md
 require 'no es una via' policies/README.md
-require 'source: "contract:agents/README.md#orquestacion"' skills/registry.yaml
-grep -Fq 'skills/orchestration' "$root/skills/registry.yaml" && fail 'orchestration must not be a separate skill' || :
+[ ! -f "$root/skills/registry.yaml" ] || fail 'unused capability registry returned'
 [ ! -d "$root/skills/orchestration" ] || fail 'orchestration must not be a separate skill directory'
 
 # Every role declares its routing, and the two reviewer contradictions stay fixed.
@@ -111,7 +109,8 @@ refute 'Do not use as a substitute for a security specialist' agents/roles/quali
 require 'no existe un quinto rol' agents/README.md
 
 # Relative links between contract documents must resolve.
-for doc in $(cd "$root" && git ls-files '*.md'); do
+for doc in $(cd "$root" && git ls-files --cached --others --exclude-standard '*.md' | sort -u); do
+  [ -f "$root/$doc" ] || continue # Review the worktree, including pending adds/deletes.
   dir=$(dirname "$root/$doc")
   targets=$(sed -n 's/.*](\([^)#][^)]*\)).*/\1/p' "$root/$doc" | sed 's/#.*//')
   for target in $targets; do

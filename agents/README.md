@@ -54,6 +54,14 @@ elaboracion sustancial, con un brief `economy`; no es otro rol.
 
 ## Modelo y effort
 
+En Codex, los estados de explorer y reviewers declaran `sandbox_mode = "read-only"`
+y `approval_policy = "never"`; no solicitan elevar permisos para escribir. El lead
+ejecuta las pruebas que necesiten escrituras y aporta su evidencia al revisor.
+Los implementers heredan los permisos del host, sin ampliarlos en la ficha.
+Comprueba la configuracion efectiva en una sesion nueva antes de afirmar que se
+aplico. Este sandbox restringe ejecucion/filesystem, no es una ACL de conectores
+MCP. Se mantienen las reglas de autoridad, Outline y revision independiente.
+
 Los roles canonicos son **cuatro**. Cada ficha de [roles/](roles/) declara
 alias, effort y escalada; `scripts/gen-agents` materializa los estados por host.
 Un archivo generado es un estado materializado, no un rol nuevo. El nombre
