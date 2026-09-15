@@ -352,6 +352,10 @@ render_codex() {
   printf 'description = "%s"\n' "$(toml_escape "$(state_description)")"
   printf 'model = "%s"\n' "$(toml_escape "$role_model")"
   printf 'model_reasoning_effort = "%s"\n' "$(toml_escape "$role_state_effort")"
+  if [ "$role_authority" = read-only ]; then
+    printf 'sandbox_mode = "read-only"\n'
+    printf 'approval_policy = "never"\n'
+  fi
   printf 'developer_instructions = """\n'
   role_instructions | sed 's/\\/\\\\/g; s/"""/\\"\\"\\"/g'
   printf '"""\n'

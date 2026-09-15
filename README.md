@@ -63,6 +63,8 @@ En **Outline**, solo escribe tu **agente principal**: el que mantiene la visión
 
 **No hay que lanzar los cuatro en cada tarea.** La ejecución directa es el punto de partida. El lead conserva las decisiones, la integración y la verificación; los subagentes no delegan a su vez. [Cómo se eligen y coordinan →](agents/README.md)
 
+En Codex, explorers y revisores se generan con sandbox de **solo lectura** y sin escalada de permisos. El lead ejecuta las pruebas que necesiten escrituras. Esto no modifica los permisos de los conectores MCP.
+
 ## Empezar
 
 ### 1. Instala las instrucciones globales
@@ -142,17 +144,16 @@ Después, trabaja en tus proyectos habituales: **no copies el scaffolding en cad
 
 ## Comprobaciones y alcance
 
-La [CI de las pull requests](.github/workflows/ci.yml) ejecuta ocho suites. La revisión independiente sigue siendo necesaria para integrar; un check llamado `reviewer-disabled` no la acredita.
+La [CI de las pull requests](.github/workflows/ci.yml) ejecuta siete suites. La revisión independiente sigue siendo necesaria para integrar; un check llamado `reviewer-disabled` no la acredita.
 
 <details>
-<summary><strong>Ejecutar las ocho suites localmente</strong></summary>
+<summary><strong>Ejecutar las siete suites localmente</strong></summary>
 
-Requieren shell y Python 3.11 o posterior. No necesitan llamadas a modelos ni credenciales reales.
+Requieren shell, **Git 2.36 o posterior** y **Python 3.11 o posterior**. El instalador comprueba Git antes de mutar; Python se usa para las pruebas, no para generar agentes. No necesitan llamadas a modelos ni credenciales reales.
 
 ```sh
 sh tests/contract_test.sh
 sh tests/scaffolding_test.sh
-sh tests/registry_test.sh
 sh tests/gen_agents_test.sh
 sh tests/ci_reviewer_test.sh
 sh tests/orchestration_test.sh
