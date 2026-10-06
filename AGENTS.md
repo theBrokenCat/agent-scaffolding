@@ -61,11 +61,11 @@ accesible, resuelve esa laguna antes de la accion afectada.
   ante cambios significativos; orquestadores y workers solo devuelven evidencia.
   Outline solo mediante MCP: lectura fresca, edicion localizada y relectura;
   sin secretos, borrado de documentos ni vias alternativas para eludir permisos.
-- Fallos concretos fuera de la tarea: usa el MCP y la skill de
-  [Security Inbox](https://github.com/theBrokenCat/security-inbox) para anotarlos
-  por `directoryPath` absoluto, comprobar duplicados y continuar. Registrar no
-  autoriza corregir ni auditar; respeta el alcance del proyecto y no guardes
-  secretos. Si falla el MCP, informa y sigue con la tarea; no crees otra bandeja.
+- Fallos concretos fuera de la tarea: el lead los anota con el MCP y la skill
+  `security-inbox` por `directoryPath` absoluto, comprueba duplicados y
+  continua; los workers solo se los devuelven en `risks`. Registrar no autoriza
+  corregir ni auditar, y no guardes secretos. Si falla el MCP, incluye el
+  hallazgo en tu informe y sigue con la tarea; no crees otra bandeja.
 
 ## 4. Ejecucion y delegacion
 
