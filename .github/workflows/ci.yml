@@ -34,6 +34,8 @@ jobs:
         run: sh tests/pilot_run_test.sh
       - name: protect_repo_test
         run: sh tests/protect_repo_test.sh
+      - name: routing_check_test
+        run: sh tests/routing_check_test.sh
 
   # Desactivado publica un check distinto, que nunca satisface `reviewer`.
   # Activado solo pasa si se ejecuta el harness y este termina correctamente.

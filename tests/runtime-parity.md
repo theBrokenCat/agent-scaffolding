@@ -51,7 +51,7 @@ not a test of the escalated state, because the definition wins over the override
 | Codex | `spec-reviewer` | sol / high | `gpt-5.6-sol` / `high` | pass |
 | Codex | `quality-reviewer` | sol / xhigh | `gpt-5.6-sol` / `xhigh` | pass |
 | Claude | model per state | mapped id | the state's mapped model | pass |
-| Claude | effort per state | — | no field on this host | **degradation** |
+| Claude | effort per state | state effort | field written since 2026-10-06, not yet observed | **not verified** |
 | Codex | nine materialized states | see below | every state on its own pair | pass |
 
 ## Run of 2026-09-02
@@ -77,7 +77,7 @@ state's, so the subagent's model is separable in the usage record:
 - `quality-reviewer-critical` (mapped to `claude-opus-5`) dispatched without
   overrides and completed with no model error.
 
-Effort is **not** verified and cannot be: see the degradations.
+Effort was not verifiable in this run: Claude definitions had no effort field then (see the degradations).
 
 ### All nine states verified
 
@@ -114,25 +114,23 @@ escalation is dispatched by name.
 Kept here because it is the failure a future run will re-create by habit: an
 escalation that silently returns the base pair looks like a working dispatch.
 
-### Hazard: a forked spawn silently discards the alias
+### Corrected 2026-10-06: a fork does not discard the alias
 
-`spawn_agent` with `fork_turns: "all"` makes the subagent inherit the parent
-session's model and effort and ignore the agent definition's. Observed twice:
+The earlier hazard ("`fork_turns: "all"` makes the subagent run at the parent's
+pair") was a measurement artifact. A forked rollout first replays the parent's
+history, including the parent's `turn_context`; the harness read the first
+`"model"` in the file and reported the parent's pair. The child's own turns start
+at `subagent_history_start_ordinal`, and there they ran on the definition's pair:
 
-- `explorer` spawned with `fork_turns: "all"` ran at `gpt-5.6-sol` / `xhigh`
-  instead of `gpt-5.6-luna` / `high`.
-- Control with a pre-existing personal agent declaring `gpt-5.6-luna` / `max`
-  also ran at `gpt-5.6-sol` / `xhigh`.
+- 2026-09-02, codex-cli 0.151.0: the forked `explorer` ran at `gpt-5.6-luna` /
+  `high` (own turn), and the `luna_max` control at `gpt-5.6-luna` / `max`.
+- 2026-10-06, codex-cli 0.160.1: 5 forked dispatches (`fork_turns: "all"`,
+  `"2"` and omitted), 20 children, all on their definition's pair.
 
-The control matters: the behaviour is the host's, not a defect in the generated
-files. There is no error and no warning — the routing is simply gone, and a run
-measured that way belongs to a different alias.
-
-This is now a hard rule of the contract, not an observation: see the fork
-prohibition in [`AGENTS.md`](../AGENTS.md) and
-[`policies/README.md`](../policies/README.md). Spawn without forking turns; when a
-fork is genuinely needed, record that the dispatch ran at the parent's pair and
-not at the alias.
+Omitting `fork_turns` also forks. The contract still requires
+`fork_turns: "none"`, for a different reason: a fork copies the parent's whole
+history into the worker instead of the bounded brief. `scripts/pilot-run` and
+`scripts/routing-check` read the child's own turn.
 
 ## Built-in name collisions
 
@@ -161,17 +159,11 @@ what that costs.
 
 Record these as degradations, never as passes:
 
-- **Effort is an instruction, not a field, on Claude.** Its agent frontmatter
-  carries `model` and no reasoning-effort field, so the effort half of every
-  alias travels as prose in the definition and cannot be observed. Half of each
-  Claude row is therefore unverifiable by construction. Record it; never call it
-  parity.
-- **`critical` is not a real rung on Claude.** With no effort field, `frontier`
-  and `critical` resolve to the same model (`claude-opus-5`), and so do `economy`
-  and `balanced` (`claude-sonnet-5`). Four aliases collapse to two effective
-  settings. An escalation that changes nothing observable is not an escalation:
-  on Claude, treat `quality-reviewer-critical` as `frontier` with a stricter
-  brief, not as a stronger run.
+- **Effort on Claude: field written, not yet observed (2026-10-06).** Claude Code
+  agent frontmatter accepts `effort` (`low` to `max`) and `scripts/gen-agents` writes it, so
+  `economy`/`balanced` and `frontier`/`critical` can be distinct on Claude.
+  Re-run this check after reinstalling the definitions; until then, record the
+  effort half of each Claude row as not verified.
 - **Fable 5.1 is positioned above Opus but is unusable on this account.** The
   model picker cache in this installation describes it as "Most capable for your
   hardest and longest-running tasks" — which is exactly the long-horizon gate —

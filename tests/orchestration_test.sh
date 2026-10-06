@@ -77,6 +77,13 @@ require 'antes de la primera espera' agents/README.md
 require 'no** es un wait-for-all atomico' agents/README.md
 require 'snapshot congelado' agents/README.md
 require 'Nunca forkees los turnos del padre' agents/README.md
+require 'Pasa siempre `fork_turns: "none"`' agents/README.md
+require 'tambien hace fork en codex-cli 0.160.1' agents/README.md
+require '### Claude: `Agent`' agents/README.md
+require 'no con `Explore` ni `general-purpose`' agents/README.md
+require 'scripts/routing-check' agents/README.md
+require 'agents/README.md#claude-agent' CLAUDE.md
+refute 'ignore los del agente, sin error ni aviso' agents/README.md
 require 'FALLO' agents/README.md
 require 'fork_turns' agents/README.md
 require 'agents/README.md#orquestacion' AGENTS.md

@@ -213,6 +213,7 @@ check_state() {
   # The Claude file carries the Claude id for the same alias, never the Codex one.
   grep -qx "model: $model-cl" "$claude_out/$name.md" || fail "claude $name is not on $model-cl"
   if grep -qx "model: $model" "$claude_out/$name.md"; then fail "claude $name leaked the codex id"; fi
+  grep -qx "effort: $effort" "$claude_out/$name.md" || fail "claude $name does not carry effort $effort"
 }
 check_state explorer-economy fixture-economy high
 check_state explorer-balanced fixture-balanced xhigh
@@ -231,12 +232,15 @@ for name in explorer-economy explorer-balanced spec-reviewer-frontier-high quali
 done
 for name in implementer-economy implementer-balanced implementer-frontier; do
   if grep -q '^tools:' "$claude_out/$name.md"; then fail "$name must not be tool-restricted"; fi
+  grep -qx 'disallowedTools: Agent' "$claude_out/$name.md" || fail "claude $name can still delegate further"
   grep -q 'Authority: write' "$codex_out/$name.toml" || fail "codex $name does not declare write authority"
 done
 
 # The escalation trigger travels with the definition, not just with the contract.
 grep -q 'either escalation gate fires' "$codex_out/implementer-balanced.toml" || fail 'implementer escalation trigger not materialized'
 grep -q 'Never change your own model or effort' "$claude_out/explorer-economy.md" || fail 'self-escalation is not forbidden in the definition'
+grep -q 'on this host it replaces the definition' "$claude_out/explorer-economy.md" || fail 'claude definition keeps the codex override rule'
+if grep -q 'the custom definition wins' "$claude_out/explorer-economy.md"; then fail 'claude definition claims the definition wins over an override'; fi
 
 # The canonical roles stay consistent with the alias table: a role may only run at
 # an effort other than its alias default when it says why.

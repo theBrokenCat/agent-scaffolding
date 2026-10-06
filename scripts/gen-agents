@@ -318,7 +318,11 @@ role_instructions() {
     printf '%s\n' "The default state is \`$role_base_name\`; escalated state is \`$role_escalated_name\`. Lead dispatches by name."
   elif [ "$role_state" = base ]; then
     printf '%s\n' "The lead escalates by dispatching \`$role_escalated_name\` when $role_trigger."
-    printf '%s\n' 'Never escalate by passing a model or effort override; the custom definition wins.'
+    if [ "$host" = claude ]; then
+      printf '%s\n' 'Never escalate by passing a model override: on this host it replaces the definition.'
+    else
+      printf '%s\n' 'Never escalate by passing a model or effort override; the custom definition wins.'
+    fi
   else
     printf '%s\n' "Escalated state; its base state is \`$role_base_name\`."
   fi
@@ -366,8 +370,12 @@ render_claude() {
   printf 'name: %s\n' "$role_name"
   printf 'description: %s\n' "$(state_description)"
   printf 'model: %s\n' "$role_model"
+  printf 'effort: %s\n' "$role_state_effort"
   if [ "$role_authority" = read-only ]; then
     printf 'tools: Read, Grep, Glob\n'
+  else
+    # Claude permite subagentes anidados por defecto; el contrato no.
+    printf 'disallowedTools: Agent\n'
   fi
   printf '%s\n' '---'
   printf '\n'

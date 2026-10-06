@@ -59,8 +59,24 @@ printf '{"payload":{"model":"host-default","effort":"xhigh","id":"rollout-id-1",
 if [ "${FAKE_NO_DISPATCH-}" != yes ]; then
   # The child carries the real cost. The parent's numbers below are deliberately
   # different and much smaller: measuring them understates the arm.
-  printf '{"payload":{"thread_source":"subagent","parent_thread_id":"rollout-id-1","model":"%s","effort":"%s"}}\n' \
-    "$model" "$effort" > "$PILOT_SESSIONS_DIR/2026/09/02/rollout-child.jsonl"
+  if [ "${FAKE_ROUTING-}" = forked-noturn ]; then
+    # A fork whose own turn never started: only the replayed parent turn exists.
+    printf '{"ordinal":0,"type":"session_meta","payload":{"thread_source":"subagent","parent_thread_id":"rollout-id-1","forked_from_id":"rollout-id-1","subagent_history_start_ordinal":10}}\n' \
+      > "$PILOT_SESSIONS_DIR/2026/09/02/rollout-child.jsonl"
+    printf '{"ordinal":6,"type":"turn_context","payload":{"model":"host-default","effort":"xhigh"}}\n' \
+      >> "$PILOT_SESSIONS_DIR/2026/09/02/rollout-child.jsonl"
+  elif [ "${FAKE_ROUTING-}" = forked ]; then
+    # A forked child replays the parent's turn (host-default) before its own.
+    printf '{"ordinal":0,"type":"session_meta","payload":{"thread_source":"subagent","parent_thread_id":"rollout-id-1","forked_from_id":"rollout-id-1","subagent_history_start_ordinal":10}}\n' \
+      > "$PILOT_SESSIONS_DIR/2026/09/02/rollout-child.jsonl"
+    printf '{"ordinal":6,"type":"turn_context","payload":{"model":"host-default","effort":"xhigh"}}\n' \
+      >> "$PILOT_SESSIONS_DIR/2026/09/02/rollout-child.jsonl"
+    printf '{"ordinal":15,"type":"turn_context","payload":{"model":"%s","effort":"%s"}}\n' "$model" "$effort" \
+      >> "$PILOT_SESSIONS_DIR/2026/09/02/rollout-child.jsonl"
+  else
+    printf '{"payload":{"thread_source":"subagent","parent_thread_id":"rollout-id-1","model":"%s","effort":"%s"}}\n' \
+      "$model" "$effort" > "$PILOT_SESSIONS_DIR/2026/09/02/rollout-child.jsonl"
+  fi
   printf '{"payload":{"info":{"total_token_usage":{"input_tokens":9000,"cached_input_tokens":6000,"output_tokens":700,"reasoning_output_tokens":300}}}}\n' \
     >> "$PILOT_SESSIONS_DIR/2026/09/02/rollout-child.jsonl"
 fi
@@ -113,6 +129,14 @@ done
 drift=$(FAKE_ROUTING=drift "$harness" --task T3 --block mecanicas --arm frontier --prompt "$tmpdir/prompt.txt" --cwd "$FAKE_CWD" 2>"$tmpdir/warn.txt")
 [ "$(printf '%s' "$drift" | cut -f 9)" = NO ] || fail 'routing drift not marked'
 grep -q 'belongs to another arm' "$tmpdir/warn.txt" || fail 'routing drift not warned about'
+
+# A forked child is read from its own turn, not from the replayed parent turn.
+forked=$(FAKE_ROUTING=forked "$harness" --task T7 --block mecanicas --arm economy --prompt "$tmpdir/prompt.txt" --cwd "$FAKE_CWD")
+[ "$(printf '%s' "$forked" | cut -f 7)" = fixture-economy ] || fail 'a forked child was read from the replayed parent turn'
+[ "$(printf '%s' "$forked" | cut -f 9)" = yes ] || fail 'a forked child on its own pair was not marked routed'
+noturn=$(FAKE_ROUTING=forked-noturn "$harness" --task T6 --block mecanicas --arm economy --prompt "$tmpdir/prompt.txt" --cwd "$FAKE_CWD" 2>/dev/null)
+[ "$(printf '%s' "$noturn" | cut -f 7)" = - ] || fail 'a fork without its own turn was read from the replayed parent turn'
+[ "$(printf '%s' "$noturn" | cut -f 9)" = unknown ] || fail 'a fork without its own turn was not marked unknown'
 
 # The hard cap kills a dispatch that overruns and marks the row instead of
 # letting it spend. codex exec has no cap of its own.
