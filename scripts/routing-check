@@ -1,0 +1,134 @@
+#!/usr/bin/env python3
+"""Check that Codex subagents ran on their definition's model and effort.
+
+Reads Codex session rollouts and the installed agent definitions, and reports
+the model and effort each subagent thread ran on, plus whether it was forked
+from its parent. Only the child's own turns count: a forked rollout first
+replays the parent's history, including the parent's turn_context, and reading
+that one reports the parent's pair for a child that ran on its own. The child's
+own turns start at `subagent_history_start_ordinal`; every own turn is checked.
+
+It compares against the definitions installed now (~/.codex/agents). After a
+regeneration, sessions run under the previous definitions report MISMATCH.
+
+usage: routing-check [--sessions DIR] [--agents DIR] [--since YYYY-MM-DD]
+
+Exit status: 0 when every checked child ran on its definition's pair; 1 when
+any is MISMATCH; 2 on usage errors; 3 when no subagent thread was found in the
+window (nothing was checked, which may also mean the rollout schema changed).
+UNKNOWN (no definition for the role, or no own turn to read) and a fork do not
+fail: a fork costs context, not routing.
+"""
+import argparse
+import datetime
+import json
+import os
+import pathlib
+import re
+import sys
+
+
+def definition(agents, role):
+    path = agents / f"{role}.toml"
+    if not path.is_file():
+        return None
+    text = path.read_text()
+    model = re.search(r'^model\s*=\s*"([^"]*)"', text, re.M)
+    effort = re.search(r'^model_reasoning_effort\s*=\s*"([^"]*)"', text, re.M)
+    return (model.group(1) if model else None, effort.group(1) if effort else None)
+
+
+def parent_of(payload):
+    if payload.get("parent_thread_id"):
+        return payload["parent_thread_id"]
+    source = payload.get("source")
+    sub = source.get("subagent") if isinstance(source, dict) else None
+    spawn = sub.get("thread_spawn") if isinstance(sub, dict) else None
+    return spawn.get("parent_thread_id") if isinstance(spawn, dict) else None
+
+
+def child_facts(path):
+    """Return (meta, own_pairs) for a subagent rollout, or None for any other thread.
+
+    own_pairs is None when the child's own turns cannot be told apart from a
+    replayed parent history (a fork without subagent_history_start_ordinal or
+    ordinals), and an empty list when the child has no own turn yet.
+    """
+    meta = None
+    contexts = []
+    with open(path, encoding="utf-8", errors="replace") as handle:
+        for line in handle:
+            try:
+                event = json.loads(line)
+            except ValueError:
+                continue
+            payload = event.get("payload") or {}
+            if event.get("type") == "session_meta" and meta is None and parent_of(payload):
+                meta = payload
+            elif event.get("type") == "turn_context":
+                contexts.append((event.get("ordinal"), payload.get("model"), payload.get("effort")))
+    if meta is None:
+        return None
+    start = meta.get("subagent_history_start_ordinal")
+    forked = bool(meta.get("forked_from_id"))
+    if start is not None and all(c[0] is not None for c in contexts):
+        own = [c[1:] for c in contexts if c[0] >= start]
+    elif forked:
+        own = None
+    else:
+        own = [c[1:] for c in contexts]
+    return meta, own
+
+
+def main():
+    home = pathlib.Path(os.environ.get("CODEX_HOME", pathlib.Path.home() / ".codex"))
+    parser = argparse.ArgumentParser(prog="routing-check")
+    parser.add_argument("--sessions", default=str(home / "sessions"))
+    parser.add_argument("--agents", default=str(home / "agents"))
+    parser.add_argument("--since", default=(datetime.date.today() - datetime.timedelta(days=7)).isoformat())
+    args = parser.parse_args()
+    try:
+        since = datetime.date.fromisoformat(args.since)
+    except ValueError:
+        parser.error("--since must be YYYY-MM-DD")
+    sessions, agents = pathlib.Path(args.sessions), pathlib.Path(args.agents)
+    if not sessions.is_dir():
+        parser.error(f"sessions directory not found: {sessions}")
+
+    failures = checked = 0
+    for path in sorted(sessions.glob("*/*/*/*.jsonl")):
+        try:
+            day = datetime.date(int(path.parts[-4]), int(path.parts[-3]), int(path.parts[-2]))
+        except ValueError:
+            continue
+        if day < since:
+            continue
+        facts = child_facts(path)
+        if facts is None:
+            continue
+        meta, own = facts
+        role = meta.get("agent_role") or "-"
+        expected = definition(agents, role)
+        forked = "fork" if meta.get("forked_from_id") else "no-fork"
+        checked += 1
+        observed = own[0] if own else (None, None)
+        if expected is None or not own:
+            verdict = "UNKNOWN"
+        else:
+            drift = [pair for pair in own if pair != expected]
+            verdict = "MISMATCH" if drift else "OK"
+            if drift:
+                observed = drift[0]
+        failures += verdict == "MISMATCH"
+        want = "/".join(str(x) for x in expected) if expected else "-"
+        seen = "/".join(str(x) for x in observed) if own else "-"
+        print(f"{verdict}\t{role}\t{seen}\texpected {want}\t{forked}\t{path.name}")
+    print(f"checked {checked} subagent threads since {since}; {failures} routing failures", file=sys.stderr)
+    if checked == 0:
+        print("no subagent thread found in the window; nothing was checked", file=sys.stderr)
+        return 3
+    return 1 if failures else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -186,8 +186,33 @@ if [ -n "$parent_id" ]; then
   child=$(grep -l "\"parent_thread_id\":\"$parent_id\"" "$PILOT_SESSIONS_DIR"/*/*/*/*.jsonl 2>/dev/null | head -1)
   if [ -n "$child" ]; then
     dispatched=yes
-    observed_model=$(awk 'match($0, /"model":"[^"]+"/) { print substr($0, RSTART + 9, RLENGTH - 10); exit }' "$child")
-    observed_effort=$(awk 'match($0, /"effort":"[^"]+"/) { print substr($0, RSTART + 10, RLENGTH - 11); exit }' "$child")
+    # A forked child replays the parent's history first, including the parent's
+    # turn_context. The child's own turns start at subagent_history_start_ordinal;
+    # reading the first "model" in the file reports the parent's pair for a child
+    # that ran on its own (the 0.151 "fork discards the alias" artifact).
+    observed_pair=$(awk '
+      /"type":"session_meta"/ && /"parent_thread_id"/ && seen_meta == "" {
+        seen_meta = 1
+        if (match($0, /"subagent_history_start_ordinal":[0-9]+/)) start = substr($0, RSTART + 33, RLENGTH - 33) + 0
+        if (match($0, /"forked_from_id":"/)) forked = 1
+      }
+      /"type":"turn_context"/ && own == "" {
+        ord = -1
+        if (match($0, /"ordinal":[0-9]+/)) ord = substr($0, RSTART + 10, RLENGTH - 10) + 0
+        if ((start == "" && !forked) || (start != "" && ord >= start)) {
+          m = ""; e = ""
+          if (match($0, /"model":"[^"]+"/)) m = substr($0, RSTART + 9, RLENGTH - 10)
+          if (match($0, /"effort":"[^"]+"/)) e = substr($0, RSTART + 10, RLENGTH - 11)
+          own = m "|" e
+        }
+      }
+      first_m == "" && match($0, /"model":"[^"]+"/) { first_m = substr($0, RSTART + 9, RLENGTH - 10) }
+      first_e == "" && match($0, /"effort":"[^"]+"/) { first_e = substr($0, RSTART + 10, RLENGTH - 11) }
+      # A fork whose own turn cannot be located is unknown, never the replayed parent pair.
+      END { if (own != "") print own; else if (forked) print "-|-"; else print first_m "|" first_e }
+    ' "$child")
+    observed_model=${observed_pair%%|*}
+    observed_effort=${observed_pair#*|}
     [ -n "$observed_model" ] || observed_model=-
     [ -n "$observed_effort" ] || observed_effort=-
   fi

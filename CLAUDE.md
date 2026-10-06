@@ -10,3 +10,5 @@ aprobado. Hooks solo para controles deterministas acordados, nunca para sustitui
 autoridad o revision. Consulta memoria relevante y verifica su vigencia.
 Si App y Code difieren en capacidades, el lead aplica el fallback del router;
 no simules teams, permisos o seleccion de modelo.
+Al delegar, aplica [Claude: `Agent`](agents/README.md#claude-agent): fichas del
+scaffolding, sin `Explore`/`general-purpose` ni override de `model`.

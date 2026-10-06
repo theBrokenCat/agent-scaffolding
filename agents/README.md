@@ -120,17 +120,23 @@ el worker para y devuelve el conflicto; no integra por su cuenta.
 Estas reglas son parte del contrato, no una skill aparte. El registro solo
 apunta a esta seccion.
 
-### Lote y espera
+### Codex: lote, fork y espera
+
+Mecanica de `spawn_agent`/`wait_agent`; en Claude, [su seccion](#claude-agent). Las reglas de
+modelo observado (FALLO), presupuesto de espera y timeouts valen para ambos hosts; no traslades
+estas herramientas a un host que no las tiene.
 
 - **Spawnea todo el lote independiente antes de la primera espera.** Un worker
   lanzado despues de empezar a esperar serializa el lote y desperdicia el
   presupuesto de concurrencia.
-- **Nunca forkees los turnos del padre cuando el alias importe.** Un
-  `spawn_agent` con `fork_turns: "all"` hace que el subagente herede modelo y
-  effort de la sesion padre e ignore los del agente, sin error ni aviso, y la
-  herramienta no admite override explicito de modelo o effort al forkear. Spawnea
-  sin fork; si el fork es imprescindible, registra que ese despacho corrio en el
-  par del padre y no en el del alias.
+- **Nunca forkees los turnos del padre.** Pasa siempre `fork_turns: "none"`
+  (CLI/V2) o `fork_context: false` (app/V1) de forma explicita: omitir el
+  parametro tambien hace fork en codex-cli 0.160.1. Un fork copia en el hijo toda
+  la historia del padre, asi que el worker deja de recibir solo el brief acotado.
+  No cambia su modelo: el hijo corre con el par de su ficha en sus propios turnos
+  (verificado en 0.151 y 0.160.1; ver [runtime-parity](../tests/runtime-parity.md)).
+- Lanza los roles con sus fichas: los tipos built-in (`default`, `worker`) no
+  aplican el routing del scaffolding.
 - **La escalada se despacha por nombre, no por override.** Cuando `agent_type`
   nombra un agente custom, la definicion del archivo gana a `model` y
   `reasoning_effort` de `spawn_agent`: el override se acepta sin error y se
@@ -152,6 +158,20 @@ apunta a esta seccion.
   una comprobacion adicional solo por un indicio concreto, deadline o gate.
   Si el host exige actualizaciones periodicas, cumplelas brevemente sin repetir
   verificaciones ni convertir cada espera en un checkpoint.
+- Tras la sesion, `scripts/routing-check` lista el modelo y effort con que corrio
+  cada subagente frente a su ficha, y si fue forkeado.
+
+### Claude: `Agent`
+
+- Lanza los roles con sus fichas (`explorer`, `explorer-economy`,
+  `implementer-balanced`...), no con `Explore` ni `general-purpose`: los built-in
+  no aplican el routing del scaffolding y heredan el modelo del lead.
+- No pases `model` a `Agent`: en Claude ese parametro gana a la ficha. Escala
+  despachando el estado por nombre, como en Codex.
+- Varios `Agent` en un mismo mensaje se ejecutan en paralelo y los de segundo
+  plano notifican al terminar: no sondees su estado.
+- Si el host no carga las fichas de `~/.claude/agents`, declara la degradacion en
+  lugar de sustituirlas por un built-in.
 
 ### Hallazgos y correcciones
 

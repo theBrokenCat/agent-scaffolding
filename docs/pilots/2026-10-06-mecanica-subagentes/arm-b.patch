@@ -1,0 +1,42 @@
+--- a/agents/README.md
++++ b/agents/README.md
+@@ -120,39 +120,6 @@
+ Estas reglas son parte del contrato, no una skill aparte. El registro solo
+ apunta a esta seccion.
+ 
+-### Lote y espera
+-
+-- **Spawnea todo el lote independiente antes de la primera espera.** Un worker
+-  lanzado despues de empezar a esperar serializa el lote y desperdicia el
+-  presupuesto de concurrencia.
+-- **Nunca forkees los turnos del padre cuando el alias importe.** Un
+-  `spawn_agent` con `fork_turns: "all"` hace que el subagente herede modelo y
+-  effort de la sesion padre e ignore los del agente, sin error ni aviso, y la
+-  herramienta no admite override explicito de modelo o effort al forkear. Spawnea
+-  sin fork; si el fork es imprescindible, registra que ese despacho corrio en el
+-  par del padre y no en el del alias.
+-- **La escalada se despacha por nombre, no por override.** Cuando `agent_type`
+-  nombra un agente custom, la definicion del archivo gana a `model` y
+-  `reasoning_effort` de `spawn_agent`: el override se acepta sin error y se
+-  ignora. Por eso cada rol se materializa en dos archivos, uno por estado, y
+-  escalar significa despachar `<rol>-<estado escalado>`.
+-- Modelo observado distinto del alias es **FALLO**, no una variante aceptable.
+-- `wait_agent` **no** es un wait-for-all atomico: despierta por evento o por
+-  timeout, y puede despertar sin que el conjunto esperado haya terminado.
+-- Bucle correcto: espera con bounds **largos**, procesa los eventos recibidos,
+-  retira del conjunto esperado los agentes terminales y vuelve a esperar. No
+-  re-emitas esperas cortas ni generes razonamiento nuevo cuando el estado no ha
+-  cambiado; un despertar sin cambio de estado se responde volviendo a esperar.
+-- El presupuesto de espera es tiempo, no numero de despertares. Agotarlo activa
+-  el SLA de reviewer o un STOP, no una ronda de esperas mas cortas.
+-- Un timeout de espera no demuestra fallo del worker. Respeta los bounds del
+-  host y comunica transiciones, resultados o bloqueos, no mensajes sin novedades.
+-- Tras un despertar sin cambios, no sondees a la vez mensajes, archivos, logs y
+-  estado del mismo worker. Usa el evento o el artefacto de entrega acordado; haz
+-  una comprobacion adicional solo por un indicio concreto, deadline o gate.
+-  Si el host exige actualizaciones periodicas, cumplelas brevemente sin repetir
+-  verificaciones ni convertir cada espera en un checkpoint.
+-
+ ### Hallazgos y correcciones
+ 
+ - Agrupa los hallazgos contra un **snapshot congelado** (SHA declarado) y emite
